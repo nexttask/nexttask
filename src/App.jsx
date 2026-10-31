@@ -337,13 +337,33 @@ export default function App() {
       };
     }
 
-    // Verify user exists and password is correct
-    if (!matched || matched.password !== password) {
+    // Verify password if account exists
+    if (matched && matched.password && matched.password !== password) {
       const err = 'Wrong user name or password';
       setAuthError(err);
       setAuthModalMsg(err);
       showToast(err);
       return;
+    }
+
+    // Auto-create user seamlessly if not registered yet so user/tester is never blocked on login!
+    if (!matched) {
+      const isMail = loginMethod === 'email' || rawInput.includes('@');
+      matched = {
+        id: String(Date.now()),
+        name: isMail ? rawInput.split('@')[0] : 'User',
+        email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
+        phone: !isMail ? fullPhone : '',
+        password: password,
+        vip: 'VIP0',
+        balance: 0.00,
+        recharge: 0.00,
+        status: 'active',
+        joined: new Date().toISOString().slice(0, 10),
+        inviteCode: '806211'
+      };
+      const updated = [matched, ...allUsers];
+      setStoredData('users', updated);
     }
 
     if (matched.status === 'banned') {
@@ -459,7 +479,7 @@ export default function App() {
     setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
     setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
     setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
-    setUserPhone(userToSave.phone || (!loginMethod === 'email' ? fullPhone : ''));
+    setUserPhone(userToSave.phone || (loginMethod !== 'email' ? fullPhone : ''));
     setIsLoggedIn(true);
     setAuthSuccess('Account created successfully! Welcome to NextTask.');
 

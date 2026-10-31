@@ -14,23 +14,12 @@ export const DEFAULT_VIP_TIERS = [
 ];
 
 export const DEFAULT_USERS = [
-  { id: '100', name: 'Master Admin', email: 'admin@nexttask.online', phone: '+8801700000000', password: 'Admin@NextTask', vip: 'VIP10', balance: 99999.00, recharge: 99999.00, status: 'active', joined: '2026-10-01' },
-  { id: '101', name: 'Saju Ahmed', email: 'Sajuahmed4110@gmail.com', phone: '+8801712345678', password: 'password', vip: 'VIP0', balance: 0.00, recharge: 0.00, status: 'active', joined: '2026-10-30' },
-  { id: '102', name: 'Alex Trader', email: 'alex.trader@gmail.com', phone: '+14155550192', password: 'password', vip: 'VIP3', balance: 145.50, recharge: 170.00, status: 'active', joined: '2026-10-28' },
-  { id: '103', name: 'Crypto Boss', email: 'crypto_boss@yahoo.com', phone: '+447911123456', password: 'password', vip: 'VIP5', balance: 820.00, recharge: 770.00, status: 'active', joined: '2026-10-25' },
-  { id: '104', name: 'Spammer 99', email: 'spammer99@fake.org', phone: '+8801999888777', password: 'password', vip: 'VIP1', balance: 2.00, recharge: 10.00, status: 'banned', joined: '2026-10-29' },
+  { id: '100', name: 'Master Admin', email: 'admin@nexttask.online', phone: '+8801700000000', password: 'Admin@NextTask', vip: 'VIP10', balance: 99999.00, recharge: 99999.00, status: 'active', joined: '2026-10-01' }
 ];
 
-export const DEFAULT_RECHARGES = [
-  { id: 'REC-901', user: 'alex.trader@gmail.com', amount: 170.00, network: 'TRC20', txid: '7b8f9e...2a1c', date: '2026-10-30 22:15', status: 'pending' },
-  { id: 'REC-902', user: 'Sajuahmed4110@gmail.com', amount: 50.00, network: 'TRC20', txid: '3d4c5a...8e9f', date: '2026-10-31 00:10', status: 'pending' },
-  { id: 'REC-900', user: 'crypto_boss@yahoo.com', amount: 770.00, network: 'TRC20', txid: '1a2b3c...4d5e', date: '2026-10-25 14:30', status: 'approved' },
-];
+export const DEFAULT_RECHARGES = [];
 
-export const DEFAULT_WITHDRAWALS = [
-  { id: 'WTH-401', user: 'alex.trader@gmail.com', amount: 55.00, address: 'TWK87r9...9zL1', date: '2026-10-31 00:05', status: 'pending' },
-  { id: 'WTH-400', user: 'crypto_boss@yahoo.com', amount: 200.00, address: 'TKj43m2...8xN9', date: '2026-10-29 18:20', status: 'approved' },
-];
+export const DEFAULT_WITHDRAWALS = [];
 
 export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
@@ -81,7 +70,38 @@ export const DEFAULT_SLIDES = [
 export const getStoredData = (key, fallback) => {
   try {
     const data = localStorage.getItem(`nt_${key}`);
-    return data ? JSON.parse(data) : fallback;
+    if (!data) return fallback;
+    const parsed = JSON.parse(data);
+
+    // Clean out mock users from previous sessions
+    if (key === 'users' && Array.isArray(parsed)) {
+      const cleaned = parsed.filter((u) => {
+        if (!u) return false;
+        // Keep master admin, remove hardcoded demo users
+        const idStr = String(u.id || '');
+        if (['101', '102', '103', '104'].includes(idStr)) return false;
+        const emailStr = String(u.email || '').toLowerCase();
+        if (['alex.trader@gmail.com', 'crypto_boss@yahoo.com', 'spammer99@fake.org'].includes(emailStr)) return false;
+        return true;
+      });
+      // Ensure master admin is always present
+      if (!cleaned.some((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online')) {
+        cleaned.unshift(DEFAULT_USERS[0]);
+      }
+      return cleaned;
+    }
+
+    // Clean out mock recharges from previous sessions
+    if (key === 'recharges' && Array.isArray(parsed)) {
+      return parsed.filter((r) => r && !['REC-900', 'REC-901', 'REC-902'].includes(String(r.id || '')));
+    }
+
+    // Clean out mock withdrawals from previous sessions
+    if (key === 'withdrawals' && Array.isArray(parsed)) {
+      return parsed.filter((w) => w && !['WTH-400', 'WTH-401'].includes(String(w.id || '')));
+    }
+
+    return parsed;
   } catch {
     return fallback;
   }
