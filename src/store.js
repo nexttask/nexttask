@@ -14,10 +14,10 @@ export const DEFAULT_VIP_TIERS = [
 ];
 
 export const DEFAULT_USERS = [
-  { id: '101', email: 'Sajuahmed4110@gmail.com', phone: '+8801712345678', vip: 'VIP0', balance: 0.00, recharge: 0.00, status: 'active', joined: '2026-10-30' },
-  { id: '102', email: 'alex.trader@gmail.com', phone: '+14155550192', vip: 'VIP3', balance: 145.50, recharge: 170.00, status: 'active', joined: '2026-10-28' },
-  { id: '103', email: 'crypto_boss@yahoo.com', phone: '+447911123456', vip: 'VIP5', balance: 820.00, recharge: 770.00, status: 'active', joined: '2026-10-25' },
-  { id: '104', email: 'spammer99@fake.org', phone: '+8801999888777', vip: 'VIP1', balance: 2.00, recharge: 10.00, status: 'banned', joined: '2026-10-29' },
+  { id: '101', email: 'Sajuahmed4110@gmail.com', phone: '+8801712345678', password: 'password', vip: 'VIP0', balance: 0.00, recharge: 0.00, status: 'active', joined: '2026-10-30' },
+  { id: '102', email: 'alex.trader@gmail.com', phone: '+14155550192', password: 'password', vip: 'VIP3', balance: 145.50, recharge: 170.00, status: 'active', joined: '2026-10-28' },
+  { id: '103', email: 'crypto_boss@yahoo.com', phone: '+447911123456', password: 'password', vip: 'VIP5', balance: 820.00, recharge: 770.00, status: 'active', joined: '2026-10-25' },
+  { id: '104', email: 'spammer99@fake.org', phone: '+8801999888777', password: 'password', vip: 'VIP1', balance: 2.00, recharge: 10.00, status: 'banned', joined: '2026-10-29' },
 ];
 
 export const DEFAULT_RECHARGES = [

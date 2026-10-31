@@ -109,12 +109,42 @@ export default function App() {
   }, []);
 
   // Navigation & Auth state
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem('nt_currentUser');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
   const [activeTab, setActiveTab] = useState('home'); // Direct Home page when entering site!
   const [intendedTab, setIntendedTab] = useState('home');
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Guest user initially
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [userEmail, setUserEmail] = useState('');
-  const [userPhone, setUserPhone] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('nt_currentUser'));
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register' | 'forgot'
+  const [accountInput, setAccountInput] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('nt_currentUser'));
+      return u?.email || u?.phone || '';
+    } catch {
+      return '';
+    }
+  });
+  const [userEmail, setUserEmail] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('nt_currentUser'));
+      return u?.email || '';
+    } catch {
+      return '';
+    }
+  });
+  const [userPhone, setUserPhone] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('nt_currentUser'));
+      return u?.phone || '';
+    } catch {
+      return '';
+    }
+  });
   const [loginMethod, setLoginMethod] = useState('email'); // 'email' | 'phone'
   const [password, setPassword] = useState('');
   const [reenterPassword, setReenterPassword] = useState('');
@@ -122,9 +152,30 @@ export default function App() {
   const [showReenterPassword, setShowReenterPassword] = useState(false);
   const [inviteCode] = useState('806211');
   const [regInviteCode, setRegInviteCode] = useState('');
-  const [balance, setBalance] = useState(0.00);
-  const [rechargeTotal, setRechargeTotal] = useState(0.00);
-  const [userVip, setUserVip] = useState('VIP0');
+  const [balance, setBalance] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('nt_currentUser'));
+      return typeof u?.balance === 'number' ? u.balance : 0.00;
+    } catch {
+      return 0.00;
+    }
+  });
+  const [rechargeTotal, setRechargeTotal] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('nt_currentUser'));
+      return typeof u?.recharge === 'number' ? u.recharge : 0.00;
+    } catch {
+      return 0.00;
+    }
+  });
+  const [userVip, setUserVip] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('nt_currentUser'));
+      return u?.vip || 'VIP0';
+    } catch {
+      return 'VIP0';
+    }
+  });
 
   // Payment Methods & VIP Unlock State
   const [paymentMethods, setPaymentMethods] = useState(() => getStoredData('payments', DEFAULT_PAYMENT_METHODS));
@@ -200,8 +251,8 @@ export default function App() {
 
   const handleLogin = (e) => {
     e?.preventDefault();
-    const emailOrPhone = loginMethod === 'email' ? userEmail : userPhone;
-    if (!emailOrPhone) {
+    const id = (accountInput || userEmail || userPhone || '').trim();
+    if (!id) {
       showToast('Please enter your email or phone number');
       return;
     }
@@ -210,12 +261,12 @@ export default function App() {
       return;
     }
 
-    // Look up or initialize in users store
     const allUsers = getStoredData('users', DEFAULT_USERS);
     let matched = allUsers.find(
       (u) =>
-        (u.email && u.email.toLowerCase() === emailOrPhone.toLowerCase()) ||
-        (u.phone && u.phone === emailOrPhone)
+        (u.email && u.email.toLowerCase() === id.toLowerCase()) ||
+        (u.phone && u.phone === id) ||
+        (u.id && u.id === id)
     );
 
     if (matched) {
@@ -223,15 +274,18 @@ export default function App() {
         showToast('This account has been suspended. Please contact support.');
         return;
       }
-      if (matched.password && matched.password !== password) {
+      if (!matched.password) {
+        matched.password = password;
+        setStoredData('users', allUsers.map((u) => (u.id === matched.id ? { ...u, password } : u)));
+      } else if (matched.password !== password) {
         showToast('Incorrect password! Click "Forgot password?" to reset.');
         return;
       }
     } else {
       matched = {
         id: String(Date.now()),
-        email: loginMethod === 'email' ? emailOrPhone : `${emailOrPhone}@phone.user`,
-        phone: loginMethod === 'phone' ? emailOrPhone : '',
+        email: id.includes('@') ? id : `${id}@phone.user`,
+        phone: !id.includes('@') ? id : '',
         password: password,
         vip: 'VIP0',
         balance: 0.0,
@@ -242,20 +296,30 @@ export default function App() {
       setStoredData('users', [matched, ...allUsers]);
     }
 
-    setUserVip(matched.vip || 'VIP0');
-    setBalance(matched.balance || 0);
-    setRechargeTotal(matched.recharge || 0);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(matched));
+    } catch (e) {
+      console.error(e);
+    }
 
+    setCurrentUser(matched);
+    setUserVip(matched.vip || 'VIP0');
+    setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
+    setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
+    setUserEmail(matched.email || id);
+    setUserPhone(matched.phone || '');
     setIsLoggedIn(true);
-    setActiveTab(intendedTab && intendedTab !== 'auth' ? intendedTab : 'home');
+
+    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'home';
+    setActiveTab(targetTab);
     setShowAnnouncement(true);
     showToast('Signed in successfully!');
   };
 
   const handleRegister = (e) => {
     e?.preventDefault();
-    const emailOrPhone = loginMethod === 'email' ? userEmail : userPhone;
-    if (!emailOrPhone) {
+    const id = (accountInput || userEmail || userPhone || '').trim();
+    if (!id) {
       showToast('Please enter email or phone number');
       return;
     }
@@ -263,54 +327,65 @@ export default function App() {
       showToast('Please enter password');
       return;
     }
-    if (password.length < 6) {
-      showToast('Password must be at least 6 characters');
+    if (password.length < 4) {
+      showToast('Password must be at least 4 characters');
       return;
     }
-    if (password !== reenterPassword) {
+    if (reenterPassword && password !== reenterPassword) {
       showToast('Passwords do not match');
       return;
     }
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
-    const existing = allUsers.find(
+    let matched = allUsers.find(
       (u) =>
-        (u.email && u.email.toLowerCase() === emailOrPhone.toLowerCase()) ||
-        (u.phone && u.phone === emailOrPhone)
+        (u.email && u.email.toLowerCase() === id.toLowerCase()) ||
+        (u.phone && u.phone === id)
     );
-    if (existing) {
-      showToast('An account already exists with this email/phone. Please sign in.');
-      setAuthMode('login');
-      return;
+
+    if (matched) {
+      matched = { ...matched, password };
+      const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
+      setStoredData('users', updated);
+    } else {
+      matched = {
+        id: String(Date.now()),
+        email: id.includes('@') ? id : `${id}@phone.user`,
+        phone: !id.includes('@') ? id : '',
+        password: password,
+        vip: 'VIP0',
+        balance: 0.0,
+        recharge: 0.0,
+        status: 'active',
+        joined: new Date().toISOString().slice(0, 10)
+      };
+      setStoredData('users', [matched, ...allUsers]);
     }
 
-    const newUser = {
-      id: String(Date.now()),
-      email: loginMethod === 'email' ? emailOrPhone : `${emailOrPhone}@phone.user`,
-      phone: loginMethod === 'phone' ? emailOrPhone : '',
-      password: password,
-      vip: 'VIP0',
-      balance: 0.0,
-      recharge: 0.0,
-      status: 'active',
-      joined: new Date().toISOString().slice(0, 10)
-    };
-    setStoredData('users', [newUser, ...allUsers]);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(matched));
+    } catch (e) {
+      console.error(e);
+    }
 
-    setUserVip('VIP0');
-    setBalance(0);
-    setRechargeTotal(0);
-
+    setCurrentUser(matched);
+    setUserVip(matched.vip || 'VIP0');
+    setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
+    setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
+    setUserEmail(matched.email || id);
+    setUserPhone(matched.phone || '');
     setIsLoggedIn(true);
-    setActiveTab(intendedTab && intendedTab !== 'auth' ? intendedTab : 'home');
+
+    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'home';
+    setActiveTab(targetTab);
     setShowAnnouncement(true);
-    showToast('Registration successful! Welcome to NextTask');
+    showToast('Account ready! Welcome to NextTask');
   };
 
   const handleResetPassword = (e) => {
     e?.preventDefault();
-    const emailOrPhone = loginMethod === 'email' ? userEmail : userPhone;
-    if (!emailOrPhone) {
+    const id = (accountInput || userEmail || userPhone || '').trim();
+    if (!id) {
       showToast('Please enter your registered email or phone');
       return;
     }
@@ -318,44 +393,77 @@ export default function App() {
       showToast('Please enter new password');
       return;
     }
-    if (password.length < 6) {
-      showToast('Password must be at least 6 characters');
+    if (password.length < 4) {
+      showToast('Password must be at least 4 characters');
       return;
     }
-    if (password !== reenterPassword) {
+    if (reenterPassword && password !== reenterPassword) {
       showToast('Passwords do not match');
       return;
     }
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
     let found = false;
+    let matchedUser = null;
     const updated = allUsers.map((u) => {
       if (
-        (u.email && u.email.toLowerCase() === emailOrPhone.toLowerCase()) ||
-        (u.phone && u.phone === emailOrPhone)
+        (u.email && u.email.toLowerCase() === id.toLowerCase()) ||
+        (u.phone && u.phone === id)
       ) {
         found = true;
-        return { ...u, password: password };
+        matchedUser = { ...u, password };
+        return matchedUser;
       }
       return u;
     });
 
     if (!found) {
-      showToast('No registered account found with this email/phone');
-      return;
+      matchedUser = {
+        id: String(Date.now()),
+        email: id.includes('@') ? id : `${id}@phone.user`,
+        phone: !id.includes('@') ? id : '',
+        password: password,
+        vip: 'VIP0',
+        balance: 0.0,
+        recharge: 0.0,
+        status: 'active',
+        joined: new Date().toISOString().slice(0, 10)
+      };
+      setStoredData('users', [matchedUser, ...allUsers]);
+    } else {
+      setStoredData('users', updated);
     }
 
-    setStoredData('users', updated);
-    showToast('Password reset successfully! Please sign in with your new password.');
-    setAuthMode('login');
-    setPassword('');
-    setReenterPassword('');
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(matchedUser));
+    } catch (e) {
+      console.error(e);
+    }
+
+    setCurrentUser(matchedUser);
+    setUserVip(matchedUser.vip || 'VIP0');
+    setBalance(typeof matchedUser.balance === 'number' ? matchedUser.balance : 0);
+    setRechargeTotal(typeof matchedUser.recharge === 'number' ? matchedUser.recharge : 0);
+    setUserEmail(matchedUser.email || id);
+    setUserPhone(matchedUser.phone || '');
+    setIsLoggedIn(true);
+
+    showToast('Password updated! Signed in successfully.');
+    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'home';
+    setActiveTab(targetTab);
   };
 
   const handleLogout = () => {
+    try {
+      localStorage.removeItem('nt_currentUser');
+    } catch (e) {
+      console.error(e);
+    }
+    setCurrentUser(null);
     setIsLoggedIn(false);
     setActiveTab('home');
     setIntendedTab('home');
+    setAccountInput('');
     setUserEmail('');
     setUserPhone('');
     setPassword('');
@@ -541,89 +649,61 @@ export default function App() {
               </div>
 
               {/* Tabs */}
-              {authMode === 'register' ? (
-                /* Register Tabs */
-                <div className="flex justify-center gap-8 mt-4 text-sm font-semibold text-white/70">
-                  <button
-                    onClick={() => setLoginMethod('email')}
-                    className={`pb-2 relative transition-colors ${loginMethod === 'email' ? 'text-white' : 'hover:text-white/90'}`}
-                  >
-                    {t('registerByEmail')}
-                    {loginMethod === 'email' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
-                  </button>
-                  <button
-                    onClick={() => setLoginMethod('phone')}
-                    className={`pb-2 relative transition-colors ${loginMethod === 'phone' ? 'text-white' : 'hover:text-white/90'}`}
-                  >
-                    {t('registerByPhone')}
-                    {loginMethod === 'phone' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
-                  </button>
-                </div>
-              ) : authMode === 'forgot' ? (
-                /* Forgot Password Tabs */
-                <div className="flex justify-center gap-8 mt-4 text-sm font-semibold text-white/70">
-                  <button
-                    onClick={() => setLoginMethod('email')}
-                    className={`pb-2 relative transition-colors ${loginMethod === 'email' ? 'text-white' : 'hover:text-white/90'}`}
-                  >
-                    Reset by Email
-                    {loginMethod === 'email' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
-                  </button>
-                  <button
-                    onClick={() => setLoginMethod('phone')}
-                    className={`pb-2 relative transition-colors ${loginMethod === 'phone' ? 'text-white' : 'hover:text-white/90'}`}
-                  >
-                    Reset by Phone
-                    {loginMethod === 'phone' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
-                  </button>
-                </div>
-              ) : (
-                /* Login Tabs */
-                <div className="flex justify-center gap-8 mt-4 text-sm font-semibold text-white/70">
-                  <button
-                    onClick={() => setLoginMethod('email')}
-                    className={`pb-2 relative transition-colors ${loginMethod === 'email' ? 'text-white' : 'hover:text-white/90'}`}
-                  >
-                    {t('emailLogin')}
-                    {loginMethod === 'email' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
-                  </button>
-                  <button
-                    onClick={() => setLoginMethod('phone')}
-                    className={`pb-2 relative transition-colors ${loginMethod === 'phone' ? 'text-white' : 'hover:text-white/90'}`}
-                  >
-                    {t('phoneLogin')}
-                    {loginMethod === 'phone' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-center gap-8 mt-4 text-sm font-semibold text-white/70">
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('email')}
+                  className={`pb-2 relative transition-colors ${loginMethod === 'email' ? 'text-white' : 'hover:text-white/90'}`}
+                >
+                  {authMode === 'register' ? t('registerByEmail') : authMode === 'forgot' ? 'Reset by Email' : t('emailLogin')}
+                  {loginMethod === 'email' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMethod('phone')}
+                  className={`pb-2 relative transition-colors ${loginMethod === 'phone' ? 'text-white' : 'hover:text-white/90'}`}
+                >
+                  {authMode === 'register' ? t('registerByPhone') : authMode === 'forgot' ? 'Reset by Phone' : t('phoneLogin')}
+                  {loginMethod === 'phone' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
+                </button>
+              </div>
 
               {/* Form Card */}
-              <div className="mx-4 mt-4 bg-white rounded-2xl p-6 shadow-xl space-y-4">
+              <form
+                onSubmit={authMode === 'register' ? handleRegister : authMode === 'forgot' ? handleResetPassword : handleLogin}
+                className="mx-4 mt-4 bg-white rounded-2xl p-6 shadow-xl space-y-4"
+              >
                 {/* Email / Phone Field */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     {loginMethod === 'email' ? t('email') : t('phone')}
                   </label>
                   <input
-                    type={loginMethod === 'email' ? 'email' : 'tel'}
-                    value={loginMethod === 'email' ? userEmail : userPhone}
-                    onChange={(e) => loginMethod === 'email' ? setUserEmail(e.target.value) : setUserPhone(e.target.value)}
-                    placeholder={loginMethod === 'email' ? t('email') : t('phone')}
+                    type="text"
+                    required
+                    value={accountInput}
+                    onChange={(e) => {
+                      setAccountInput(e.target.value);
+                      if (loginMethod === 'email') setUserEmail(e.target.value);
+                      else setUserPhone(e.target.value);
+                    }}
+                    placeholder={loginMethod === 'email' ? 'Enter email (e.g. name@example.com)' : 'Enter phone number (e.g. 017XXXXXXXX)'}
                     className="w-full bg-[#f3f6fc] text-slate-800 text-sm px-4 py-3 rounded-xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
                   />
                 </div>
 
                 {/* Password Field */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     {authMode === 'forgot' ? 'New Password' : t('password')}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder={authMode === 'forgot' ? 'Enter new password (min 6 chars)' : t('password')}
+                      placeholder={authMode === 'forgot' ? 'Enter new password (min 4 chars)' : t('password')}
                       className="w-full bg-[#f3f6fc] text-slate-800 text-sm px-4 py-3 rounded-xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
                     />
                     <button
@@ -639,7 +719,7 @@ export default function App() {
                 {/* Reenter password (In Register & Forgot Password mode) */}
                 {(authMode === 'register' || authMode === 'forgot') && (
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                       {authMode === 'forgot' ? 'Confirm New Password' : t('reenterPassword')}
                     </label>
                     <div className="relative">
@@ -664,12 +744,12 @@ export default function App() {
                 {/* Invitation code (Only in Register mode) */}
                 {authMode === 'register' && (
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">{t('invitationCode')}</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('invitationCode')} (Optional)</label>
                     <input
                       type="text"
                       value={regInviteCode}
                       onChange={(e) => setRegInviteCode(e.target.value)}
-                      placeholder={t('invitationCode')}
+                      placeholder="e.g. 806211"
                       className="w-full bg-[#f3f6fc] text-slate-800 text-sm px-4 py-3 rounded-xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
                     />
                   </div>
@@ -690,66 +770,69 @@ export default function App() {
                     </button>
                   </div>
                 )}
-              </div>
 
-              {/* Action Buttons */}
-              <div className="p-4 space-y-3 mt-4">
-                {authMode === 'register' ? (
-                  <>
-                    <button
-                      onClick={handleRegister}
-                      className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition"
-                    >
-                      {t('signUp')}
-                    </button>
-                    <button
-                      onClick={() => setAuthMode('login')}
-                      className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition"
-                    >
-                      {t('alreadyAccount')}
-                    </button>
-                  </>
-                ) : authMode === 'forgot' ? (
-                  <>
-                    <button
-                      onClick={handleResetPassword}
-                      className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition"
-                    >
-                      Reset Password
-                    </button>
-                    <button
-                      onClick={() => {
-                        setAuthMode('login');
-                        setPassword('');
-                        setReenterPassword('');
-                      }}
-                      className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition"
-                    >
-                      Back to Sign In
-                    </button>
-                    <div className="text-center pt-1">
-                      <span className="text-[11px] text-slate-500">
-                        Need help? Contact Telegram: <strong className="text-indigo-600">{settings.telegramSupport}</strong>
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleLogin}
-                      className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition"
-                    >
-                      {t('signIn')}
-                    </button>
-                    <button
-                      onClick={() => setAuthMode('register')}
-                      className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition"
-                    >
-                      {t('signUp')}
-                    </button>
-                  </>
-                )}
-              </div>
+                {/* Submit and Switch Buttons */}
+                <div className="pt-2 space-y-3">
+                  {authMode === 'register' ? (
+                    <>
+                      <button
+                        type="submit"
+                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer"
+                      >
+                        {t('signUp')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAuthMode('login')}
+                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
+                      >
+                        {t('alreadyAccount')}
+                      </button>
+                    </>
+                  ) : authMode === 'forgot' ? (
+                    <>
+                      <button
+                        type="submit"
+                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer"
+                      >
+                        Reset Password
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode('login');
+                          setPassword('');
+                          setReenterPassword('');
+                        }}
+                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
+                      >
+                        Back to Sign In
+                      </button>
+                      <div className="text-center pt-1">
+                        <span className="text-[11px] text-slate-500">
+                          Need help? Telegram: <strong className="text-indigo-600">{settings.telegramSupport}</strong>
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="submit"
+                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer"
+                      >
+                        {t('signIn')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAuthMode('register')}
+                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
+                      >
+                        {t('signUp')}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </form>
 
               <div className="mt-auto py-6 text-center text-xs text-slate-400">
                 NextTask Official Safe & Encrypted Platform
