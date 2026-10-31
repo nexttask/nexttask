@@ -121,6 +121,8 @@ export default function App() {
   const [intendedTab, setIntendedTab] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('nt_currentUser'));
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register' | 'forgot'
+  const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
   const [accountInput, setAccountInput] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('nt_currentUser'));
@@ -251,13 +253,20 @@ export default function App() {
 
   const handleLogin = (e) => {
     e?.preventDefault();
+    setAuthError('');
+    setAuthSuccess('');
+
     const id = (accountInput || userEmail || userPhone || '').trim();
     if (!id) {
-      showToast('Please enter your email or phone number');
+      const err = 'Please enter your email or phone number';
+      setAuthError(err);
+      showToast(err);
       return;
     }
     if (!password) {
-      showToast('Please enter password');
+      const err = 'Please enter password';
+      setAuthError(err);
+      showToast(err);
       return;
     }
 
@@ -271,17 +280,22 @@ export default function App() {
 
     if (matched) {
       if (matched.status === 'banned') {
-        showToast('This account has been suspended. Please contact support.');
+        const err = 'This account has been suspended. Please contact support.';
+        setAuthError(err);
+        showToast(err);
         return;
       }
       if (!matched.password) {
         matched.password = password;
         setStoredData('users', allUsers.map((u) => (u.id === matched.id ? { ...u, password } : u)));
       } else if (matched.password !== password) {
-        showToast('Incorrect password! Click "Forgot password?" to reset.');
+        const err = 'Incorrect password! Click "Forgot password?" to reset.';
+        setAuthError(err);
+        showToast(err);
         return;
       }
     } else {
+      // Auto-register smoothly if not registered yet!
       matched = {
         id: String(Date.now()),
         email: id.includes('@') ? id : `${id}@phone.user`,
@@ -309,30 +323,41 @@ export default function App() {
     setUserEmail(matched.email || id);
     setUserPhone(matched.phone || '');
     setIsLoggedIn(true);
+    setAuthSuccess('Signed in successfully! Redirecting...');
 
-    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'home';
+    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
     setActiveTab(targetTab);
-    setShowAnnouncement(true);
     showToast('Signed in successfully!');
   };
 
   const handleRegister = (e) => {
     e?.preventDefault();
+    setAuthError('');
+    setAuthSuccess('');
+
     const id = (accountInput || userEmail || userPhone || '').trim();
     if (!id) {
-      showToast('Please enter email or phone number');
+      const err = 'Please enter email or phone number';
+      setAuthError(err);
+      showToast(err);
       return;
     }
     if (!password) {
-      showToast('Please enter password');
+      const err = 'Please enter password';
+      setAuthError(err);
+      showToast(err);
       return;
     }
     if (password.length < 4) {
-      showToast('Password must be at least 4 characters');
+      const err = 'Password must be at least 4 characters';
+      setAuthError(err);
+      showToast(err);
       return;
     }
     if (reenterPassword && password !== reenterPassword) {
-      showToast('Passwords do not match');
+      const err = 'Passwords do not match';
+      setAuthError(err);
+      showToast(err);
       return;
     }
 
@@ -375,10 +400,10 @@ export default function App() {
     setUserEmail(matched.email || id);
     setUserPhone(matched.phone || '');
     setIsLoggedIn(true);
+    setAuthSuccess('Account created successfully! Welcome to NextTask.');
 
-    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'home';
+    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
     setActiveTab(targetTab);
-    setShowAnnouncement(true);
     showToast('Account ready! Welcome to NextTask');
   };
 
@@ -673,6 +698,29 @@ export default function App() {
                 onSubmit={authMode === 'register' ? handleRegister : authMode === 'forgot' ? handleResetPassword : handleLogin}
                 className="mx-4 mt-4 bg-white rounded-2xl p-6 shadow-xl space-y-4"
               >
+                {/* Form Heading */}
+                <div className="text-center pb-1">
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {authMode === 'register' ? 'Create NextTask Account' : authMode === 'forgot' ? 'Reset Password' : 'Sign In to NextTask'}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {authMode === 'register' ? 'Fast & secure registration' : authMode === 'forgot' ? 'Set your new password' : 'Enter your email or phone to proceed'}
+                  </p>
+                </div>
+
+                {authError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 animate-fade-in">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                    <span>{authError}</span>
+                  </div>
+                )}
+                {authSuccess && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-700 animate-fade-in">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                    <span>{authSuccess}</span>
+                  </div>
+                )}
+
                 {/* Email / Phone Field */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -855,6 +903,27 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {!isLoggedIn ? (
+                      <button
+                        onClick={() => {
+                          setIntendedTab('me');
+                          setActiveTab('auth');
+                          setAuthMode('login');
+                        }}
+                        className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md active:scale-95 transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        <span>Sign In</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setActiveTab('me')}
+                        className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span className="max-w-[70px] truncate">{currentUser?.email || currentUser?.phone || 'Account'}</span>
+                      </button>
+                    )}
                     <button onClick={() => setShowAnnouncement(true)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
                       <Mail className="w-4 h-4 text-slate-200" />
                     </button>
