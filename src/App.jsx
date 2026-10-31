@@ -476,9 +476,29 @@ export default function App() {
 
   // Notifications & User Mailbox State
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [selectedNotificationDetail, setSelectedNotificationDetail] = useState(null);
   const [notifications, setNotifications] = useState(() => getStoredData('notifications', []));
+  const userReadStorageKey = currentUser?.id ? 'read_notifs_' + currentUser.id : 'read_notifs_guest';
+  const [readNotifIds, setReadNotifIds] = useState(() => getStoredData(userReadStorageKey, []));
 
-  // Load and filter notifications for current user
+  useEffect(() => {
+    const key = currentUser?.id ? 'read_notifs_' + currentUser.id : 'read_notifs_guest';
+    setReadNotifIds(getStoredData(key, []));
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    const handleNotifUpdate = () => {
+      setNotifications(getStoredData('notifications', []));
+    };
+    window.addEventListener('nt_notification_update', handleNotifUpdate);
+    window.addEventListener('storage', handleNotifUpdate);
+    return () => {
+      window.removeEventListener('nt_notification_update', handleNotifUpdate);
+      window.removeEventListener('storage', handleNotifUpdate);
+    };
+  }, []);
+
+  // Load and filter notifications for current user with guaranteed persistent read state
   const getUserNotifications = () => {
     if (!currentUser) return [];
     const allNotifs = getStoredData('notifications', []);
@@ -498,10 +518,11 @@ export default function App() {
       return false;
     });
 
-    if (userSpecific.length === 0) {
-      return [
+    let list = userSpecific;
+    if (list.length === 0) {
+      list = [
         {
-          id: 'welcome_1',
+          id: 'welcome_' + (uid || 'user'),
           userId: uid || 'all',
           title: 'Welcome to NextTask!',
           message: 'Welcome to NextTask! Complete daily tasks, upgrade VIP tiers, and grow your team to earn daily profits.',
@@ -511,818 +532,66 @@ export default function App() {
         }
       ];
     }
-    return userSpecific;
+
+    return list.map((n) => ({
+      ...n,
+      read: Boolean(n.read || readNotifIds.includes(n.id))
+    }));
   };
 
   const userNotifications = getUserNotifications();
-  const unreadCount = userNotifications.filter((n) => !n.read).length;
+  const unreadCount = currentUser ? userNotifications.filter((n) => !n.read).length : 0;
 
   const handleMarkAsRead = (notifId) => {
+    if (!notifId) return;
+    const key = currentUser?.id ? 'read_notifs_' + currentUser.id : 'read_notifs_guest';
+    const currentRead = getStoredData(key, []);
+    const updatedRead = currentRead.includes(notifId) ? currentRead : [...currentRead, notifId];
+    setStoredData(key, updatedRead);
+    setReadNotifIds(updatedRead);
+
     const allNotifs = getStoredData('notifications', []);
-    const updated = allNotifs.map((n) => (n.id === notifId ? { ...n, read: true } : n));
-    setStoredData('notifications', updated);
-    setNotifications(updated);
+    let found = false;
+    const updated = allNotifs.map((n) => {
+      if (n.id === notifId) {
+        found = true;
+        return { ...n, read: true };
+      }
+      return n;
+    });
+
+    if (found) {
+      setStoredData('notifications', updated);
+      setNotifications(updated);
+    } else {
+      setNotifications([...allNotifs]);
+    }
   };
 
   const handleMarkAllAsRead = () => {
-    const allNotifs = getStoredData('notifications', []);
-    const uid = String(currentUser?.id || '');
-    const email = String(currentUser?.email || '').toLowerCase();
-    const phone = String(currentUser?.phone || '');
+    const allMyIds = userNotifications.map((n) => n.id);
+    const key = currentUser?.id ? 'read_notifs_' + currentUser.id : 'read_notifs_guest';
+    const currentRead = getStoredData(key, []);
+    const updatedRead = Array.from(new Set([...currentRead, ...allMyIds]));
+    setStoredData(key, updatedRead);
+    setReadNotifIds(updatedRead);
 
+    const allNotifs = getStoredData('notifications', []);
     const updated = allNotifs.map((n) => {
-      const target = String(n.userId || '').toLowerCase();
-      const isMine = target === 'all' || target === uid.toLowerCase() || target === email || target === phone.toLowerCase();
-      return isMine ? { ...n, read: true } : n;
+      if (allMyIds.includes(n.id)) {
+        return { ...n, read: true };
+      }
+      return n;
     });
     setStoredData('notifications', updated);
     setNotifications(updated);
-    showToast('All notifications marked as read');
   };
 
-  // Modals & Popups
-  const [showAnnouncement, setShowAnnouncement] = useState(false);
-  const [showRechargeModal, setShowRechargeModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [showRecordsModal, setShowRecordsModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [showUpgradeLogModal, setShowUpgradeLogModal] = useState(false);
-  const [showCompanyProfileModal, setShowCompanyProfileModal] = useState(false);
-  const [showAppModal, setShowAppModal] = useState(false);
-  const [showLangModal, setShowLangModal] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-
-  // Language & Translation State
-  const [lang, setLang] = useState(() => localStorage.getItem('nt_lang') || 'en');
-
-  const t = (key) => TRANSLATIONS[lang]?.[key] || TRANSLATIONS['en']?.[key] || key;
-  const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
-
-  const handleSelectLang = (code) => {
-    setLang(code);
-    localStorage.setItem('nt_lang', code);
-    setShowLangModal(false);
-    showToast(`Language: ${LANGUAGES.find((l) => l.code === code)?.name}`);
+  const handleNotificationClick = (notif) => {
+    handleMarkAsRead(notif.id);
+    setSelectedNotificationDetail(notif);
   };
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 2500);
-  };
-
-  const copyToClipboard = (text, label) => {
-    navigator.clipboard?.writeText(text);
-    showToast(`${label} copied!`);
-  };
-
-  const navigateToTab = (tabId, mode = null, replace = false) => {
-    let targetPath = '/';
-    if (tabId === 'task') targetPath = '/task';
-    else if (tabId === 'team') targetPath = '/team';
-    else if (tabId === 'vip') targetPath = '/vip';
-    else if (tabId === 'me') targetPath = '/me';
-    else if (tabId === 'home') targetPath = '/';
-    else if (tabId === 'auth') {
-      const activeMode = mode || authMode;
-      const inviteCode = regInviteCode || getInviteCodeFromUrl();
-      if (activeMode === 'register' && inviteCode) {
-        targetPath = `/register?i=${encodeURIComponent(inviteCode)}`;
-      } else {
-        targetPath = activeMode === 'register' ? '/register' : '/login';
-      }
-    }
-
-    try {
-      const currentFull = (window.location.pathname || '') + (window.location.search || '');
-      if (currentFull !== targetPath) {
-        if (replace) {
-          window.history.replaceState({ tab: tabId, authMode: mode || authMode }, '', targetPath);
-        } else {
-          window.history.pushState({ tab: tabId, authMode: mode || authMode }, '', targetPath);
-        }
-      }
-    } catch (err) {
-      console.warn('Navigation state error:', err);
-    }
-
-    setActiveTab(tabId);
-    if (mode) setAuthMode(mode);
-  };
-
-  const requireAuth = (targetTab, actionDesc) => {
-    if (!isLoggedIn) {
-      setIntendedTab(targetTab);
-      navigateToTab('auth', 'login');
-      showToast(actionDesc ? `Please sign in to ${actionDesc}` : 'Please sign in or register');
-      return false;
-    }
-    return true;
-  };
-
-  const handleTabClick = (tabId) => {
-    if (tabId === 'home') {
-      navigateToTab('home');
-      return;
-    }
-    if (!isLoggedIn) {
-      setIntendedTab(tabId);
-      navigateToTab('auth', 'login');
-      showToast(`Please sign in or register to open ${tabId.toUpperCase()}`);
-      return;
-    }
-    navigateToTab(tabId);
-  };
-
-  // Dynamic referral & VIP Level synchronization
-  useEffect(() => {
-    if (!currentUser) return;
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    const myCode = String(currentUser.myInviteCode || currentUser.inviteCode || '');
-    const myId = String(currentUser.id || '');
-    if (!myCode && !myId) return;
-
-    const directRefs = allUsers.filter(u => isReferredByUser(u, currentUser));
-    const earnedVip = getVipLevelFromReferrals(directRefs.length, currentUser.vip || 'VIP0');
-
-    if (earnedVip !== userVip) {
-      setUserVip(earnedVip);
-      const updatedUser = { ...currentUser, vip: earnedVip };
-      setCurrentUser(updatedUser);
-      try {
-        localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
-      } catch (e) {
-        console.error(e);
-      }
-      const updatedList = allUsers.map(u => u.id === currentUser.id ? { ...u, vip: earnedVip } : u);
-      setStoredData('users', updatedList);
-    }
-  }, [activeTab, currentUser]);
-
-  const handleOpenProfileModal = (tab = 'personal') => {
-    if (!currentUser) return;
-    setProfileTab(tab);
-    setProfileName(currentUser.name || '');
-    setProfilePhone(currentUser.phone || '');
-    setProfileDob(currentUser.dob || '');
-    setProfileBkash(currentUser.withdrawalAccounts?.bkash || '');
-    setProfileNagad(currentUser.withdrawalAccounts?.nagad || '');
-    setProfileRocket(currentUser.withdrawalAccounts?.rocket || '');
-    setProfileTrc20(currentUser.withdrawalAccounts?.trc20 || '');
-    setProfileBankName(currentUser.withdrawalAccounts?.bankName || '');
-    setProfileBankAccount(currentUser.withdrawalAccounts?.bankAccount || '');
-    setProfileBankHolder(currentUser.withdrawalAccounts?.bankHolder || '');
-    setShowProfileModal(true);
-  };
-
-  const handleSaveProfile = () => {
-    if (!currentUser) return;
-    const updatedUser = {
-      ...currentUser,
-      name: profileName.trim() || currentUser.name || 'User',
-      phone: profilePhone.trim() || currentUser.phone || '',
-      dob: profileDob.trim(),
-      withdrawalAccounts: {
-        bkash: profileBkash.trim(),
-        nagad: profileNagad.trim(),
-        rocket: profileRocket.trim(),
-        trc20: profileTrc20.trim(),
-        bankName: profileBankName.trim(),
-        bankAccount: profileBankAccount.trim(),
-        bankHolder: profileBankHolder.trim(),
-      }
-    };
-    setCurrentUser(updatedUser);
-    setUserPhone(updatedUser.phone);
-    try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
-    } catch (e) {
-      console.error(e);
-    }
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
-    setStoredData('users', updatedUsers);
-    setShowProfileModal(false);
-    showToast('Profile & Withdrawal accounts saved!');
-  };
-
-  // Withdraw Handler
-  const handleWithdrawSubmit = (e) => {
-    e?.preventDefault();
-    if (!requireAuth('me', 'withdraw')) return;
-
-    const num = parseFloat(withdrawAmount);
-    if (!num || num <= 0) {
-      showToast('Please enter a valid withdrawal amount');
-      return;
-    }
-    if (num > balance) {
-      showToast('Insufficient balance!');
-      return;
-    }
-    const minWth = Math.max(10.0, parseFloat(settings?.minWithdrawal) || 10.0);
-    if (num < minWth) {
-      showToast(`Minimum withdrawal is ${minWth.toFixed(2)} USDT`);
-      return;
-    }
-
-    // Determine target account number / address
-    const savedAcc = currentUser?.withdrawalAccounts?.[withdrawMethod.toLowerCase()] ||
-                     (withdrawMethod === 'Bank Transfer' ? currentUser?.withdrawalAccounts?.bankAccount : '') ||
-                     (withdrawMethod === 'USDT (TRC20)' ? currentUser?.withdrawalAccounts?.trc20 : '');
-    const finalAccount = (withdrawAccountInput || savedAcc || '').trim();
-
-    if (!finalAccount) {
-      showToast(`Please enter your ${withdrawMethod} account number/address`);
-      return;
-    }
-
-    // Auto-save account to profile if it wasn't saved yet
-    let updatedUser = { ...currentUser };
-    const fieldMap = {
-      'bKash': 'bkash',
-      'Nagad': 'nagad',
-      'Rocket': 'rocket',
-      'USDT (TRC20)': 'trc20',
-      'Bank Transfer': 'bankAccount'
-    };
-    const accKey = fieldMap[withdrawMethod] || 'bkash';
-    if (!savedAcc) {
-      updatedUser = {
-        ...currentUser,
-        withdrawalAccounts: {
-          ...(currentUser.withdrawalAccounts || {}),
-          [accKey]: finalAccount
-        }
-      };
-      setCurrentUser(updatedUser);
-    }
-
-    // Deduct balance
-    const newBal = parseFloat((balance - num).toFixed(2));
-    setBalance(newBal);
-    updatedUser.balance = newBal;
-    setCurrentUser(updatedUser);
-    try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
-    } catch (e) {
-      console.error(e);
-    }
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
-
-    // Save real withdrawal record
-    const currentWithdrawals = getStoredData('withdrawals', DEFAULT_WITHDRAWALS);
-    const newWth = {
-      id: `WTH-${Math.floor(100 + Math.random() * 900)}`,
-      userId: currentUser?.id,
-      user: currentUser?.name || currentUser?.email || currentUser?.phone || 'User',
-      userEmail: currentUser?.email || '',
-      userPhone: currentUser?.phone || '',
-      amount: num,
-      method: withdrawMethod,
-      account: finalAccount,
-      address: finalAccount,
-      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      status: 'pending'
-    };
-    setStoredData('withdrawals', [newWth, ...currentWithdrawals]);
-
-    setShowWithdrawModal(false);
-    setWithdrawAmount('');
-    setWithdrawAccountInput('');
-    showToast(`Withdrawal of $${num.toFixed(2)} submitted successfully!`);
-  };
-
-  // Complete Task Handler (Runs one task at a time with verification countdown)
-  const handleCompleteTask = (taskIndex, reward) => {
-    if (!requireAuth('task', 'complete task')) return;
-    if (taskProcessingIdx !== null) return;
-    if (completedTaskIndices.includes(taskIndex)) return;
-
-    // ONLY users who bought/unlocked a VIP package (VIP1-VIP10) can complete tasks
-    if (!userVip || userVip === 'VIP0') {
-      showToast('Please purchase a VIP package from the VIP tab to unlock daily tasks!');
-      navigateToTab('vip');
-      return;
-    }
-
-    setTaskProcessingIdx(taskIndex);
-    const durationSec = 5;
-    setTaskCountdown(durationSec);
-
-    let remaining = durationSec;
-    if (taskTimerRef.current) clearInterval(taskTimerRef.current);
-    taskTimerRef.current = setInterval(() => {
-      remaining -= 1;
-      if (remaining > 0) {
-        setTaskCountdown(remaining);
-      } else {
-        clearInterval(taskTimerRef.current);
-        taskTimerRef.current = null;
-        setTaskCountdown(0);
-
-        setCompletedTaskIndices((prev) => {
-          const nextCompleted = prev.includes(taskIndex) ? prev : [...prev, taskIndex];
-          try {
-            localStorage.setItem(todayTasksKey, JSON.stringify(nextCompleted));
-          } catch (e) {
-            console.error(e);
-          }
-          return nextCompleted;
-        });
-
-        // Add balance
-        setBalance((prevBal) => {
-          const newBal = parseFloat((prevBal + reward).toFixed(2));
-          if (currentUser) {
-            const updated = { ...currentUser, balance: newBal };
-            setCurrentUser(updated);
-            try {
-              localStorage.setItem('nt_currentUser', JSON.stringify(updated));
-            } catch (e) {
-              console.error(e);
-            }
-            const allUsers = getStoredData('users', DEFAULT_USERS);
-            setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
-          }
-          return newBal;
-        });
-
-        setTaskProcessingIdx(null);
-        showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
-      }
-    }, 1000);
-  };
-
-  const handleChangePasswordSubmit = (e) => {
-    e?.preventDefault();
-    setChangePassError('');
-
-    if (!currentUser) {
-      showToast('Please sign in first');
-      return;
-    }
-
-    if (!oldPasswordInput) {
-      setChangePassError('Please enter your old password');
-      return;
-    }
-
-    if (oldPasswordInput !== currentUser.password) {
-      setChangePassError('Current password is incorrect');
-      return;
-    }
-
-    if (!newPasswordInput || newPasswordInput.trim().length < 6) {
-      setChangePassError('New password must be at least 6 characters long');
-      return;
-    }
-
-    if (newPasswordInput !== confirmNewPasswordInput) {
-      setChangePassError('New passwords do not match');
-      return;
-    }
-
-    const updatedUser = {
-      ...currentUser,
-      password: newPasswordInput.trim()
-    };
-    setCurrentUser(updatedUser);
-    try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
-    } catch (err) {
-      console.error(err);
-    }
-
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    const updatedUsers = allUsers.map((u) => (u.id === currentUser.id ? updatedUser : u));
-    setStoredData('users', updatedUsers);
-
-    setShowPasswordModal(false);
-    setOldPasswordInput('');
-    setNewPasswordInput('');
-    setConfirmNewPasswordInput('');
-    setChangePassError('');
-    showToast('Password changed successfully!');
-  };
-
-  // Helper to match user flexibly by email, username, phone, UID, or invitation code
-  const matchAccount = (u, id) => {
-    if (!id || !u) return false;
-    const cleanId = String(id).trim().toLowerCase();
-    if (!cleanId) return false;
-
-    // 1. Email match (case-insensitive & trimmed)
-    if (u.email && u.email.trim().toLowerCase() === cleanId) return true;
-
-    // 2. Name / Username match (case-insensitive & trimmed)
-    if (u.name && u.name.trim().toLowerCase() === cleanId) return true;
-
-    // 3. Match UID
-    if (u.id && String(u.id).trim().toLowerCase() === cleanId) return true;
-
-    // 4. Match Invitation Code (e.g. NT1001, NT1002)
-    const code1 = String(u.myInviteCode || '').trim().toLowerCase();
-    const code2 = String(u.inviteCode || '').trim().toLowerCase();
-    if (code1 && code1 === cleanId) return true;
-    if (code2 && code2 === cleanId) return true;
-
-    // 5. Match Phone number flexibly
-    const idDigits = cleanId.replace(/\D/g, '');
-    const userPhoneDigits = String(u.phone || '').replace(/\D/g, '');
-    if (idDigits.length >= 6 && userPhoneDigits.length >= 6) {
-      if (idDigits === userPhoneDigits) return true;
-      if (idDigits.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(idDigits)) return true;
-      const last10Input = idDigits.slice(-10);
-      const last10User = userPhoneDigits.slice(-10);
-      if (last10Input.length >= 8 && last10Input === last10User) return true;
-    }
-    if (u.phone && u.phone.trim().toLowerCase() === cleanId) return true;
-
-    return false;
-  };
-
-  const handleLogin = (e) => {
-    e?.preventDefault();
-    setAuthError('');
-    setAuthSuccess('');
-
-    try {
-      const rawInput = (accountInput || userEmail || userPhone || '').trim();
-      const inputPass = (password || '').trim();
-
-      if (!rawInput) {
-        const err = loginMethod === 'email' ? 'Please enter your email or username' : 'Please enter your phone number';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-      if (!inputPass) {
-        const err = 'Please enter password';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-
-      // Master Admin Login Support
-      if (rawInput.toLowerCase() === 'admin@nexttask.online' || rawInput.toLowerCase() === 'admin') {
-        if (inputPass === 'Admin@NextTask' || password === 'Admin@NextTask') {
-          const adminUser = {
-            id: '100',
-            name: 'Master Admin',
-            email: 'admin@nexttask.online',
-            phone: '',
-            dob: '',
-            password: 'Admin@NextTask',
-            vip: 'VIP10',
-            balance: 99999.00,
-            recharge: 99999.00,
-            status: 'active',
-            joined: '2026-10-01',
-            inviteCode: 'NT1001',
-            myInviteCode: 'NT1001',
-            referredBy: '',
-            withdrawalAccounts: {
-              bkash: '01712345678',
-              nagad: '01812345678',
-              rocket: '',
-              trc20: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
-              bankName: 'City Bank',
-              bankAccount: '11029384756',
-              bankHolder: 'Master Admin'
-            }
-          };
-          try {
-            localStorage.setItem('nt_currentUser', JSON.stringify(adminUser));
-          } catch (e) {
-            console.error(e);
-          }
-          setCurrentUser(adminUser);
-          setUserVip('VIP10');
-          setBalance(99999.00);
-          setRechargeTotal(99999.00);
-          setUserEmail('admin@nexttask.online');
-          setUserPhone('');
-          setIsLoggedIn(true);
-          navigateToTab('me');
-          setIntendedTab('me');
-          showToast('Welcome back, Master Admin!');
-          return;
-        } else {
-          const err = 'Wrong user name or password';
-          setAuthError(err);
-          setAuthModalMsg(err);
-          showToast(err);
-          return;
-        }
-      }
-
-      const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
-      const fullPhone = isPhonePattern
-        ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
-        : (loginMethod === 'phone' && !rawInput.includes('@')
-            ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
-            : '');
-
-      const allUsers = getStoredData('users', DEFAULT_USERS);
-
-      // Find user matching by email, username, phone, or id
-      let matched = allUsers.find((u) => 
-        matchAccount(u, rawInput) ||
-        (fullPhone && matchAccount(u, fullPhone)) ||
-        (u.email && u.email.trim().toLowerCase() === rawInput.toLowerCase()) ||
-        (u.name && u.name.trim().toLowerCase() === rawInput.toLowerCase()) ||
-        (u.phone && u.phone.trim() === rawInput)
-      );
-
-      // Password comparison: check trimmed or exact
-      const storedPass = String(matched?.password || '').trim();
-      const isPassValid = matched && storedPass && (storedPass === inputPass || matched.password === password);
-
-      if (!matched || !isPassValid) {
-        const err = 'Wrong user name or password';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-
-      if (matched.status === 'banned') {
-        const err = 'This account has been suspended. Please contact support.';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-
-      try {
-        localStorage.setItem('nt_currentUser', JSON.stringify(matched));
-      } catch (e) {
-        console.error(e);
-      }
-
-      setCurrentUser(matched);
-      setUserVip(matched.vip || 'VIP0');
-      setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
-      setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
-      setUserEmail(matched.email || (loginMethod === 'email' ? rawInput : ''));
-      setUserPhone(matched.phone || (loginMethod === 'phone' ? fullPhone : ''));
-      setIsLoggedIn(true);
-      setAuthSuccess('Signed in successfully! Loading profile...');
-      setAuthError('');
-      setAuthModalMsg('');
-
-      const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
-      navigateToTab(targetTab);
-      setIntendedTab(targetTab);
-      showToast(`Welcome back, ${matched.name || matched.email || matched.phone || 'User'}!`);
-    } catch (err) {
-      console.error('Login error:', err);
-      showToast('Login error: ' + (err?.message || err));
-    }
-  };
-
-  const handleRegister = (e) => {
-    e?.preventDefault();
-    setAuthError('');
-    setAuthSuccess('');
-
-    try {
-      const rawInput = (accountInput || userEmail || userPhone || '').trim();
-      if (!rawInput) {
-        const err = loginMethod === 'email' ? 'Please enter email' : 'Please enter phone number';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-      if (!password) {
-        const err = 'Please enter password';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-      if (password.trim().length < 6) {
-        const err = 'Password must be at least 6 characters long';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-      if (reenterPassword && password.trim() !== reenterPassword.trim()) {
-        const err = 'Passwords do not match';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-
-      const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
-      const fullPhone = (loginMethod === 'phone' || isPhonePattern)
-        ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
-        : '';
-      const idToMatch = fullPhone || rawInput;
-
-      const allUsers = getStoredData('users', DEFAULT_USERS);
-      let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
-
-      if (matched) {
-        const err = 'This account is already registered. Please sign in.';
-        setAuthError(err);
-        setAuthModalMsg(err);
-        showToast(err);
-        return;
-      }
-
-      // Generate unique NTxxxx serial invite code for this new user
-      const uniqueInviteCode = generateUniqueInviteCode(allUsers);
-
-      // Create fresh user account
-      const isMail = rawInput.includes('@') || loginMethod === 'email';
-      const effectiveReferrer = (
-        regInviteCode ||
-        getInviteCodeFromUrl() ||
-        (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('nt_referral_code') : '') ||
-        (typeof localStorage !== 'undefined' ? localStorage.getItem('nt_referral_code') : '') ||
-        ''
-      ).trim().toUpperCase();
-
-      const userToSave = {
-        id: String(Date.now()),
-        name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
-        email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
-        phone: !isMail ? fullPhone : '',
-        dob: '',
-        password: (password || '').trim(),
-        vip: 'VIP0',
-        balance: 0.00,
-        recharge: 0.00,
-        status: 'active',
-        joined: new Date().toISOString().slice(0, 10),
-        inviteCode: uniqueInviteCode,
-        myInviteCode: uniqueInviteCode,
-        referredBy: effectiveReferrer,
-        withdrawalAccounts: {
-          bkash: '',
-          nagad: '',
-          rocket: '',
-          trc20: '',
-          bankName: '',
-          bankAccount: '',
-          bankHolder: ''
-        }
-      };
-      const updated = [userToSave, ...allUsers];
-      setStoredData('users', updated);
-
-      try {
-        localStorage.setItem('nt_currentUser', JSON.stringify(userToSave));
-      } catch (e) {
-        console.error(e);
-      }
-
-      // Clear register / referral hash from URL bar
-      try {
-        if (window.location.hash.includes('register') || window.location.hash.includes('signup')) {
-          window.history.replaceState(null, '', window.location.pathname || '/');
-        }
-      } catch (e) {
-        console.error(e);
-      }
-
-      setCurrentUser(userToSave);
-      setUserVip(userToSave.vip || 'VIP0');
-      setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
-      setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
-      setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
-      setUserPhone(userToSave.phone || fullPhone || '');
-      setIsLoggedIn(true);
-      setAuthSuccess('Account created successfully! Welcome to NextTask.');
-      setAuthError('');
-      setAuthModalMsg('');
-
-      const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
-      navigateToTab(targetTab);
-      setIntendedTab(targetTab);
-      showToast(`Account ready! Welcome, ${userToSave.name || userToSave.email || userToSave.phone || 'User'}`);
-    } catch (err) {
-      console.error('Register error:', err);
-      showToast('Register error: ' + (err?.message || err));
-    }
-  };
-
-  const handleResetPassword = (e) => {
-    e?.preventDefault();
-    const id = (accountInput || userEmail || userPhone || '').trim();
-    if (!id) {
-      const err = 'Please enter your registered email or phone';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (!password) {
-      const err = 'Please enter new password';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (password.trim().length < 6) {
-      const err = 'Password must be at least 6 characters long';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (reenterPassword && password !== reenterPassword) {
-      const err = 'Passwords do not match';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    let found = false;
-    let matchedUser = null;
-    const updated = allUsers.map((u) => {
-      if (matchAccount(u, id)) {
-        found = true;
-        matchedUser = { ...u, password };
-        return matchedUser;
-      }
-      return u;
-    });
-
-    if (!found) {
-      matchedUser = {
-        id: String(Date.now()),
-        email: id.includes('@') ? id : `${id}@phone.user`,
-        phone: !id.includes('@') ? id : '',
-        password: password,
-        vip: 'VIP0',
-        balance: 0.0,
-        recharge: 0.0,
-        status: 'active',
-        joined: new Date().toISOString().slice(0, 10)
-      };
-      setStoredData('users', [matchedUser, ...allUsers]);
-    } else {
-      setStoredData('users', updated);
-    }
-
-    try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(matchedUser));
-    } catch (e) {
-      console.error(e);
-    }
-
-    setCurrentUser(matchedUser);
-    setUserVip(matchedUser.vip || 'VIP0');
-    setBalance(typeof matchedUser.balance === 'number' ? matchedUser.balance : 0);
-    setRechargeTotal(typeof matchedUser.recharge === 'number' ? matchedUser.recharge : 0);
-    setUserEmail(matchedUser.email || id);
-    setUserPhone(matchedUser.phone || '');
-    setIsLoggedIn(true);
-
-    showToast('Password updated! Signed in successfully.');
-    setActiveTab('me');
-  };
-
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem('nt_currentUser');
-    } catch (e) {
-      console.error(e);
-    }
-    setCurrentUser(null);
-    setIsLoggedIn(false);
-    navigateToTab('home');
-    setIntendedTab('home');
-    setAccountInput('');
-    setUserEmail('');
-    setUserPhone('');
-    setFullName('');
-    setPassword('');
-    setReenterPassword('');
-    setRegInviteCode('');
-    setAuthModalMsg('');
-    setUserVip('VIP0');
-    setBalance(0);
-    setRechargeTotal(0);
-    showToast('Logged out');
-  };
-
-  // Click on VIP package -> opens unlock confirmation popup (matching user screenshot)
-  const handleUnlockVip = (vip) => {
-    if (!requireAuth('vip', `unlock ${vip.level}`)) return;
-    setSelectedVipForUnlock(vip);
-    setShowUnlockConfirmModal(true);
-  };
-
-  // Clicking 'Confirm' on unlock confirmation popup:
-  // If user already has balance >= deposit, unlocks the VIP package immediately!
-  // Otherwise leads to deposit / recharge page.
   const handleConfirmUnlock = () => {
     setShowUnlockConfirmModal(false);
     if (!selectedVipForUnlock) return;
@@ -1614,9 +883,15 @@ export default function App() {
         )}
 
         {/* ================= USER NOTIFICATION CENTER / MAILBOX MODAL ================= */}
-        {showNotificationModal && (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl w-full max-w-[340px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh]">
+        {showNotificationModal && currentUser && (
+          <div
+            onClick={() => setShowNotificationModal(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl w-full max-w-[340px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] cursor-default"
+            >
               {/* Header */}
               <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                 <div className="flex items-center gap-2">
@@ -1631,7 +906,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowNotificationModal(false)}
-                  className="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-xs font-bold"
+                  className="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-xs font-bold cursor-pointer"
                 >
                   ✕
                 </button>
@@ -1664,9 +939,9 @@ export default function App() {
                   userNotifications.map((notif) => (
                     <div
                       key={notif.id}
-                      onClick={() => !notif.read && handleMarkAsRead(notif.id)}
-                      className={`p-3 rounded-2xl transition cursor-pointer flex items-start gap-3 ${
-                        notif.read ? 'bg-slate-50 hover:bg-slate-100/80' : 'bg-blue-50/70 border border-blue-100 hover:bg-blue-50'
+                      onClick={() => handleNotificationClick(notif)}
+                      className={`p-3 rounded-2xl transition cursor-pointer flex items-start gap-3 active:scale-[0.99] ${
+                        notif.read ? 'bg-slate-50 hover:bg-slate-100/80' : 'bg-blue-50/80 border border-blue-200/70 hover:bg-blue-50 shadow-xs'
                       }`}
                     >
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
@@ -1702,11 +977,16 @@ export default function App() {
                             <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                        <p className="text-[11px] text-slate-600 mt-0.5 line-clamp-2 leading-relaxed">
                           {notif.message}
                         </p>
-                        <div className="text-[9px] text-slate-400 mt-1.5 font-medium">
-                          {notif.time || 'Just now'}
+                        <div className="flex items-center justify-between mt-1.5">
+                          <span className="text-[9px] text-slate-400 font-medium">
+                            {notif.time || 'Just now'}
+                          </span>
+                          <span className="text-[10px] text-indigo-600 font-semibold hover:underline">
+                            View details →
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1724,6 +1004,96 @@ export default function App() {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SINGLE NOTIFICATION DETAIL POPUP MODAL ================= */}
+        {selectedNotificationDetail && (
+          <div
+            onClick={() => setSelectedNotificationDetail(null)}
+            className="absolute inset-0 bg-black/65 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl w-full max-w-[325px] p-5 shadow-2xl border border-slate-100 space-y-4 cursor-default animate-scale-up text-left"
+            >
+              {/* Header with Type & Time */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${
+                      selectedNotificationDetail.type === 'recharge'
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : selectedNotificationDetail.type === 'withdraw'
+                        ? 'bg-amber-100 text-amber-600'
+                        : selectedNotificationDetail.type === 'commission'
+                        ? 'bg-purple-100 text-purple-600'
+                        : selectedNotificationDetail.type === 'vip'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-indigo-100 text-indigo-600'
+                    }`}
+                  >
+                    {selectedNotificationDetail.type === 'recharge' ? (
+                      <Coins className="w-5 h-5" />
+                    ) : selectedNotificationDetail.type === 'withdraw' ? (
+                      <ArrowUpRight className="w-5 h-5" />
+                    ) : selectedNotificationDetail.type === 'commission' ? (
+                      <Sparkles className="w-5 h-5" />
+                    ) : selectedNotificationDetail.type === 'vip' ? (
+                      <Crown className="w-5 h-5" />
+                    ) : (
+                      <Bell className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <span
+                      className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md tracking-wider ${
+                        selectedNotificationDetail.type === 'recharge'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : selectedNotificationDetail.type === 'withdraw'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : selectedNotificationDetail.type === 'commission'
+                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                          : selectedNotificationDetail.type === 'vip'
+                          ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+                          : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                      }`}
+                    >
+                      {selectedNotificationDetail.type || 'Notice'}
+                    </span>
+                    <div className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                      {selectedNotificationDetail.time || 'Recently'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNotificationDetail(null)}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold transition cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Message Content */}
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 leading-snug">
+                  {selectedNotificationDetail.title}
+                </h3>
+                <div className="mt-2.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs text-slate-700 leading-relaxed max-h-[42vh] overflow-y-auto">
+                  {selectedNotificationDetail.message}
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedNotificationDetail(null)}
+                className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-2.5 rounded-full text-xs shadow-md transition active:scale-95 cursor-pointer"
+              >
+                Got it
+              </button>
             </div>
           </div>
         )}
@@ -2077,12 +1447,18 @@ export default function App() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setShowNotificationModal(true)}
+                      onClick={() => {
+                        if (!currentUser) {
+                          requireAuth('notifications', 'view notifications');
+                          return;
+                        }
+                        setShowNotificationModal(true);
+                      }}
                       className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition relative cursor-pointer"
                       title="Mail / Notifications"
                     >
                       <Mail className="w-4 h-4 text-slate-200" />
-                      {unreadCount > 0 && (
+                      {currentUser && unreadCount > 0 && (
                         <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-md border-2 border-[#05132d] animate-pulse">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
@@ -2408,58 +1784,134 @@ export default function App() {
               {/* ================= TAB 2: VIP ================= */}
               {activeTab === 'vip' && (
                 <div className="p-4 space-y-6 pt-5">
-                  {vipTiers.map((vip) => (
-                    <div
-                      key={vip.level}
-                      className="bg-white rounded-3xl p-4 shadow-sm border border-slate-100 relative pt-6"
-                    >
-                      <div className="absolute -top-3 left-4 bg-gradient-to-r from-[#fbd6a5] to-[#fbc286] text-slate-900 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-                        <Crown className="w-3.5 h-3.5 fill-amber-600 text-amber-700" />
-                        <span>{vip.level}</span>
-                      </div>
+                  {(() => {
+                    const vipOrder = ['VIP0', 'VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5', 'VIP6', 'VIP7', 'VIP8', 'VIP9', 'VIP10'];
+                    const curVipIdx = vipOrder.indexOf(userVip || 'VIP0');
 
-                      <div className="flex gap-3 items-stretch">
-                        <div className="w-24 h-24 rounded-2xl bg-[#0c0d11] border border-amber-500/30 flex flex-col items-center justify-center p-2 relative shadow-inner overflow-hidden shrink-0">
-                          <Crown className="w-5 h-5 text-amber-400 mb-0.5 fill-amber-400 drop-shadow" />
-                          <div className="text-base font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500">
-                            VIP
+                    return vipTiers.map((vip) => {
+                      const thisTierIdx = vipOrder.indexOf(vip.level);
+                      const isCurrentUnlocked = curVipIdx > 0 && thisTierIdx === curVipIdx;
+                      const isPastUnlocked = curVipIdx > 0 && thisTierIdx < curVipIdx;
+                      const isHigherTier = thisTierIdx > curVipIdx;
+
+                      // Card styling based on unlock status
+                      const cardClass = isCurrentUnlocked
+                        ? "bg-gradient-to-br from-emerald-50/60 via-white to-teal-50/40 rounded-3xl p-4 shadow-md border-2 border-emerald-500 relative pt-6 ring-2 ring-emerald-500/20 transition-all"
+                        : isPastUnlocked
+                        ? "bg-slate-50/70 rounded-3xl p-4 shadow-xs border border-slate-200/80 relative pt-6 opacity-85 transition-all"
+                        : "bg-white rounded-3xl p-4 shadow-sm border border-slate-100 relative pt-6 transition-all";
+
+                      return (
+                        <div key={vip.level} className={cardClass}>
+                          {/* Top badge */}
+                          {isCurrentUnlocked ? (
+                            <div className="absolute -top-3 left-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white text-xs font-black px-3.5 py-1 rounded-full flex items-center gap-1.5 shadow-md">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                              <span>{vip.level} • Unlocked</span>
+                            </div>
+                          ) : isPastUnlocked ? (
+                            <div className="absolute -top-3 left-4 bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>{vip.level}</span>
+                            </div>
+                          ) : (
+                            <div className="absolute -top-3 left-4 bg-gradient-to-r from-[#fbd6a5] to-[#fbc286] text-slate-900 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+                              <Crown className="w-3.5 h-3.5 fill-amber-600 text-amber-700" />
+                              <span>{vip.level}</span>
+                            </div>
+                          )}
+
+                          <div className="flex gap-3 items-stretch">
+                            {/* Left Badge Box */}
+                            <div className={`w-24 h-24 rounded-2xl flex flex-col items-center justify-center p-2 relative shadow-inner overflow-hidden shrink-0 ${
+                              isCurrentUnlocked
+                                ? "bg-gradient-to-br from-[#064e3b] via-[#022c22] to-[#043328] border border-emerald-400/50 shadow-emerald-950/20 shadow-md"
+                                : "bg-[#0c0d11] border border-amber-500/30"
+                            }`}>
+                              {isCurrentUnlocked ? (
+                                <>
+                                  <Crown className="w-5 h-5 text-emerald-300 mb-0.5 fill-emerald-300 drop-shadow" />
+                                  <div className="text-base font-black tracking-wider text-emerald-300">
+                                    VIP
+                                  </div>
+                                  <div className="text-[8px] uppercase tracking-wider text-emerald-100 font-extrabold bg-emerald-800/90 px-1.5 py-0.5 rounded mt-0.5 shadow-xs">
+                                    UNLOCKED
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <Crown className="w-5 h-5 text-amber-400 mb-0.5 fill-amber-400 drop-shadow" />
+                                  <div className="text-base font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500">
+                                    VIP
+                                  </div>
+                                  <div className="text-[8px] uppercase tracking-tighter text-amber-300/80 mt-0.5">
+                                    member only
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Middle Specs */}
+                            <div className={`flex-1 rounded-2xl p-3 flex flex-col justify-between text-xs space-y-1 ${
+                              isCurrentUnlocked
+                                ? "bg-emerald-50/70 border border-emerald-100/70"
+                                : "bg-[#ebf0f8]/80"
+                            }`}>
+                              <div className="flex justify-between items-center text-slate-600">
+                                <span>Daily tasks</span>
+                                <span className="font-semibold text-slate-800">{vip.tasks}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-slate-600">
+                                <span>Simple interest</span>
+                                <span className="font-bold text-[#00c282]">{vip.interest}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-slate-600">
+                                <span>Daily profit</span>
+                                <span className="font-semibold text-slate-800">{vip.daily} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
+                              </div>
+                              <div className="flex justify-between items-center text-slate-600">
+                                <span>The total profit</span>
+                                <span className="font-semibold text-slate-800">{vip.total} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-[8px] uppercase tracking-tighter text-amber-300/80 mt-0.5">
-                            member only
+
+                          {/* Action Button */}
+                          <div className="flex justify-end mt-3">
+                            {isCurrentUnlocked ? (
+                              <div className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-md">
+                                <CheckCircle2 className="w-4 h-4 text-white" />
+                                <span>Unlocked</span>
+                              </div>
+                            ) : isPastUnlocked ? (
+                              <div className="bg-slate-200 text-slate-600 text-xs font-semibold px-4 py-2 rounded-full flex items-center gap-1.5">
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Unlocked</span>
+                              </div>
+                            ) : curVipIdx > 0 && isHigherTier ? (
+                              <button
+                                onClick={() => handleUnlockVip(vip)}
+                                className="bg-[#05132d] hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2.5 shadow-md active:scale-95 transition cursor-pointer"
+                              >
+                                <span>{vip.deposit} USDT</span>
+                                <span className="font-semibold text-cyan-300 border-l border-white/20 pl-2">
+                                  Upgrade to {vip.level}
+                                </span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleUnlockVip(vip)}
+                                className="bg-[#05132d] hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-3 shadow-md active:scale-95 transition cursor-pointer"
+                              >
+                                <span>{vip.deposit} USDT</span>
+                                <span className="font-normal text-slate-300 border-l border-white/20 pl-2">Unlock now</span>
+                              </button>
+                            )}
                           </div>
                         </div>
-
-                        <div className="flex-1 bg-[#ebf0f8]/80 rounded-2xl p-3 flex flex-col justify-between text-xs space-y-1">
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span>Daily tasks</span>
-                            <span className="font-semibold text-slate-800">{vip.tasks}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span>Simple interest</span>
-                            <span className="font-bold text-[#00c282]">{vip.interest}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span>Daily profit</span>
-                            <span className="font-semibold text-slate-800">{vip.daily} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
-                          </div>
-                          <div className="flex justify-between items-center text-slate-600">
-                            <span>The total profit</span>
-                            <span className="font-semibold text-slate-800">{vip.total} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end mt-3">
-                        <button
-                          onClick={() => handleUnlockVip(vip)}
-                          className="bg-[#05132d] hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-3 shadow-md active:scale-95 transition"
-                        >
-                          <span>{vip.deposit} USDT</span>
-                          <span className="font-normal text-slate-300 border-l border-white/20 pl-2">Unlock now</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    });
+                  })()}
                 </div>
               )}
 
@@ -3036,14 +2488,20 @@ export default function App() {
 
         {/* ================= VIP UNLOCK CONFIRMATION POPUP (MATCHING USER SCREENSHOT) ================= */}
         {showUnlockConfirmModal && selectedVipForUnlock && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-6 animate-fade-in">
-            <div className="bg-white rounded-3xl w-full max-w-[320px] p-6 shadow-2xl space-y-6 text-center animate-scale-up border border-slate-100">
+          <div
+            onClick={() => setShowUnlockConfirmModal(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-6 animate-fade-in cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl w-full max-w-[320px] p-6 shadow-2xl space-y-6 text-center animate-scale-up border border-slate-100 cursor-default"
+            >
               <p className="text-slate-800 text-sm leading-relaxed font-normal pt-2 px-1">
                 The recharge balance is automatically unlocked Need to recharge ${selectedVipForUnlock.deposit}
               </p>
               <button
                 onClick={handleConfirmUnlock}
-                className="w-full bg-[#ff3b30] hover:bg-red-600 text-white font-bold py-3.5 px-6 rounded-full shadow-lg active:scale-95 transition text-sm tracking-wide"
+                className="w-full bg-[#ff3b30] hover:bg-red-600 text-white font-bold py-3.5 px-6 rounded-full shadow-lg active:scale-95 transition text-sm tracking-wide cursor-pointer"
               >
                 Confirm
               </button>
