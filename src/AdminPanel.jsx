@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Gem,
@@ -87,6 +87,23 @@ export default function AdminPanel({ onNavigateToApp }) {
   const [recharges, setRecharges] = useState(() => getStoredData('recharges', DEFAULT_RECHARGES));
   const [withdrawals, setWithdrawals] = useState(() => getStoredData('withdrawals', DEFAULT_WITHDRAWALS));
   const [settings, setSettings] = useState(() => getStoredData('settings', DEFAULT_SETTINGS));
+
+  // Auto-sync with storage whenever currentTab changes or storage event fires
+  const syncData = () => {
+    setRecharges(getStoredData('recharges', DEFAULT_RECHARGES));
+    setWithdrawals(getStoredData('withdrawals', DEFAULT_WITHDRAWALS));
+    setUsers(getStoredData('users', DEFAULT_USERS));
+    setSettings(getStoredData('settings', DEFAULT_SETTINGS));
+    setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
+    setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
+    setSlides(getStoredData('slides', DEFAULT_SLIDES));
+  };
+
+  useEffect(() => {
+    syncData();
+    window.addEventListener('storage', syncData);
+    return () => window.removeEventListener('storage', syncData);
+  }, [currentTab]);
 
   // Search & Filter State
   const [userSearch, setUserSearch] = useState('');
@@ -399,9 +416,19 @@ export default function AdminPanel({ onNavigateToApp }) {
 
     // 2. Credit user's balance and recharge total, and auto-upgrade VIP level if qualified
     const updatedUsers = users.map((u) => {
-      if (u.email === rec.user) {
-        const newRecharge = parseFloat((u.recharge + rec.amount).toFixed(2));
-        const newBalance = parseFloat((u.balance + rec.amount).toFixed(2));
+      const isMatch =
+        (rec.userId && String(u.id) === String(rec.userId)) ||
+        (rec.userEmail && String(u.email).toLowerCase() === String(rec.userEmail).toLowerCase()) ||
+        (rec.userPhone && String(u.phone) === String(rec.userPhone)) ||
+        (rec.user && (
+          String(u.email).toLowerCase() === String(rec.user).toLowerCase() ||
+          String(u.phone) === String(rec.user) ||
+          String(u.name).toLowerCase() === String(rec.user).toLowerCase()
+        ));
+
+      if (isMatch) {
+        const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
+        const newBalance = parseFloat(((u.balance || 0) + rec.amount).toFixed(2));
 
         let newVip = u.vip || 'VIP0';
         for (const tier of vipTiers) {
@@ -444,8 +471,18 @@ export default function AdminPanel({ onNavigateToApp }) {
 
     // 2. Refund balance back to user
     const updatedUsers = users.map((u) => {
-      if (u.email === wth.user) {
-        return { ...u, balance: parseFloat((u.balance + wth.amount).toFixed(2)) };
+      const isMatch =
+        (wth.userId && String(u.id) === String(wth.userId)) ||
+        (wth.userEmail && String(u.email).toLowerCase() === String(wth.userEmail).toLowerCase()) ||
+        (wth.userPhone && String(u.phone) === String(wth.userPhone)) ||
+        (wth.user && (
+          String(u.email).toLowerCase() === String(wth.user).toLowerCase() ||
+          String(u.phone) === String(wth.user) ||
+          String(u.name).toLowerCase() === String(wth.user).toLowerCase()
+        ));
+
+      if (isMatch) {
+        return { ...u, balance: parseFloat(((u.balance || 0) + wth.amount).toFixed(2)) };
       }
       return u;
     });
@@ -455,9 +492,14 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   // Filtered Users
   const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.phone.toLowerCase().includes(userSearch.toLowerCase());
+    const q = (userSearch || '').toLowerCase().trim();
+    const email = String(u.email || '').toLowerCase();
+    const phone = String(u.phone || '').toLowerCase();
+    const name = String(u.name || '').toLowerCase();
+    const uid = String(u.id || '').toLowerCase();
+    const code = String(u.myInviteCode || u.inviteCode || '').toLowerCase();
+
+    const matchesSearch = !q || email.includes(q) || phone.includes(q) || name.includes(q) || uid.includes(q) || code.includes(q);
     const matchesStatus = userStatusFilter === 'all' || u.status === userStatusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -687,9 +729,12 @@ export default function AdminPanel({ onNavigateToApp }) {
               <span className="text-slate-300 font-mono">admin@nexttask.online</span>
             </div>
             <button
-              onClick={() => showToast('Data refreshed')}
-              className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition"
-              title="Refresh"
+              onClick={() => {
+                syncData();
+                showToast('Data refreshed successfully');
+              }}
+              className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition cursor-pointer"
+              title="Refresh Data"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -799,7 +844,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       <div key={wth.id} className="bg-slate-900 p-3 rounded-xl flex justify-between items-center text-xs">
                         <div>
                           <div className="font-bold text-slate-200">{wth.user}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{wth.address}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{wth.method || 'USDT'} • {wth.account || wth.address || 'N/A'}</div>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-amber-400 text-sm">${wth.amount}</span>
@@ -1077,6 +1122,18 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
 
               <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const cleaned = users.filter(u => u && (String(u.email || '').toLowerCase() === 'admin@nexttask.online' || (u.id && !['101', '102', '103', '104'].includes(String(u.id)) && !String(u.email || '').includes('demo') && !String(u.email || '').includes('fake') && !String(u.name || '').toLowerCase().includes('demo'))));
+                    updateUsers(cleaned);
+                    showToast('Demo users purged! Only master admin and real users remain.');
+                  }}
+                  className="bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold px-3 py-1.5 rounded-xl transition cursor-pointer"
+                  title="Remove legacy demo test users"
+                >
+                  Purge Demo Users
+                </button>
                 {['all', 'active', 'banned'].map((st) => (
                   <button
                     key={st}
@@ -1111,7 +1168,11 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <tbody className="divide-y divide-slate-800">
                   {filteredUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-900/50 transition">
-                      <td className="py-3 px-4 font-bold text-white">{u.email}</td>
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-white">{u.name || 'User'}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{u.email}</div>
+                        <div className="text-[9px] text-cyan-400 font-mono font-bold">UID: {u.id} | Code: {u.myInviteCode || u.inviteCode || 'N/A'}</div>
+                      </td>
                       <td className="py-3 px-4 text-slate-400">{u.phone || '-'}</td>
                       <td className="py-3 px-4">
                         <select
@@ -1219,49 +1280,62 @@ export default function AdminPanel({ onNavigateToApp }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {recharges.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-900/50 transition">
-                      <td className="py-3 px-4 font-mono text-slate-400">{r.id}</td>
-                      <td className="py-3 px-4 font-bold text-white">{r.user}</td>
-                      <td className="py-3 px-4 font-black text-emerald-400">${r.amount.toFixed(2)}</td>
-                      <td className="py-3 px-4 text-slate-300">{r.network}</td>
-                      <td className="py-3 px-4 font-mono text-slate-400 text-[10px]">{r.txid}</td>
-                      <td className="py-3 px-4 text-slate-500 text-[10px]">{r.date}</td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            r.status === 'approved'
-                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                              : r.status === 'rejected'
-                              ? 'bg-rose-950 text-rose-400 border border-rose-800'
-                              : 'bg-amber-950 text-amber-400 border border-amber-800'
-                          }`}
-                        >
-                          {r.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right space-x-2">
-                        {r.status === 'pending' ? (
-                          <>
-                            <button
-                              onClick={() => handleApproveRecharge(r)}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectRecharge(r.id)}
-                              className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-slate-600 text-[11px]">Processed</span>
-                        )}
+                  {recharges.length === 0 ? (
+                    <tr>
+                      <td colSpan="8" className="py-8 text-center text-slate-500">
+                        No recharge requests found.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    recharges.map((r) => (
+                      <tr key={r.id} className="hover:bg-slate-900/50 transition">
+                        <td className="py-3 px-4 font-mono text-slate-400">{r.id}</td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-white">{r.user}</div>
+                          {r.senderNumber && (
+                            <div className="text-[10px] text-cyan-400 font-mono">From: {r.senderNumber}</div>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 font-black text-emerald-400">${r.amount.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-slate-300 font-bold">{r.network}</td>
+                        <td className="py-3 px-4 font-mono text-amber-300 text-[11px] font-bold select-all">{r.txid}</td>
+                        <td className="py-3 px-4 text-slate-500 text-[10px]">{r.date}</td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              r.status === 'approved'
+                                ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                                : r.status === 'rejected'
+                                ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                                : 'bg-amber-950 text-amber-400 border border-amber-800'
+                            }`}
+                          >
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right space-x-2">
+                          {r.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveRecharge(r)}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectRecharge(r.id)}
+                                className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-slate-600 text-[11px]">Processed</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1280,55 +1354,66 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <th className="py-3 px-4">ID</th>
                     <th className="py-3 px-4">User</th>
                     <th className="py-3 px-4">Amount</th>
-                    <th className="py-3 px-4">Target Address</th>
+                    <th className="py-3 px-4">Method & Target Account</th>
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {withdrawals.map((w) => (
-                    <tr key={w.id} className="hover:bg-slate-900/50 transition">
-                      <td className="py-3 px-4 font-mono text-slate-400">{w.id}</td>
-                      <td className="py-3 px-4 font-bold text-white">{w.user}</td>
-                      <td className="py-3 px-4 font-black text-amber-400">${w.amount.toFixed(2)}</td>
-                      <td className="py-3 px-4 font-mono text-slate-400 text-[10px]">{w.address}</td>
-                      <td className="py-3 px-4 text-slate-500 text-[10px]">{w.date}</td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                            w.status === 'approved'
-                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                              : w.status === 'rejected'
-                              ? 'bg-rose-950 text-rose-400 border border-rose-800'
-                              : 'bg-amber-950 text-amber-400 border border-amber-800'
-                          }`}
-                        >
-                          {w.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right space-x-2">
-                        {w.status === 'pending' ? (
-                          <>
-                            <button
-                              onClick={() => handleApproveWithdrawal(w.id, w.user, w.amount)}
-                              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectWithdrawal(w)}
-                              className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition"
-                            >
-                              Reject & Refund
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-slate-600 text-[11px]">Processed</span>
-                        )}
+                  {withdrawals.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="py-8 text-center text-slate-500">
+                        No withdrawal requests found.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    withdrawals.map((w) => (
+                      <tr key={w.id} className="hover:bg-slate-900/50 transition">
+                        <td className="py-3 px-4 font-mono text-slate-400">{w.id}</td>
+                        <td className="py-3 px-4 font-bold text-white">{w.user}</td>
+                        <td className="py-3 px-4 font-black text-amber-400">${w.amount.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-slate-300">
+                          <span className="font-bold text-white">{w.method || 'USDT'}</span>
+                          <div className="font-mono text-cyan-400 text-[11px] font-bold select-all">{w.account || w.address || 'N/A'}</div>
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 text-[10px]">{w.date}</td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              w.status === 'approved'
+                                ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                                : w.status === 'rejected'
+                                ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                                : 'bg-amber-950 text-amber-400 border border-amber-800'
+                            }`}
+                          >
+                            {w.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right space-x-2">
+                          {w.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveWithdrawal(w.id, w.user, w.amount)}
+                                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectWithdrawal(w)}
+                                className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-[11px] px-3 py-1 rounded-lg transition cursor-pointer"
+                              >
+                                Reject & Refund
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-slate-600 text-[11px]">Processed</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

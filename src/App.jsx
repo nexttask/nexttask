@@ -478,10 +478,13 @@ export default function App() {
     const newWth = {
       id: `WTH-${Math.floor(100 + Math.random() * 900)}`,
       userId: currentUser?.id,
-      user: currentUser?.email || currentUser?.phone || 'User',
+      user: currentUser?.name || currentUser?.email || currentUser?.phone || 'User',
+      userEmail: currentUser?.email || '',
+      userPhone: currentUser?.phone || '',
       amount: num,
       method: withdrawMethod,
       account: finalAccount,
+      address: finalAccount,
       date: new Date().toISOString().slice(0, 16).replace('T', ' '),
       status: 'pending'
     };
@@ -1040,7 +1043,10 @@ export default function App() {
     const currentRecharges = getStoredData('recharges', DEFAULT_RECHARGES);
     const newRecord = {
       id: `REC-${Math.floor(100 + Math.random() * 900)}`,
-      user: userEmail || userPhone || 'User',
+      userId: currentUser?.id,
+      user: currentUser?.name || currentUser?.email || currentUser?.phone || userEmail || userPhone || 'User',
+      userEmail: currentUser?.email || userEmail || '',
+      userPhone: currentUser?.phone || userPhone || '',
       amount: numAmount,
       network: selectedPaymentMethod?.method || 'bKash',
       senderNumber: senderAccount.trim(),

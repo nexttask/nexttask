@@ -101,10 +101,16 @@ export const getStoredData = (key, fallback) => {
     if (key === 'users' && Array.isArray(parsed)) {
       const cleaned = parsed.filter((u) => {
         if (!u) return false;
-        // Keep master admin, remove hardcoded demo users
+        // Keep master admin
+        if (String(u.email || '').toLowerCase() === 'admin@nexttask.online') return true;
+
+        // Remove hardcoded demo/test users
         const idStr = String(u.id || '');
         if (['101', '102', '103', '104'].includes(idStr)) return false;
         const emailStr = String(u.email || '').toLowerCase();
+        const nameStr = String(u.name || '').toLowerCase();
+        if (emailStr.includes('test') || emailStr.includes('demo') || emailStr.includes('fake') || emailStr.includes('example.com')) return false;
+        if (nameStr.includes('demo') || nameStr.includes('test user')) return false;
         if (['alex.trader@gmail.com', 'crypto_boss@yahoo.com', 'spammer99@fake.org'].includes(emailStr)) return false;
         return true;
       });
@@ -117,12 +123,12 @@ export const getStoredData = (key, fallback) => {
 
     // Clean out mock recharges from previous sessions
     if (key === 'recharges' && Array.isArray(parsed)) {
-      return parsed.filter((r) => r && !['REC-900', 'REC-901', 'REC-902'].includes(String(r.id || '')));
+      return parsed.filter((r) => r && !['REC-900', 'REC-901', 'REC-902'].includes(String(r.id || '')) && !String(r.user || '').toLowerCase().includes('demo'));
     }
 
     // Clean out mock withdrawals from previous sessions
     if (key === 'withdrawals' && Array.isArray(parsed)) {
-      return parsed.filter((w) => w && !['WTH-400', 'WTH-401'].includes(String(w.id || '')));
+      return parsed.filter((w) => w && !['WTH-400', 'WTH-401'].includes(String(w.id || '')) && !String(w.user || '').toLowerCase().includes('demo'));
     }
 
     // Ensure payment method instructions are in English
@@ -190,6 +196,9 @@ export const getStoredData = (key, fallback) => {
 export const setStoredData = (key, value) => {
   try {
     localStorage.setItem(`nt_${key}`, JSON.stringify(value));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('storage'));
+    }
   } catch (err) {
     console.error('Failed to save to localStorage:', err);
   }
