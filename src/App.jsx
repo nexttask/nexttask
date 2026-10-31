@@ -1524,9 +1524,10 @@ export default function App() {
                       <button 
                         type="button"
                         onClick={() => setShowAnnouncement(true)}
-                        className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full flex items-center gap-1 transition cursor-pointer"
+                        className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full flex items-center gap-1.5 transition cursor-pointer text-slate-200 shadow-sm"
                       >
-                        Announcement &gt;
+                        <Bell className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Announcement &gt;</span>
                       </button>
                     </div>
 
@@ -2209,18 +2210,6 @@ export default function App() {
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-emerald-500" />
                         <span className="text-sm font-medium text-slate-800">Financial Records</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowAnnouncement(true)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Bell className="w-5 h-5 text-amber-500" />
-                        <span className="text-sm font-medium text-slate-800">Announcement</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
