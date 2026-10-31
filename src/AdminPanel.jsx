@@ -1445,18 +1445,6 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const cleaned = users.filter(u => u && (String(u.email || '').toLowerCase() === 'admin@nexttask.online' || (u.id && !['101', '102', '103', '104'].includes(String(u.id)) && !String(u.email || '').includes('demo') && !String(u.email || '').includes('fake') && !String(u.name || '').toLowerCase().includes('demo'))));
-                    updateUsers(cleaned);
-                    showToast('Demo users purged! Only master admin and real users remain.');
-                  }}
-                  className="bg-slate-900 border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold px-3 py-1.5 rounded-xl transition cursor-pointer"
-                  title="Remove legacy demo test users"
-                >
-                  Purge Demo Users
-                </button>
                 {['all', 'active', 'banned'].map((st) => (
                   <button
                     key={st}

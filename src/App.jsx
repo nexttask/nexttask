@@ -585,6 +585,7 @@ export default function App() {
     });
     setStoredData('notifications', updated);
     setNotifications(updated);
+    showToast('All notifications marked as read');
   };
 
   const handleNotificationClick = (notif) => {
@@ -592,6 +593,789 @@ export default function App() {
     setSelectedNotificationDetail(notif);
   };
 
+  // Modals & Popups
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showRecordsModal, setShowRecordsModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showUpgradeLogModal, setShowUpgradeLogModal] = useState(false);
+  const [showCompanyProfileModal, setShowCompanyProfileModal] = useState(false);
+  const [showAppModal, setShowAppModal] = useState(false);
+  const [showLangModal, setShowLangModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  // Language & Translation State
+  const [lang, setLang] = useState(() => localStorage.getItem('nt_lang') || 'en');
+
+  const t = (key) => TRANSLATIONS[lang]?.[key] || TRANSLATIONS['en']?.[key] || key;
+  const currentLangObj = LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0];
+
+  const handleSelectLang = (code) => {
+    setLang(code);
+    localStorage.setItem('nt_lang', code);
+    setShowLangModal(false);
+    showToast(`Language: ${LANGUAGES.find((l) => l.code === code)?.name}`);
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 2500);
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard?.writeText(text);
+    showToast(`${label} copied!`);
+  };
+
+  const navigateToTab = (tabId, mode = null, replace = false) => {
+    let targetPath = '/';
+    if (tabId === 'task') targetPath = '/task';
+    else if (tabId === 'team') targetPath = '/team';
+    else if (tabId === 'vip') targetPath = '/vip';
+    else if (tabId === 'me') targetPath = '/me';
+    else if (tabId === 'home') targetPath = '/';
+    else if (tabId === 'auth') {
+      const activeMode = mode || authMode;
+      const inviteCode = regInviteCode || getInviteCodeFromUrl();
+      if (activeMode === 'register' && inviteCode) {
+        targetPath = `/register?i=${encodeURIComponent(inviteCode)}`;
+      } else {
+        targetPath = activeMode === 'register' ? '/register' : '/login';
+      }
+    }
+
+    try {
+      const currentFull = (window.location.pathname || '') + (window.location.search || '');
+      if (currentFull !== targetPath) {
+        if (replace) {
+          window.history.replaceState({ tab: tabId, authMode: mode || authMode }, '', targetPath);
+        } else {
+          window.history.pushState({ tab: tabId, authMode: mode || authMode }, '', targetPath);
+        }
+      }
+    } catch (err) {
+      console.warn('Navigation state error:', err);
+    }
+
+    setActiveTab(tabId);
+    if (mode) setAuthMode(mode);
+  };
+
+  const requireAuth = (targetTab, actionDesc) => {
+    if (!isLoggedIn) {
+      setIntendedTab(targetTab);
+      navigateToTab('auth', 'login');
+      showToast(actionDesc ? `Please sign in to ${actionDesc}` : 'Please sign in or register');
+      return false;
+    }
+    return true;
+  };
+
+  const handleTabClick = (tabId) => {
+    if (tabId === 'home') {
+      navigateToTab('home');
+      return;
+    }
+    if (!isLoggedIn) {
+      setIntendedTab(tabId);
+      navigateToTab('auth', 'login');
+      showToast(`Please sign in or register to open ${tabId.toUpperCase()}`);
+      return;
+    }
+    navigateToTab(tabId);
+  };
+
+  // Dynamic referral & VIP Level synchronization
+  useEffect(() => {
+    if (!currentUser) return;
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const myCode = String(currentUser.myInviteCode || currentUser.inviteCode || '');
+    const myId = String(currentUser.id || '');
+    if (!myCode && !myId) return;
+
+    const directRefs = allUsers.filter(u => isReferredByUser(u, currentUser));
+    const earnedVip = getVipLevelFromReferrals(directRefs.length, currentUser.vip || 'VIP0');
+
+    if (earnedVip !== userVip) {
+      setUserVip(earnedVip);
+      const updatedUser = { ...currentUser, vip: earnedVip };
+      setCurrentUser(updatedUser);
+      try {
+        localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+      } catch (e) {
+        console.error(e);
+      }
+      const updatedList = allUsers.map(u => u.id === currentUser.id ? { ...u, vip: earnedVip } : u);
+      setStoredData('users', updatedList);
+    }
+  }, [activeTab, currentUser]);
+
+  const handleOpenProfileModal = (tab = 'personal') => {
+    if (!currentUser) return;
+    setProfileTab(tab);
+    setProfileName(currentUser.name || '');
+    setProfilePhone(currentUser.phone || '');
+    setProfileDob(currentUser.dob || '');
+    setProfileBkash(currentUser.withdrawalAccounts?.bkash || '');
+    setProfileNagad(currentUser.withdrawalAccounts?.nagad || '');
+    setProfileRocket(currentUser.withdrawalAccounts?.rocket || '');
+    setProfileTrc20(currentUser.withdrawalAccounts?.trc20 || '');
+    setProfileBankName(currentUser.withdrawalAccounts?.bankName || '');
+    setProfileBankAccount(currentUser.withdrawalAccounts?.bankAccount || '');
+    setProfileBankHolder(currentUser.withdrawalAccounts?.bankHolder || '');
+    setShowProfileModal(true);
+  };
+
+  const handleSaveProfile = () => {
+    if (!currentUser) return;
+    const updatedUser = {
+      ...currentUser,
+      name: profileName.trim() || currentUser.name || 'User',
+      phone: profilePhone.trim() || currentUser.phone || '',
+      dob: profileDob.trim(),
+      withdrawalAccounts: {
+        bkash: profileBkash.trim(),
+        nagad: profileNagad.trim(),
+        rocket: profileRocket.trim(),
+        trc20: profileTrc20.trim(),
+        bankName: profileBankName.trim(),
+        bankAccount: profileBankAccount.trim(),
+        bankHolder: profileBankHolder.trim(),
+      }
+    };
+    setCurrentUser(updatedUser);
+    setUserPhone(updatedUser.phone);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+    } catch (e) {
+      console.error(e);
+    }
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
+    setStoredData('users', updatedUsers);
+    setShowProfileModal(false);
+    showToast('Profile & Withdrawal accounts saved!');
+  };
+
+  // Withdraw Handler
+  const handleWithdrawSubmit = (e) => {
+    e?.preventDefault();
+    if (!requireAuth('me', 'withdraw')) return;
+
+    const num = parseFloat(withdrawAmount);
+    if (!num || num <= 0) {
+      showToast('Please enter a valid withdrawal amount');
+      return;
+    }
+    if (num > balance) {
+      showToast('Insufficient balance!');
+      return;
+    }
+    const minWth = Math.max(10.0, parseFloat(settings?.minWithdrawal) || 10.0);
+    if (num < minWth) {
+      showToast(`Minimum withdrawal is ${minWth.toFixed(2)} USDT`);
+      return;
+    }
+
+    // Determine target account number / address
+    const savedAcc = currentUser?.withdrawalAccounts?.[withdrawMethod.toLowerCase()] ||
+                     (withdrawMethod === 'Bank Transfer' ? currentUser?.withdrawalAccounts?.bankAccount : '') ||
+                     (withdrawMethod === 'USDT (TRC20)' ? currentUser?.withdrawalAccounts?.trc20 : '');
+    const finalAccount = (withdrawAccountInput || savedAcc || '').trim();
+
+    if (!finalAccount) {
+      showToast(`Please enter your ${withdrawMethod} account number/address`);
+      return;
+    }
+
+    // Auto-save account to profile if it wasn't saved yet
+    let updatedUser = { ...currentUser };
+    const fieldMap = {
+      'bKash': 'bkash',
+      'Nagad': 'nagad',
+      'Rocket': 'rocket',
+      'USDT (TRC20)': 'trc20',
+      'Bank Transfer': 'bankAccount'
+    };
+    const accKey = fieldMap[withdrawMethod] || 'bkash';
+    if (!savedAcc) {
+      updatedUser = {
+        ...currentUser,
+        withdrawalAccounts: {
+          ...(currentUser.withdrawalAccounts || {}),
+          [accKey]: finalAccount
+        }
+      };
+      setCurrentUser(updatedUser);
+    }
+
+    // Deduct balance
+    const newBal = parseFloat((balance - num).toFixed(2));
+    setBalance(newBal);
+    updatedUser.balance = newBal;
+    setCurrentUser(updatedUser);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+    } catch (e) {
+      console.error(e);
+    }
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
+
+    // Save real withdrawal record
+    const currentWithdrawals = getStoredData('withdrawals', DEFAULT_WITHDRAWALS);
+    const newWth = {
+      id: `WTH-${Math.floor(100 + Math.random() * 900)}`,
+      userId: currentUser?.id,
+      user: currentUser?.name || currentUser?.email || currentUser?.phone || 'User',
+      userEmail: currentUser?.email || '',
+      userPhone: currentUser?.phone || '',
+      amount: num,
+      method: withdrawMethod,
+      account: finalAccount,
+      address: finalAccount,
+      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      status: 'pending'
+    };
+    setStoredData('withdrawals', [newWth, ...currentWithdrawals]);
+
+    setShowWithdrawModal(false);
+    setWithdrawAmount('');
+    setWithdrawAccountInput('');
+    showToast(`Withdrawal of $${num.toFixed(2)} submitted successfully!`);
+  };
+
+  // Complete Task Handler (Runs one task at a time with verification countdown)
+  const handleCompleteTask = (taskIndex, reward) => {
+    if (!requireAuth('task', 'complete task')) return;
+    if (taskProcessingIdx !== null) return;
+    if (completedTaskIndices.includes(taskIndex)) return;
+
+    // ONLY users who bought/unlocked a VIP package (VIP1-VIP10) can complete tasks
+    if (!userVip || userVip === 'VIP0') {
+      showToast('Please purchase a VIP package from the VIP tab to unlock daily tasks!');
+      navigateToTab('vip');
+      return;
+    }
+
+    setTaskProcessingIdx(taskIndex);
+    const durationSec = 5;
+    setTaskCountdown(durationSec);
+
+    let remaining = durationSec;
+    if (taskTimerRef.current) clearInterval(taskTimerRef.current);
+    taskTimerRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        setTaskCountdown(remaining);
+      } else {
+        clearInterval(taskTimerRef.current);
+        taskTimerRef.current = null;
+        setTaskCountdown(0);
+
+        setCompletedTaskIndices((prev) => {
+          const nextCompleted = prev.includes(taskIndex) ? prev : [...prev, taskIndex];
+          try {
+            localStorage.setItem(todayTasksKey, JSON.stringify(nextCompleted));
+          } catch (e) {
+            console.error(e);
+          }
+          return nextCompleted;
+        });
+
+        // Add balance
+        setBalance((prevBal) => {
+          const newBal = parseFloat((prevBal + reward).toFixed(2));
+          if (currentUser) {
+            const updated = { ...currentUser, balance: newBal };
+            setCurrentUser(updated);
+            try {
+              localStorage.setItem('nt_currentUser', JSON.stringify(updated));
+            } catch (e) {
+              console.error(e);
+            }
+            const allUsers = getStoredData('users', DEFAULT_USERS);
+            setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
+          }
+          return newBal;
+        });
+
+        setTaskProcessingIdx(null);
+        showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
+      }
+    }, 1000);
+  };
+
+  const handleChangePasswordSubmit = (e) => {
+    e?.preventDefault();
+    setChangePassError('');
+
+    if (!currentUser) {
+      showToast('Please sign in first');
+      return;
+    }
+
+    if (!oldPasswordInput) {
+      setChangePassError('Please enter your old password');
+      return;
+    }
+
+    if (oldPasswordInput !== currentUser.password) {
+      setChangePassError('Current password is incorrect');
+      return;
+    }
+
+    if (!newPasswordInput || newPasswordInput.trim().length < 6) {
+      setChangePassError('New password must be at least 6 characters long');
+      return;
+    }
+
+    if (newPasswordInput !== confirmNewPasswordInput) {
+      setChangePassError('New passwords do not match');
+      return;
+    }
+
+    const updatedUser = {
+      ...currentUser,
+      password: newPasswordInput.trim()
+    };
+    setCurrentUser(updatedUser);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+    } catch (err) {
+      console.error(err);
+    }
+
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map((u) => (u.id === currentUser.id ? updatedUser : u));
+    setStoredData('users', updatedUsers);
+
+    setShowPasswordModal(false);
+    setOldPasswordInput('');
+    setNewPasswordInput('');
+    setConfirmNewPasswordInput('');
+    setChangePassError('');
+    showToast('Password changed successfully!');
+  };
+
+  // Helper to match user flexibly by email, username, phone, UID, or invitation code
+  const matchAccount = (u, id) => {
+    if (!id || !u) return false;
+    const cleanId = String(id).trim().toLowerCase();
+    if (!cleanId) return false;
+
+    // 1. Email match (case-insensitive & trimmed)
+    if (u.email && u.email.trim().toLowerCase() === cleanId) return true;
+
+    // 2. Name / Username match (case-insensitive & trimmed)
+    if (u.name && u.name.trim().toLowerCase() === cleanId) return true;
+
+    // 3. Match UID
+    if (u.id && String(u.id).trim().toLowerCase() === cleanId) return true;
+
+    // 4. Match Invitation Code (e.g. NT1001, NT1002)
+    const code1 = String(u.myInviteCode || '').trim().toLowerCase();
+    const code2 = String(u.inviteCode || '').trim().toLowerCase();
+    if (code1 && code1 === cleanId) return true;
+    if (code2 && code2 === cleanId) return true;
+
+    // 5. Match Phone number flexibly
+    const idDigits = cleanId.replace(/\D/g, '');
+    const userPhoneDigits = String(u.phone || '').replace(/\D/g, '');
+    if (idDigits.length >= 6 && userPhoneDigits.length >= 6) {
+      if (idDigits === userPhoneDigits) return true;
+      if (idDigits.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(idDigits)) return true;
+      const last10Input = idDigits.slice(-10);
+      const last10User = userPhoneDigits.slice(-10);
+      if (last10Input.length >= 8 && last10Input === last10User) return true;
+    }
+    if (u.phone && u.phone.trim().toLowerCase() === cleanId) return true;
+
+    return false;
+  };
+
+  const handleLogin = (e) => {
+    e?.preventDefault();
+    setAuthError('');
+    setAuthSuccess('');
+
+    try {
+      const rawInput = (accountInput || userEmail || userPhone || '').trim();
+      const inputPass = (password || '').trim();
+
+      if (!rawInput) {
+        const err = loginMethod === 'email' ? 'Please enter your email or username' : 'Please enter your phone number';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+      if (!inputPass) {
+        const err = 'Please enter password';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      // Master Admin Login Support
+      if (rawInput.toLowerCase() === 'admin@nexttask.online' || rawInput.toLowerCase() === 'admin') {
+        if (inputPass === 'Admin@NextTask' || password === 'Admin@NextTask') {
+          const adminUser = {
+            id: '100',
+            name: 'Master Admin',
+            email: 'admin@nexttask.online',
+            phone: '',
+            dob: '',
+            password: 'Admin@NextTask',
+            vip: 'VIP10',
+            balance: 99999.00,
+            recharge: 99999.00,
+            status: 'active',
+            joined: '2026-10-01',
+            inviteCode: 'NT1001',
+            myInviteCode: 'NT1001',
+            referredBy: '',
+            withdrawalAccounts: {
+              bkash: '01712345678',
+              nagad: '01812345678',
+              rocket: '',
+              trc20: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
+              bankName: 'City Bank',
+              bankAccount: '11029384756',
+              bankHolder: 'Master Admin'
+            }
+          };
+          try {
+            localStorage.setItem('nt_currentUser', JSON.stringify(adminUser));
+          } catch (e) {
+            console.error(e);
+          }
+          setCurrentUser(adminUser);
+          setUserVip('VIP10');
+          setBalance(99999.00);
+          setRechargeTotal(99999.00);
+          setUserEmail('admin@nexttask.online');
+          setUserPhone('');
+          setIsLoggedIn(true);
+          navigateToTab('me');
+          setIntendedTab('me');
+          showToast('Welcome back, Master Admin!');
+          return;
+        } else {
+          const err = 'Wrong user name or password';
+          setAuthError(err);
+          setAuthModalMsg(err);
+          showToast(err);
+          return;
+        }
+      }
+
+      const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
+      const fullPhone = isPhonePattern
+        ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
+        : (loginMethod === 'phone' && !rawInput.includes('@')
+            ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
+            : '');
+
+      const allUsers = getStoredData('users', DEFAULT_USERS);
+
+      // Find user matching by email, username, phone, or id
+      let matched = allUsers.find((u) => 
+        matchAccount(u, rawInput) ||
+        (fullPhone && matchAccount(u, fullPhone)) ||
+        (u.email && u.email.trim().toLowerCase() === rawInput.toLowerCase()) ||
+        (u.name && u.name.trim().toLowerCase() === rawInput.toLowerCase()) ||
+        (u.phone && u.phone.trim() === rawInput)
+      );
+
+      // Password comparison: check trimmed or exact
+      const storedPass = String(matched?.password || '').trim();
+      const isPassValid = matched && storedPass && (storedPass === inputPass || matched.password === password);
+
+      if (!matched || !isPassValid) {
+        const err = 'Wrong user name or password';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      if (matched.status === 'banned') {
+        const err = 'This account has been suspended. Please contact support.';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      try {
+        localStorage.setItem('nt_currentUser', JSON.stringify(matched));
+      } catch (e) {
+        console.error(e);
+      }
+
+      setCurrentUser(matched);
+      setUserVip(matched.vip || 'VIP0');
+      setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
+      setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
+      setUserEmail(matched.email || (loginMethod === 'email' ? rawInput : ''));
+      setUserPhone(matched.phone || (loginMethod === 'phone' ? fullPhone : ''));
+      setIsLoggedIn(true);
+      setAuthSuccess('Signed in successfully! Loading profile...');
+      setAuthError('');
+      setAuthModalMsg('');
+
+      const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
+      navigateToTab(targetTab);
+      setIntendedTab(targetTab);
+      showToast(`Welcome back, ${matched.name || matched.email || matched.phone || 'User'}!`);
+    } catch (err) {
+      console.error('Login error:', err);
+      showToast('Login error: ' + (err?.message || err));
+    }
+  };
+
+  const handleRegister = (e) => {
+    e?.preventDefault();
+    setAuthError('');
+    setAuthSuccess('');
+
+    try {
+      const rawInput = (accountInput || userEmail || userPhone || '').trim();
+      if (!rawInput) {
+        const err = loginMethod === 'email' ? 'Please enter email' : 'Please enter phone number';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+      if (!password) {
+        const err = 'Please enter password';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+      if (password.trim().length < 6) {
+        const err = 'Password must be at least 6 characters long';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+      if (reenterPassword && password.trim() !== reenterPassword.trim()) {
+        const err = 'Passwords do not match';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
+      const fullPhone = (loginMethod === 'phone' || isPhonePattern)
+        ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
+        : '';
+      const idToMatch = fullPhone || rawInput;
+
+      const allUsers = getStoredData('users', DEFAULT_USERS);
+      let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
+
+      if (matched) {
+        const err = 'This account is already registered. Please sign in.';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      // Generate unique NTxxxx serial invite code for this new user
+      const uniqueInviteCode = generateUniqueInviteCode(allUsers);
+
+      // Create fresh user account
+      const isMail = rawInput.includes('@') || loginMethod === 'email';
+      const effectiveReferrer = (
+        regInviteCode ||
+        getInviteCodeFromUrl() ||
+        (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('nt_referral_code') : '') ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('nt_referral_code') : '') ||
+        ''
+      ).trim().toUpperCase();
+
+      const userToSave = {
+        id: String(Date.now()),
+        name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
+        email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
+        phone: !isMail ? fullPhone : '',
+        dob: '',
+        password: (password || '').trim(),
+        vip: 'VIP0',
+        balance: 0.00,
+        recharge: 0.00,
+        status: 'active',
+        joined: new Date().toISOString().slice(0, 10),
+        inviteCode: uniqueInviteCode,
+        myInviteCode: uniqueInviteCode,
+        referredBy: effectiveReferrer,
+        withdrawalAccounts: {
+          bkash: '',
+          nagad: '',
+          rocket: '',
+          trc20: '',
+          bankName: '',
+          bankAccount: '',
+          bankHolder: ''
+        }
+      };
+      const updated = [userToSave, ...allUsers];
+      setStoredData('users', updated);
+
+      try {
+        localStorage.setItem('nt_currentUser', JSON.stringify(userToSave));
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Clear register / referral hash from URL bar
+      try {
+        if (window.location.hash.includes('register') || window.location.hash.includes('signup')) {
+          window.history.replaceState(null, '', window.location.pathname || '/');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      setCurrentUser(userToSave);
+      setUserVip(userToSave.vip || 'VIP0');
+      setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
+      setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
+      setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
+      setUserPhone(userToSave.phone || fullPhone || '');
+      setIsLoggedIn(true);
+      setAuthSuccess('Account created successfully! Welcome to NextTask.');
+      setAuthError('');
+      setAuthModalMsg('');
+
+      const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
+      navigateToTab(targetTab);
+      setIntendedTab(targetTab);
+      showToast(`Account ready! Welcome, ${userToSave.name || userToSave.email || userToSave.phone || 'User'}`);
+    } catch (err) {
+      console.error('Register error:', err);
+      showToast('Register error: ' + (err?.message || err));
+    }
+  };
+
+  const handleResetPassword = (e) => {
+    e?.preventDefault();
+    const id = (accountInput || userEmail || userPhone || '').trim();
+    if (!id) {
+      const err = 'Please enter your registered email or phone';
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
+    }
+    if (!password) {
+      const err = 'Please enter new password';
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
+    }
+    if (password.trim().length < 6) {
+      const err = 'Password must be at least 6 characters long';
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
+    }
+    if (reenterPassword && password !== reenterPassword) {
+      const err = 'Passwords do not match';
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
+    }
+
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    let found = false;
+    let matchedUser = null;
+    const updated = allUsers.map((u) => {
+      if (matchAccount(u, id)) {
+        found = true;
+        matchedUser = { ...u, password };
+        return matchedUser;
+      }
+      return u;
+    });
+
+    if (!found) {
+      matchedUser = {
+        id: String(Date.now()),
+        email: id.includes('@') ? id : `${id}@phone.user`,
+        phone: !id.includes('@') ? id : '',
+        password: password,
+        vip: 'VIP0',
+        balance: 0.0,
+        recharge: 0.0,
+        status: 'active',
+        joined: new Date().toISOString().slice(0, 10)
+      };
+      setStoredData('users', [matchedUser, ...allUsers]);
+    } else {
+      setStoredData('users', updated);
+    }
+
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(matchedUser));
+    } catch (e) {
+      console.error(e);
+    }
+
+    setCurrentUser(matchedUser);
+    setUserVip(matchedUser.vip || 'VIP0');
+    setBalance(typeof matchedUser.balance === 'number' ? matchedUser.balance : 0);
+    setRechargeTotal(typeof matchedUser.recharge === 'number' ? matchedUser.recharge : 0);
+    setUserEmail(matchedUser.email || id);
+    setUserPhone(matchedUser.phone || '');
+    setIsLoggedIn(true);
+
+    showToast('Password updated! Signed in successfully.');
+    setActiveTab('me');
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('nt_currentUser');
+    } catch (e) {
+      console.error(e);
+    }
+    setCurrentUser(null);
+    setIsLoggedIn(false);
+    navigateToTab('home');
+    setIntendedTab('home');
+    setAccountInput('');
+    setUserEmail('');
+    setUserPhone('');
+    setFullName('');
+    setPassword('');
+    setReenterPassword('');
+    setRegInviteCode('');
+    setAuthModalMsg('');
+    setUserVip('VIP0');
+    setBalance(0);
+    setRechargeTotal(0);
+    showToast('Logged out');
+  };
+
+  // Click on VIP package -> opens unlock confirmation popup (matching user screenshot)
+  const handleUnlockVip = (vip) => {
+    if (!requireAuth('vip', `unlock ${vip.level}`)) return;
+    setSelectedVipForUnlock(vip);
+    setShowUnlockConfirmModal(true);
+  };
+
+  // Clicking 'Confirm' on unlock confirmation popup:
+  // If user already has balance >= deposit, unlocks the VIP package immediately!
+  // Otherwise leads to deposit / recharge page.
   const handleConfirmUnlock = () => {
     setShowUnlockConfirmModal(false);
     if (!selectedVipForUnlock) return;
