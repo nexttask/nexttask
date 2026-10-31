@@ -446,10 +446,11 @@ export default function App() {
       return;
     }
 
-    const fullPhone = loginMethod === 'phone'
-      ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry.dial}${rawInput.replace(/^0+/, '')}`)
+    const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
+    const fullPhone = (loginMethod === 'phone' || isPhonePattern)
+      ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
       : '';
-    const idToMatch = loginMethod === 'phone' ? fullPhone : rawInput;
+    const idToMatch = fullPhone || rawInput;
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
     let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
@@ -459,7 +460,7 @@ export default function App() {
       // Seamlessly update password and sign in so user is NEVER blocked by existing default mock records!
       matched = {
         ...matched,
-        name: fullName.trim() || matched.name || 'User',
+        name: (fullName || '').trim() || matched.name || 'User',
         password: password,
         status: 'active'
       };
@@ -468,11 +469,11 @@ export default function App() {
       userToSave = matched;
     } else {
       // Create fresh user account
-      const isMail = loginMethod === 'email' || rawInput.includes('@');
+      const isMail = rawInput.includes('@') || loginMethod === 'email';
       userToSave = {
         id: String(Date.now()),
-        name: fullName.trim() || (isMail ? rawInput.split('@')[0] : 'User'),
-        email: isMail ? rawInput : `${rawInput.replace(/\D/g, '')}@phone.user`,
+        name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
+        email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
         phone: !isMail ? fullPhone : '',
         password: password,
         vip: 'VIP0',
@@ -497,11 +498,14 @@ export default function App() {
     setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
     setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
     setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
-    setUserPhone(userToSave.phone || (loginMethod !== 'email' ? fullPhone : ''));
+    setUserPhone(userToSave.phone || fullPhone || '');
     setIsLoggedIn(true);
     setAuthSuccess('Account created successfully! Welcome to NextTask.');
+    setAuthError('');
+    setAuthModalMsg('');
 
     setActiveTab('me');
+    setIntendedTab('me');
     showToast(`Account ready! Welcome, ${userToSave.name || userToSave.email || userToSave.phone || 'User'}`);
   };
 
@@ -899,13 +903,8 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Form wrapping card and buttons for seamless keyboard Enter & submit */}
-              <form
-                onSubmit={authMode === 'register' ? handleRegister : authMode === 'forgot' ? handleResetPassword : handleLogin}
-                className="flex flex-col flex-1"
-              >
-                {/* White Form Card (Only Inputs) */}
-                <div className="mx-4 mt-4 bg-white rounded-3xl p-5 shadow-xl space-y-3.5">
+              {/* White Form Card (Only Inputs) */}
+              <div className="mx-4 mt-4 bg-white rounded-3xl p-5 shadow-xl space-y-3.5">
                 {authError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 animate-fade-in">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -1063,7 +1062,8 @@ export default function App() {
                 {authMode === 'register' ? (
                   <>
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleRegister}
                       className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                     >
                       Sign Up
@@ -1084,7 +1084,8 @@ export default function App() {
                 ) : authMode === 'forgot' ? (
                   <>
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleResetPassword}
                       className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                     >
                       Reset Password
@@ -1106,7 +1107,8 @@ export default function App() {
                 ) : (
                   <>
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleLogin}
                       className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                     >
                       Sign In
@@ -1126,7 +1128,6 @@ export default function App() {
                   </>
                 )}
               </div>
-              </form>
 
               <div className="mt-auto py-6 text-center text-xs text-slate-400">
                 NextTask Official Safe & Encrypted Platform
