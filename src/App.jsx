@@ -816,7 +816,9 @@ export default function App() {
       showToast('Insufficient balance!');
       return;
     }
-    const minWth = Math.max(10.0, parseFloat(settings?.minWithdrawal) || 10.0);
+    const minWth = typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0
+      ? settings.minWithdrawal
+      : (parseFloat(settings?.minWithdrawal) || 10.0);
     if (num < minWth) {
       showToast(`Minimum withdrawal is ${minWth.toFixed(2)} USDT`);
       return;
@@ -1551,6 +1553,13 @@ export default function App() {
     const numAmount = parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0;
     if (numAmount <= 0) {
       showToast('Invalid recharge amount');
+      return;
+    }
+    const minDep = typeof settings?.minDeposit === 'number' && settings.minDeposit > 0
+      ? settings.minDeposit
+      : (parseFloat(settings?.minDeposit) || 10.0);
+    if (numAmount < minDep) {
+      showToast(`Minimum deposit is ${minDep} USDT`);
       return;
     }
 
@@ -3500,9 +3509,14 @@ export default function App() {
 
               {/* Deposit Amount Field */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Recharge Amount (USDT)
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Recharge Amount (USDT)
+                  </label>
+                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                    Min: {typeof settings?.minDeposit === 'number' && settings.minDeposit > 0 ? settings.minDeposit : (parseFloat(settings?.minDeposit) || 10.0)} USDT
+                  </span>
+                </div>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">$</span>
                   <input
@@ -3693,7 +3707,9 @@ export default function App() {
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-slate-400 font-medium">Min Withdrawal</div>
-                  <div className="text-xs font-bold text-indigo-600">{Math.max(10.0, parseFloat(settings?.minWithdrawal) || 10.0).toFixed(2)} USDT</div>
+                  <div className="text-xs font-bold text-indigo-600">
+                    {(typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0 ? settings.minWithdrawal : (parseFloat(settings?.minWithdrawal) || 10.0)).toFixed(2)} USDT
+                  </div>
                 </div>
               </div>
 

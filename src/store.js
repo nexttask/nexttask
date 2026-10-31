@@ -146,11 +146,12 @@ export const getStoredData = (key, fallback) => {
       });
     }
 
-    // Ensure minWithdrawal is at least 10 USDT
+    // Ensure settings numbers are parsed cleanly from admin inputs
     if (key === 'settings' && parsed && typeof parsed === 'object') {
       return {
         ...parsed,
-        minWithdrawal: Math.max(10.0, parseFloat(parsed.minWithdrawal) || 10.0)
+        minWithdrawal: typeof parsed.minWithdrawal === 'number' ? parsed.minWithdrawal : (parseFloat(parsed.minWithdrawal) || 10.0),
+        minDeposit: typeof parsed.minDeposit === 'number' ? parsed.minDeposit : (parseFloat(parsed.minDeposit) || 10.0)
       };
     }
 
