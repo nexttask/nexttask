@@ -26,8 +26,8 @@ export const DEFAULT_USERS = [
     recharge: 99999.00,
     status: 'active',
     joined: '2026-10-01',
-    inviteCode: '806211',
-    myInviteCode: '806211',
+    inviteCode: 'NT1001',
+    myInviteCode: 'NT1001',
     referredBy: '',
     withdrawalAccounts: {
       bkash: '',
@@ -149,6 +149,38 @@ export const getStoredData = (key, fallback) => {
       };
     }
 
+    // Ensure all users have valid unique NTxxxx invite codes
+    if (key === 'users' && Array.isArray(parsed)) {
+      let maxSerial = 1000;
+      parsed.forEach((u) => {
+        if (!u) return;
+        const c = String(u.myInviteCode || u.inviteCode || '').toUpperCase();
+        const m = c.match(/^NT(\d+)$/);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (!isNaN(n) && n > maxSerial) maxSerial = n;
+        }
+      });
+
+      return parsed.map((u) => {
+        if (!u) return u;
+        let myCode = u.myInviteCode || u.inviteCode;
+        if (!myCode || !String(myCode).toUpperCase().startsWith('NT')) {
+          if (u.email === 'admin@nexttask.online') {
+            myCode = 'NT1001';
+          } else {
+            maxSerial++;
+            myCode = `NT${maxSerial}`;
+          }
+        }
+        return {
+          ...u,
+          inviteCode: myCode,
+          myInviteCode: myCode
+        };
+      });
+    }
+
     return parsed;
   } catch {
     return fallback;
@@ -161,6 +193,76 @@ export const setStoredData = (key, value) => {
   } catch (err) {
     console.error('Failed to save to localStorage:', err);
   }
+};
+
+export const generateUniqueInviteCode = (users = []) => {
+  const existingCodes = new Set();
+  let maxSerial = 1000;
+
+  users.forEach((u) => {
+    if (!u) return;
+    const c1 = String(u.inviteCode || '').trim().toUpperCase();
+    const c2 = String(u.myInviteCode || '').trim().toUpperCase();
+    if (c1) existingCodes.add(c1);
+    if (c2) existingCodes.add(c2);
+
+    [c1, c2].forEach((c) => {
+      const match = c.match(/^NT(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxSerial) {
+          maxSerial = num;
+        }
+      }
+    });
+  });
+
+  let nextSerial = maxSerial + 1;
+  while (existingCodes.has(`NT${nextSerial}`)) {
+    nextSerial++;
+  }
+  return `NT${nextSerial}`;
+};
+
+export const isReferredByUser = (member, parentUser) => {
+  if (!member || !parentUser || !member.referredBy) return false;
+  if (String(member.id) === String(parentUser.id)) return false;
+  const ref = String(member.referredBy).trim().toUpperCase();
+  const parentCode = String(parentUser.myInviteCode || parentUser.inviteCode || '').trim().toUpperCase();
+  const parentId = String(parentUser.id || '').trim().toUpperCase();
+
+  if (ref === parentCode || ref === parentId) return true;
+  // Backward compatibility: If referral was '806211' and parent is admin
+  if (ref === '806211' && (parentCode === 'NT1001' || parentCode === '806211' || parentUser.email === 'admin@nexttask.online')) {
+    return true;
+  }
+  return false;
+};
+
+export const getInviteCodeFromUrl = () => {
+  if (typeof window === 'undefined') return '';
+  const href = window.location.href;
+  const match = href.match(/[?&#](?:i|ref|code|invite)=([A-Za-z0-9_-]+)/i);
+  if (match && match[1]) {
+    return match[1].trim().toUpperCase();
+  }
+  return '';
+};
+
+export const isRegisterRoute = () => {
+  if (typeof window === 'undefined') return false;
+  const href = window.location.href.toLowerCase();
+  return (
+    href.includes('/register') ||
+    href.includes('#/register') ||
+    href.includes('#register') ||
+    href.includes('/signup') ||
+    href.includes('#signup') ||
+    href.includes('?i=') ||
+    href.includes('&i=') ||
+    href.includes('?ref=') ||
+    href.includes('&ref=')
+  );
 };
 
 export const getVipLevelFromReferrals = (refCount, currentVip = 'VIP0') => {

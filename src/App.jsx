@@ -47,6 +47,10 @@ import {
   getStoredData,
   setStoredData,
   getVipLevelFromReferrals,
+  generateUniqueInviteCode,
+  isReferredByUser,
+  getInviteCodeFromUrl,
+  isRegisterRoute,
   DEFAULT_USERS,
   DEFAULT_VIP_TIERS,
   DEFAULT_SETTINGS,
@@ -104,10 +108,22 @@ export default function App() {
         window.location.hash.startsWith('#/admin') ||
         window.location.hash.startsWith('#admin');
       setIsAdminRoute(isAdm);
+
+      const codeFromUrl = getInviteCodeFromUrl();
+      if (codeFromUrl) {
+        setRegInviteCode(codeFromUrl);
+      }
+      if (isRegisterRoute()) {
+        setActiveTab('auth');
+        setAuthMode('register');
+      }
+
       setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
       setSettings(getStoredData('settings', DEFAULT_SETTINGS));
       setSlides(getStoredData('slides', DEFAULT_SLIDES));
     };
+
+    handleUrlChange();
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
     window.addEventListener('storage', handleUrlChange);
@@ -127,10 +143,10 @@ export default function App() {
       return null;
     }
   });
-  const [activeTab, setActiveTab] = useState('home'); // Show Home page at start as requested!
+  const [activeTab, setActiveTab] = useState(() => isRegisterRoute() ? 'auth' : 'home');
   const [intendedTab, setIntendedTab] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('nt_currentUser'));
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register' | 'forgot'
+  const [authMode, setAuthMode] = useState(() => isRegisterRoute() ? 'register' : 'login'); // 'login' | 'register' | 'forgot'
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [accountInput, setAccountInput] = useState(() => {
@@ -167,9 +183,9 @@ export default function App() {
   const [reenterPassword, setReenterPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showReenterPassword, setShowReenterPassword] = useState(false);
-  const userInviteCode = currentUser?.myInviteCode || currentUser?.inviteCode || '806211';
-  const [inviteCode] = useState('806211'); // fallback
-  const [regInviteCode, setRegInviteCode] = useState('');
+  const userInviteCode = currentUser?.myInviteCode || currentUser?.inviteCode || 'NT1001';
+  const [inviteCode] = useState('NT1001'); // fallback
+  const [regInviteCode, setRegInviteCode] = useState(() => getInviteCodeFromUrl() || '');
   const [balance, setBalance] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('nt_currentUser'));
@@ -328,7 +344,7 @@ export default function App() {
     const myId = String(currentUser.id || '');
     if (!myCode && !myId) return;
 
-    const directRefs = allUsers.filter(u => u && u.id !== currentUser.id && u.referredBy && (u.referredBy === myCode || u.referredBy === myId));
+    const directRefs = allUsers.filter(u => isReferredByUser(u, currentUser));
     const earnedVip = getVipLevelFromReferrals(directRefs.length, currentUser.vip || 'VIP0');
 
     if (earnedVip !== userVip) {
@@ -644,8 +660,8 @@ export default function App() {
             recharge: 99999.00,
             status: 'active',
             joined: '2026-10-01',
-            inviteCode: '806211',
-            myInviteCode: '806211',
+            inviteCode: 'NT1001',
+            myInviteCode: 'NT1001',
             referredBy: '',
             withdrawalAccounts: {
               bkash: '01712345678',
@@ -789,12 +805,8 @@ export default function App() {
         return;
       }
 
-      // Generate unique 6-digit numeric invite code for this new user
-      const existingCodes = new Set(allUsers.map((u) => String(u.inviteCode || u.myInviteCode || '')));
-      let uniqueInviteCode = '';
-      do {
-        uniqueInviteCode = String(Math.floor(100000 + Math.random() * 900000));
-      } while (existingCodes.has(uniqueInviteCode));
+      // Generate unique NTxxxx serial invite code for this new user
+      const uniqueInviteCode = generateUniqueInviteCode(allUsers);
 
       // Create fresh user account
       const isMail = rawInput.includes('@') || loginMethod === 'email';
@@ -812,7 +824,7 @@ export default function App() {
         joined: new Date().toISOString().slice(0, 10),
         inviteCode: uniqueInviteCode,
         myInviteCode: uniqueInviteCode,
-        referredBy: (regInviteCode || '').trim(),
+        referredBy: (regInviteCode || '').trim().toUpperCase(),
         withdrawalAccounts: {
           bkash: '',
           nagad: '',
@@ -828,6 +840,15 @@ export default function App() {
 
       try {
         localStorage.setItem('nt_currentUser', JSON.stringify(userToSave));
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Clear register / referral hash from URL bar
+      try {
+        if (window.location.hash.includes('register') || window.location.hash.includes('signup')) {
+          window.history.replaceState(null, '', window.location.pathname || '/');
+        }
       } catch (e) {
         console.error(e);
       }
@@ -1198,7 +1219,11 @@ export default function App() {
             <div className="min-h-full bg-gradient-to-b from-[#06142e] via-[#0b2046] to-[#f4f7fb] flex flex-col">
               {/* Header */}
               <div className="p-6 pt-10 text-white flex justify-between items-center">
-                <div className="flex items-center gap-2.5">
+                <div 
+                  onClick={() => setActiveTab('home')}
+                  className="flex items-center gap-2.5 cursor-pointer active:scale-95 transition"
+                  title="Back to Home"
+                >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center shadow-lg font-black text-white text-base">
                     N
                   </div>
@@ -1371,13 +1396,20 @@ export default function App() {
                 {/* Invitation code (Register mode) */}
                 {authMode === 'register' && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Invitation code</label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-xs font-semibold text-slate-700">Invitation code</label>
+                      {regInviteCode && (
+                        <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          ✓ Referral code applied
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={regInviteCode}
-                      onChange={(e) => setRegInviteCode(e.target.value)}
-                      placeholder="Invitation code"
-                      className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
+                      onChange={(e) => setRegInviteCode(e.target.value.toUpperCase())}
+                      placeholder="Invitation code (e.g. NT1001)"
+                      className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition font-mono tracking-wider font-bold"
                     />
                   </div>
                 )}
@@ -1835,19 +1867,28 @@ export default function App() {
               {/* ================= TAB 3: TEAM ================= */}
               {activeTab === 'team' && (() => {
                 const allUsers = getStoredData('users', DEFAULT_USERS);
-                const myCode = String(currentUser?.myInviteCode || currentUser?.inviteCode || '806211');
-                const myId = String(currentUser?.id || '');
+                const myCode = String(currentUser?.myInviteCode || currentUser?.inviteCode || 'NT1001');
 
-                // Level 1: Direct referrals (referredBy === myCode or myId)
-                const level1Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && (String(u.referredBy) === myCode || String(u.referredBy) === myId));
+                // Level 1: Direct referrals (matching NT code, user ID, or legacy admin code)
+                const level1Members = allUsers.filter(u => isReferredByUser(u, currentUser));
 
                 // Level 2: Referred by Level 1 members
-                const l1Codes = new Set(level1Members.map(u => String(u.myInviteCode || u.inviteCode || u.id)));
-                const level2Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && l1Codes.has(String(u.referredBy)));
+                const l1Codes = new Set();
+                level1Members.forEach(u => {
+                  if (u.id) l1Codes.add(String(u.id).toUpperCase());
+                  if (u.myInviteCode) l1Codes.add(String(u.myInviteCode).toUpperCase());
+                  if (u.inviteCode) l1Codes.add(String(u.inviteCode).toUpperCase());
+                });
+                const level2Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && l1Codes.has(String(u.referredBy).trim().toUpperCase()));
 
                 // Level 3: Referred by Level 2 members
-                const l2Codes = new Set(level2Members.map(u => String(u.myInviteCode || u.inviteCode || u.id)));
-                const level3Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && l2Codes.has(String(u.referredBy)));
+                const l2Codes = new Set();
+                level2Members.forEach(u => {
+                  if (u.id) l2Codes.add(String(u.id).toUpperCase());
+                  if (u.myInviteCode) l2Codes.add(String(u.myInviteCode).toUpperCase());
+                  if (u.inviteCode) l2Codes.add(String(u.inviteCode).toUpperCase());
+                });
+                const level3Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && l2Codes.has(String(u.referredBy).trim().toUpperCase()));
 
                 const currentLevelMembers = teamLevelTab === 1 ? level1Members : teamLevelTab === 2 ? level2Members : level3Members;
                 const totalTeamCount = level1Members.length + level2Members.length + level3Members.length;
