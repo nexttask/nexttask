@@ -119,7 +119,7 @@ export default function App() {
       return null;
     }
   });
-  const [activeTab, setActiveTab] = useState(() => (localStorage.getItem('nt_currentUser') ? 'home' : 'auth'));
+  const [activeTab, setActiveTab] = useState('home'); // Show Home page at start as requested!
   const [intendedTab, setIntendedTab] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('nt_currentUser'));
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register' | 'forgot'
