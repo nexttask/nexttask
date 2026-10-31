@@ -54,10 +54,10 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const DEFAULT_PAYMENT_METHODS = [
-  { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 125, active: true, instructions: 'Send Money করুন এবং TrxID নিচে দিন' },
-  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 125, active: true, instructions: 'Send Money করুন এবং TrxID নিচে দিন' },
-  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 125, active: true, instructions: 'Send Money করুন এবং TrxID নিচে দিন' },
-  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 1, active: true, instructions: 'TRC20 নেটওয়ার্কে ট্রান্সফার করুন' }
+  { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 125, active: true, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 125, active: true, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 125, active: true, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 1, active: true, instructions: 'Transfer USDT via TRC20 network and submit TxID below' }
 ];
 
 export const DEFAULT_SLIDES = [
@@ -123,6 +123,22 @@ export const getStoredData = (key, fallback) => {
     // Clean out mock withdrawals from previous sessions
     if (key === 'withdrawals' && Array.isArray(parsed)) {
       return parsed.filter((w) => w && !['WTH-400', 'WTH-401'].includes(String(w.id || '')));
+    }
+
+    // Ensure payment method instructions are in English
+    if (key === 'payments' && Array.isArray(parsed)) {
+      return parsed.map((p) => {
+        if (!p) return p;
+        if (p.instructions && (p.instructions.includes('করুন') || p.instructions.includes('নিচে দিন') || p.instructions.includes('নেটওয়ার্কে'))) {
+          return {
+            ...p,
+            instructions: p.method === 'USDT (TRC20)'
+              ? 'Transfer USDT via TRC20 network and submit TxID below'
+              : 'Please Send Money and enter TrxID below'
+          };
+        }
+        return p;
+      });
     }
 
     return parsed;

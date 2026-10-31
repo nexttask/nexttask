@@ -234,6 +234,12 @@ export default function App() {
     }
   });
 
+  // Change Password Modal State
+  const [oldPasswordInput, setOldPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmNewPasswordInput, setConfirmNewPasswordInput] = useState('');
+  const [changePassError, setChangePassError] = useState('');
+
   // Payment Methods & VIP Unlock State
   const [paymentMethods, setPaymentMethods] = useState(() => getStoredData('payments', DEFAULT_PAYMENT_METHODS));
   const [selectedVipForUnlock, setSelectedVipForUnlock] = useState(null);
@@ -496,6 +502,58 @@ export default function App() {
       setTaskProcessingIdx(null);
       showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
     }, 700);
+  };
+
+  const handleChangePasswordSubmit = (e) => {
+    e?.preventDefault();
+    setChangePassError('');
+
+    if (!currentUser) {
+      showToast('Please sign in first');
+      return;
+    }
+
+    if (!oldPasswordInput) {
+      setChangePassError('Please enter your old password');
+      return;
+    }
+
+    if (oldPasswordInput !== currentUser.password) {
+      setChangePassError('Current password is incorrect');
+      return;
+    }
+
+    if (!newPasswordInput || newPasswordInput.trim().length < 6) {
+      setChangePassError('New password must be at least 6 characters long');
+      return;
+    }
+
+    if (newPasswordInput !== confirmNewPasswordInput) {
+      setChangePassError('New passwords do not match');
+      return;
+    }
+
+    const updatedUser = {
+      ...currentUser,
+      password: newPasswordInput.trim()
+    };
+    setCurrentUser(updatedUser);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+    } catch (err) {
+      console.error(err);
+    }
+
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map((u) => (u.id === currentUser.id ? updatedUser : u));
+    setStoredData('users', updatedUsers);
+
+    setShowPasswordModal(false);
+    setOldPasswordInput('');
+    setNewPasswordInput('');
+    setConfirmNewPasswordInput('');
+    setChangePassError('');
+    showToast('Password changed successfully!');
   };
 
   // Helper to match user by email (case-insensitive) or phone (flexible formats)
@@ -1465,10 +1523,10 @@ export default function App() {
                       </div>
                       <button 
                         type="button"
-                        onClick={() => handleOpenProfileModal('personal')}
+                        onClick={() => setShowAnnouncement(true)}
                         className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full flex items-center gap-1 transition cursor-pointer"
                       >
-                        Account &gt;
+                        Announcement &gt;
                       </button>
                     </div>
 
@@ -2126,10 +2184,7 @@ export default function App() {
                     >
                       <div className="flex items-center gap-3">
                         <User className="w-5 h-5 text-indigo-600" />
-                        <div>
-                          <div className="text-sm font-semibold text-slate-800">Personal Profile</div>
-                          <div className="text-[11px] text-slate-400">Name, Phone, DOB, User UID</div>
-                        </div>
+                        <span className="text-sm font-medium text-slate-800">Personal Profile</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
@@ -2141,10 +2196,7 @@ export default function App() {
                     >
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-5 h-5 text-cyan-600" />
-                        <div>
-                          <div className="text-sm font-semibold text-slate-800">Withdrawal Accounts</div>
-                          <div className="text-[11px] text-slate-400">bKash, Nagad, Rocket, Bank, TRC20</div>
-                        </div>
+                        <span className="text-sm font-medium text-slate-800">Withdrawal Accounts</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
@@ -2156,10 +2208,7 @@ export default function App() {
                     >
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-emerald-500" />
-                        <div>
-                          <div className="text-sm font-semibold text-slate-800">Financial Records</div>
-                          <div className="text-[11px] text-slate-400">Deposited vs Withdrawn summary</div>
-                        </div>
+                        <span className="text-sm font-medium text-slate-800">Financial Records</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
@@ -2468,7 +2517,9 @@ export default function App() {
 
                   {selectedPaymentMethod.instructions && (
                     <p className="text-[11px] text-amber-700 bg-amber-50/80 p-2 rounded-xl border border-amber-200 font-medium">
-                      ⚠️ {selectedPaymentMethod.instructions}
+                      ⚠️ {selectedPaymentMethod.instructions.includes('করুন') || selectedPaymentMethod.instructions.includes('নিচে দিন')
+                        ? (selectedPaymentMethod.method === 'USDT (TRC20)' ? 'Transfer USDT via TRC20 network and submit TxID below' : 'Please Send Money and enter TrxID below')
+                        : selectedPaymentMethod.instructions}
                     </p>
                   )}
                 </div>
@@ -2970,6 +3021,87 @@ export default function App() {
               >
                 Save Changes
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= CHANGE PASSWORD MODAL (OLD TO NEW) ================= */}
+        {showPasswordModal && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[340px] p-5 space-y-4 shadow-2xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-indigo-600" />
+                  Change Password
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setChangePassError('');
+                    setOldPasswordInput('');
+                    setNewPasswordInput('');
+                    setConfirmNewPasswordInput('');
+                  }}
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {changePassError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 animate-fade-in">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                  <span>{changePassError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePasswordSubmit} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Old Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={oldPasswordInput}
+                    onChange={(e) => setOldPasswordInput(e.target.value)}
+                    placeholder="Enter current password"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">New Password (min 6 chars)</label>
+                  <input
+                    type="password"
+                    required
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    placeholder="Enter new password"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmNewPasswordInput}
+                    onChange={(e) => setConfirmNewPasswordInput(e.target.value)}
+                    placeholder="Reenter new password"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
+                  >
+                    Confirm Change
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

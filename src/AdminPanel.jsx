@@ -122,7 +122,7 @@ export default function AdminPanel({ onNavigateToApp }) {
     number: '',
     rate: 125,
     active: true,
-    instructions: 'Send Money করুন এবং TrxID নিচে দিন'
+    instructions: 'Please Send Money and enter TrxID below'
   });
 
   const [showBalanceModal, setShowBalanceModal] = useState(false);
@@ -195,7 +195,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       number: '',
       rate: 125,
       active: true,
-      instructions: 'Send Money করুন এবং TrxID নিচে দিন'
+      instructions: 'Please Send Money and enter TrxID below'
     });
     setShowPaymentModal(true);
   };
@@ -1658,7 +1658,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   rows="2"
                   value={paymentForm.instructions}
                   onChange={(e) => setPaymentForm({ ...paymentForm, instructions: e.target.value })}
-                  placeholder="Send Money করুন এবং TrxID নিচে দিন"
+                  placeholder="Please Send Money and enter TrxID below"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 resize-none"
                 />
               </div>
