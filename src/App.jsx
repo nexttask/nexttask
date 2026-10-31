@@ -674,7 +674,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Main Auth Mode Tabs: Sign In vs Create Account */}
+              {/* Main Auth Mode Tabs: Sign In vs Sign Up */}
               <div className="flex justify-center mx-6 mt-3 p-1 bg-white/10 rounded-2xl backdrop-blur">
                 <button
                   type="button"
@@ -689,7 +689,7 @@ export default function App() {
                       : 'text-white/70 hover:text-white'
                   }`}
                 >
-                  Sign In (লগইন)
+                  {t('signIn')}
                 </button>
                 <button
                   type="button"
@@ -704,7 +704,7 @@ export default function App() {
                       : 'text-white/70 hover:text-white'
                   }`}
                 >
-                  Create Account (নতুন অ্যাকাউন্ট)
+                  {t('signUp')}
                 </button>
               </div>
 
@@ -715,14 +715,14 @@ export default function App() {
                   onClick={() => setLoginMethod('email')}
                   className={`pb-1.5 relative transition cursor-pointer ${loginMethod === 'email' ? 'text-white font-bold' : 'hover:text-white/90'}`}
                 >
-                  {loginMethod === 'email' ? '● Email' : 'Email'}
+                  {t('email')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoginMethod('phone')}
                   className={`pb-1.5 relative transition cursor-pointer ${loginMethod === 'phone' ? 'text-white font-bold' : 'hover:text-white/90'}`}
                 >
-                  {loginMethod === 'phone' ? '● Phone' : 'Phone'}
+                  {t('phone')}
                 </button>
               </div>
 
@@ -739,11 +739,8 @@ export default function App() {
                 {/* Form Heading */}
                 <div className="text-center pb-1">
                   <h2 className="text-lg font-bold text-slate-900">
-                    {authMode === 'register' ? 'Create NextTask Account' : authMode === 'forgot' ? 'Reset Password' : 'Sign In to NextTask'}
+                    {authMode === 'register' ? t('signUp') : authMode === 'forgot' ? 'Reset Password' : t('signIn')}
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {authMode === 'register' ? 'Fast & secure registration' : authMode === 'forgot' ? 'Set your new password' : 'Enter your email or phone to proceed'}
-                  </p>
                 </div>
 
                 {authError && (
@@ -866,7 +863,7 @@ export default function App() {
                         onClick={handleRegister}
                         className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                       >
-                        Create Account & Sign In (রেজিস্ট্রেশন করুন)
+                        {t('signUp')}
                       </button>
                       <button
                         type="button"
@@ -877,7 +874,7 @@ export default function App() {
                         }}
                         className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3 rounded-full active:scale-[0.99] transition cursor-pointer text-xs"
                       >
-                        Already have an account? Sign In (আগের অ্যাকাউন্টে লগইন)
+                        {t('alreadyAccount')}
                       </button>
                     </>
                   ) : authMode === 'forgot' ? (
@@ -913,7 +910,7 @@ export default function App() {
                         onClick={handleLogin}
                         className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                       >
-                        Sign In Now (লগইন করুন)
+                        {t('signIn')}
                       </button>
                       <button
                         type="button"
@@ -924,7 +921,7 @@ export default function App() {
                         }}
                         className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3 rounded-full active:scale-[0.99] transition cursor-pointer text-xs"
                       >
-                        Don't have an account? Create One (নতুন অ্যাকাউন্ট খুলুন)
+                        {t('dontHaveAccount')}
                       </button>
                     </>
                   )}
