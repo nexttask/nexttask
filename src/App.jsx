@@ -117,8 +117,24 @@ export default function App() {
   // Master Admin Route Detection (supports /admin and #/admin)
   const [isAdminRoute, setIsAdminRoute] = useState(initialRoute.isAdmin);
 
-  // Direct APK Downloader
-  const handleDownloadApk = () => {
+  // Direct APK / PWA Downloader
+  const handleDownloadApk = async () => {
+    // If PWA installation is ready in browser, trigger native PWA install
+    if (deferredInstallPrompt) {
+      try {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          setIsAppInstalled(true);
+          showToast('NextTask PWA installed successfully!');
+          return;
+        }
+      } catch (err) {
+        console.warn('PWA install prompt error:', err);
+      }
+    }
+
+    // Direct download of NextTask.apk with official logo
     const link = document.createElement('a');
     link.href = '/NextTask.apk';
     link.download = 'NextTask.apk';
@@ -1458,9 +1474,11 @@ export default function App() {
         {showIosInstallModal && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-3xl w-full max-w-[320px] overflow-hidden shadow-2xl border border-slate-100 p-6 text-center space-y-4">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg">
-                <Download className="w-7 h-7" />
-              </div>
+              <img
+                src="/pwa-192.png"
+                alt="NextTask"
+                className="w-16 h-16 mx-auto rounded-2xl shadow-lg object-contain bg-[#05132d] p-1 border border-purple-500/30"
+              />
               <div>
                 <h3 className="text-base font-bold text-slate-900">Install NextTask App</h3>
                 <p className="text-xs text-slate-500 mt-1">Install on your iPhone or iPad in 3 simple steps:</p>
@@ -1536,9 +1554,11 @@ export default function App() {
                   className="flex items-center gap-2.5 cursor-pointer active:scale-95 transition"
                   title="Back to Home"
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center shadow-lg font-black text-white text-base">
-                    N
-                  </div>
+                  <img
+                    src="/pwa-192.png"
+                    alt="NextTask"
+                    className="w-10 h-10 rounded-2xl shadow-lg object-contain bg-[#05132d] p-1 border border-purple-500/30"
+                  />
                   <div>
                     <h1 className="text-xl font-bold tracking-tight">NextTask</h1>
                     <p className="text-xs text-slate-300">{t('welcome')}</p>
@@ -1828,12 +1848,12 @@ export default function App() {
               <div className="bg-[#05132d] text-white px-4 pt-4 pb-3 relative">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2.5">
-                    {/* Cosmic Planet Logo Avatar */}
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-800 via-indigo-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-md">
-                      <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
-                        <Sparkles className="w-4 h-4 text-cyan-300" />
-                      </div>
-                    </div>
+                    {/* NextTask Official Logo */}
+                    <img
+                      src="/pwa-192.png"
+                      alt="NextTask"
+                      className="w-9 h-9 rounded-2xl shadow-md object-contain bg-[#05132d] p-0.5 border border-purple-500/30"
+                    />
                     <span className="font-bold text-lg tracking-wide">NextTask</span>
                   </div>
 
@@ -2711,21 +2731,23 @@ export default function App() {
         {showAppModal && (
           <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl w-full max-w-[320px] p-5 space-y-3 animate-fade-in text-center">
-              <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
-                <Download className="w-7 h-7" />
-              </div>
+              <img
+                src="/pwa-192.png"
+                alt="NextTask"
+                className="w-16 h-16 rounded-2xl mx-auto shadow-lg object-contain bg-[#05132d] p-1 border border-purple-500/30"
+              />
               <h3 className="font-bold text-slate-800 text-base">NextTask Official App</h3>
               <p className="text-xs text-slate-500">
-                Install NextTask Android APK & iOS Web App for fastest task submissions and instant notifications.
+                Install NextTask PWA or Download Android APK for fastest task submissions and instant notifications.
               </p>
               <button
                 onClick={() => {
-                  showToast('NextTask APK downloading...');
+                  handleDownloadApk();
                   setShowAppModal(false);
                 }}
-                className="w-full bg-[#05132d] hover:bg-indigo-900 text-white text-xs font-semibold py-3 rounded-full mt-2"
+                className="w-full bg-[#05132d] hover:bg-indigo-900 text-white text-xs font-semibold py-3 rounded-full mt-2 cursor-pointer shadow-md"
               >
-                Download APK (v1.0.4)
+                Download APK (NextTask.apk)
               </button>
             </div>
           </div>
