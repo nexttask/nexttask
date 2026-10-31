@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   LayoutDashboard,
+  FileDown,
+  Calendar,
   Gem,
   Users,
   ArrowDownLeft,
@@ -102,8 +106,266 @@ export default function AdminPanel({ onNavigateToApp }) {
   useEffect(() => {
     syncData();
     window.addEventListener('storage', syncData);
-    return () => window.removeEventListener('storage', syncData);
+    const syncTimer = setInterval(syncData, 2000);
+    return () => {
+      window.removeEventListener('storage', syncData);
+      clearInterval(syncTimer);
+    };
   }, [currentTab]);
+
+  // Report Download Modal State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportDateRange, setReportDateRange] = useState('all');
+  const [reportCustomStart, setReportCustomStart] = useState('');
+  const [reportCustomEnd, setReportCustomEnd] = useState('');
+  const [reportIncludeUsers, setReportIncludeUsers] = useState(true);
+  const [reportIncludeRecharges, setReportIncludeRecharges] = useState(true);
+  const [reportIncludeWithdrawals, setReportIncludeWithdrawals] = useState(true);
+
+  // PDF Report Generator
+  const handleGeneratePdfReport = () => {
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      let startFilter = null;
+      let endFilter = null;
+      const today = new Date();
+
+      if (reportDateRange === 'today') {
+        const todayStr = today.toISOString().slice(0, 10);
+        startFilter = todayStr;
+        endFilter = todayStr;
+      } else if (reportDateRange === 'yesterday') {
+        const yest = new Date(Date.now() - 86400000);
+        startFilter = yest.toISOString().slice(0, 10);
+        endFilter = yest.toISOString().slice(0, 10);
+      } else if (reportDateRange === 'last7') {
+        const d7 = new Date(Date.now() - 7 * 86400000);
+        startFilter = d7.toISOString().slice(0, 10);
+        endFilter = today.toISOString().slice(0, 10);
+      } else if (reportDateRange === 'thisMonth') {
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        startFilter = firstDay.toISOString().slice(0, 10);
+        endFilter = today.toISOString().slice(0, 10);
+      } else if (reportDateRange === 'custom') {
+        startFilter = reportCustomStart || null;
+        endFilter = reportCustomEnd || null;
+      }
+
+      // Filter Recharges
+      const filteredRecharges = recharges.filter((r) => {
+        if (!startFilter && !endFilter) return true;
+        const d = (r.date || '').slice(0, 10);
+        if (startFilter && d < startFilter) return false;
+        if (endFilter && d > endFilter) return false;
+        return true;
+      });
+
+      // Filter Withdrawals
+      const filteredWithdrawals = withdrawals.filter((w) => {
+        if (!startFilter && !endFilter) return true;
+        const d = (w.date || '').slice(0, 10);
+        if (startFilter && d < startFilter) return false;
+        if (endFilter && d > endFilter) return false;
+        return true;
+      });
+
+      // Filter Users
+      const filteredUsers = users.filter((u) => {
+        if (!startFilter && !endFilter) return true;
+        const d = (u.joined || '').slice(0, 10);
+        if (startFilter && d < startFilter) return false;
+        if (endFilter && d > endFilter) return false;
+        return true;
+      });
+
+      const totalApprovedRecharge = filteredRecharges
+        .filter((r) => r.status === 'approved')
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+
+      const totalApprovedWithdraw = filteredWithdrawals
+        .filter((w) => w.status === 'approved')
+        .reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+
+      // Header Banner
+      doc.setFillColor(5, 19, 45); // #05132d
+      doc.rect(0, 0, 210, 35, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.setTextColor(255, 255, 255);
+      doc.text('NextTask', 14, 18);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(100, 210, 255);
+      doc.text('PLATFORM FINANCIAL & AUDIT REPORT', 14, 25);
+
+      doc.setFontSize(9);
+      doc.setTextColor(200, 200, 200);
+      const generatedAt = new Date().toLocaleString();
+      doc.text(`Generated: ${generatedAt}`, 130, 18);
+      const rangeText = (startFilter || endFilter) ? `Date Range: ${startFilter || 'Earliest'} to ${endFilter || 'Latest'}` : 'Date Range: All Time';
+      doc.text(rangeText, 130, 25);
+
+      // Summary Card Grid
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Executive Summary', 14, 43);
+
+      doc.setFillColor(245, 248, 255);
+      doc.roundedRect(14, 46, 42, 20, 3, 3, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('TOTAL RECHARGES', 18, 52);
+      doc.setFontSize(12);
+      doc.setTextColor(16, 185, 129); // green
+      doc.text(`${totalApprovedRecharge.toFixed(2)}`, 18, 61);
+
+      doc.setFillColor(245, 248, 255);
+      doc.roundedRect(62, 46, 42, 20, 3, 3, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('TOTAL WITHDRAWALS', 66, 52);
+      doc.setFontSize(12);
+      doc.setTextColor(244, 63, 94); // rose
+      doc.text(`${totalApprovedWithdraw.toFixed(2)}`, 66, 61);
+
+      doc.setFillColor(245, 248, 255);
+      doc.roundedRect(110, 46, 42, 20, 3, 3, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('NET BALANCE', 114, 52);
+      doc.setFontSize(12);
+      doc.setTextColor(14, 165, 233); // sky
+      doc.text(`${(totalApprovedRecharge - totalApprovedWithdraw).toFixed(2)}`, 114, 61);
+
+      doc.setFillColor(245, 248, 255);
+      doc.roundedRect(158, 46, 38, 20, 3, 3, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text('USERS IN RANGE', 162, 52);
+      doc.setFontSize(12);
+      doc.setTextColor(99, 102, 241); // indigo
+      doc.text(`${filteredUsers.length}`, 162, 61);
+
+      let currentY = 74;
+
+      // Section 1: Recharges
+      if (reportIncludeRecharges) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Recharges Report (${filteredRecharges.length} records)`, 14, currentY);
+
+        const rechargeBody = filteredRecharges.map((r) => [
+          (r.date || '').slice(0, 16),
+          String(r.user || r.userId || 'User'),
+          String(r.senderAccount || r.user || '—'),
+          `${r.method || 'USDT'} (${r.network || 'TRC20'})`,
+          String(r.trxId || '—'),
+          `${parseFloat(r.amount || 0).toFixed(2)}`,
+          String(r.status || 'pending').toUpperCase()
+        ]);
+
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['Date', 'User / Email', 'Sender Phone/Acct', 'Gateway', 'TrxID', 'Amount', 'Status']],
+          body: rechargeBody.length > 0 ? rechargeBody : [['No recharge records found in selected range', '', '', '', '', '', '']],
+          theme: 'striped',
+          headStyles: { fillColor: [5, 19, 45], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 7, textColor: [51, 65, 85] },
+          margin: { left: 14, right: 14 },
+          didDrawPage: (data) => {
+            currentY = data.cursor.y;
+          }
+        });
+
+        currentY = doc.lastAutoTable.finalY + 12;
+      }
+
+      // Section 2: Withdrawals
+      if (reportIncludeWithdrawals) {
+        if (currentY > 240) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Withdrawals Report (${filteredWithdrawals.length} records)`, 14, currentY);
+
+        const withdrawBody = filteredWithdrawals.map((w) => [
+          (w.date || '').slice(0, 16),
+          String(w.user || w.userId || 'User'),
+          String(w.method || 'USDT'),
+          String(w.account || w.address || '—'),
+          `${parseFloat(w.amount || 0).toFixed(2)}`,
+          String(w.status || 'pending').toUpperCase()
+        ]);
+
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['Date', 'User / Email', 'Method', 'Withdrawal Account / Address', 'Amount', 'Status']],
+          body: withdrawBody.length > 0 ? withdrawBody : [['No withdrawal records found in selected range', '', '', '', '', '']],
+          theme: 'striped',
+          headStyles: { fillColor: [13, 33, 70], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 7, textColor: [51, 65, 85] },
+          margin: { left: 14, right: 14 },
+          didDrawPage: (data) => {
+            currentY = data.cursor.y;
+          }
+        });
+
+        currentY = doc.lastAutoTable.finalY + 12;
+      }
+
+      // Section 3: Registered Users
+      if (reportIncludeUsers) {
+        if (currentY > 230) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Registered Users (${filteredUsers.length} accounts)`, 14, currentY);
+
+        const usersBody = filteredUsers.map((u) => [
+          String(u.id || ''),
+          String(u.name || 'User'),
+          String(u.email || u.phone || ''),
+          String(u.vip || 'VIP0'),
+          `${parseFloat(u.balance || 0).toFixed(2)}`,
+          `${parseFloat(u.recharge || 0).toFixed(2)}`,
+          String(u.myInviteCode || u.inviteCode || ''),
+          String(u.referredBy || '—'),
+          String(u.joined || '').slice(0, 10)
+        ]);
+
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['UID', 'Name', 'Email / Phone', 'VIP', 'Balance', 'Total Deposit', 'My Code', 'Referred By', 'Joined']],
+          body: usersBody.length > 0 ? usersBody : [['No user accounts found in selected range', '', '', '', '', '', '', '', '']],
+          theme: 'striped',
+          headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+          bodyStyles: { fontSize: 7, textColor: [51, 65, 85] },
+          margin: { left: 14, right: 14 }
+        });
+      }
+
+      // Save PDF
+      const filenameDate = (startFilter || 'all') + (endFilter ? `_to_${endFilter}` : '');
+      doc.save(`NextTask_Report_${filenameDate}.pdf`);
+      showToast('PDF Report downloaded successfully!');
+      setShowReportModal(false);
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+      showToast('Error generating PDF: ' + (err?.message || err));
+    }
+  };
 
   // Search & Filter State
   const [userSearch, setUserSearch] = useState('');
@@ -728,6 +990,14 @@ export default function AdminPanel({ onNavigateToApp }) {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="text-slate-300 font-mono">admin@nexttask.online</span>
             </div>
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md transition cursor-pointer"
+              title="Download Date-wise PDF Report"
+            >
+              <FileDown className="w-4 h-4" />
+              <span className="hidden sm:inline">Export PDF Report</span>
+            </button>
             <button
               onClick={() => {
                 syncData();
@@ -1858,6 +2128,137 @@ export default function AdminPanel({ onNavigateToApp }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= DATE-WISE PDF REPORT MODAL ================= */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 text-slate-100 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center">
+                  <FileDown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Download Date-wise Report</h3>
+                  <p className="text-xs text-slate-400">Export financial audit & user records as formatted PDF</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Date Range Selector */}
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-300">Select Date Range</label>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                {[
+                  { id: 'today', label: 'Today' },
+                  { id: 'yesterday', label: 'Yesterday' },
+                  { id: 'last7', label: 'Last 7 Days' },
+                  { id: 'thisMonth', label: 'This Month' },
+                  { id: 'all', label: 'All Time' },
+                  { id: 'custom', label: 'Custom Range' }
+                ].map((range) => (
+                  <button
+                    key={range.id}
+                    type="button"
+                    onClick={() => setReportDateRange(range.id)}
+                    className={`py-2 px-3 rounded-xl border text-center font-medium transition cursor-pointer ${
+                      reportDateRange === range.id
+                        ? 'bg-blue-600 border-blue-500 text-white font-bold shadow-md'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Date Pickers */}
+              {reportDateRange === 'custom' && (
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={reportCustomStart}
+                      onChange={(e) => setReportCustomStart(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={reportCustomEnd}
+                      onChange={(e) => setReportCustomEnd(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Content Checkboxes */}
+            <div className="space-y-2 pt-1 border-t border-slate-800/80">
+              <label className="block text-xs font-semibold text-slate-300">Include Sections in PDF</label>
+              <div className="grid grid-cols-3 gap-2">
+                <label className="flex items-center gap-2 bg-slate-950 border border-slate-800 p-2.5 rounded-xl cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={reportIncludeRecharges}
+                    onChange={(e) => setReportIncludeRecharges(e.target.checked)}
+                    className="accent-blue-600"
+                  />
+                  <span>Recharges</span>
+                </label>
+                <label className="flex items-center gap-2 bg-slate-950 border border-slate-800 p-2.5 rounded-xl cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={reportIncludeWithdrawals}
+                    onChange={(e) => setReportIncludeWithdrawals(e.target.checked)}
+                    className="accent-blue-600"
+                  />
+                  <span>Withdrawals</span>
+                </label>
+                <label className="flex items-center gap-2 bg-slate-950 border border-slate-800 p-2.5 rounded-xl cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={reportIncludeUsers}
+                    onChange={(e) => setReportIncludeUsers(e.target.checked)}
+                    className="accent-blue-600"
+                  />
+                  <span>Users</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-3 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleGeneratePdfReport}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <FileDown className="w-4 h-4" />
+                <span>Download PDF Report</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

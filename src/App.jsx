@@ -117,6 +117,55 @@ export default function App() {
   // Master Admin Route Detection (supports /admin and #/admin)
   const [isAdminRoute, setIsAdminRoute] = useState(initialRoute.isAdmin);
 
+  // Direct APK Downloader
+  const handleDownloadApk = () => {
+    const link = document.createElement('a');
+    link.href = '/NextTask.apk';
+    link.download = 'NextTask.apk';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Downloading NextTask.apk...');
+  };
+
+  // Real-time synchronization of current user profile & balance
+  const syncCurrentUserData = () => {
+    try {
+      const raw = localStorage.getItem('nt_currentUser');
+      if (!raw) return;
+      const cur = JSON.parse(raw);
+      if (!cur) return;
+      const allUsers = getStoredData('users', DEFAULT_USERS);
+      const freshUser = allUsers.find(u =>
+        (u.id && cur.id && String(u.id) === String(cur.id)) ||
+        (u.email && cur.email && u.email.toLowerCase() === cur.email.toLowerCase()) ||
+        (u.phone && cur.phone && u.phone === cur.phone)
+      );
+      if (freshUser) {
+        setCurrentUser((prev) => {
+          if (!prev) return freshUser;
+          if (
+            prev.balance !== freshUser.balance ||
+            prev.recharge !== freshUser.recharge ||
+            prev.vip !== freshUser.vip ||
+            prev.name !== freshUser.name
+          ) {
+            try {
+              localStorage.setItem('nt_currentUser', JSON.stringify(freshUser));
+            } catch (e) {}
+            setBalance(typeof freshUser.balance === 'number' ? freshUser.balance : (parseFloat(freshUser.balance) || 0));
+            setRechargeTotal(typeof freshUser.recharge === 'number' ? freshUser.recharge : (parseFloat(freshUser.recharge) || 0));
+            setUserVip(freshUser.vip || 'VIP0');
+            return freshUser;
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.warn('Realtime sync error:', err);
+    }
+  };
+
   // Dynamic Store Data
   const [vipTiers, setVipTiers] = useState(() => getStoredData('vips', DEFAULT_VIP_TIERS));
   const [settings, setSettings] = useState(() => getStoredData('settings', DEFAULT_SETTINGS));
@@ -157,16 +206,19 @@ export default function App() {
       setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
       setSettings(getStoredData('settings', DEFAULT_SETTINGS));
       setSlides(getStoredData('slides', DEFAULT_SLIDES));
+      syncCurrentUserData();
     };
 
     handleUrlChange();
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
     window.addEventListener('storage', handleUrlChange);
+    const syncInterval = setInterval(syncCurrentUserData, 2000);
     return () => {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
       window.removeEventListener('storage', handleUrlChange);
+      clearInterval(syncInterval);
     };
   }, []);
 
@@ -346,15 +398,41 @@ export default function App() {
   const [taskCountdown, setTaskCountdown] = useState(0);
   const taskTimerRef = useRef(null);
   const todayDateStr = new Date().toISOString().slice(0, 10);
-  const todayTasksKey = `nt_completed_tasks_${currentUser?.id || 'guest'}_${todayDateStr}`;
+  const getUserTasksKey = (u) => {
+    const uid = u?.id || u?.email || u?.phone || 'guest';
+    return `nt_completed_tasks_${uid}_${todayDateStr}`;
+  };
+  const todayTasksKey = getUserTasksKey(currentUser);
+
   const [completedTaskIndices, setCompletedTaskIndices] = useState(() => {
     try {
-      const raw = localStorage.getItem(`nt_completed_tasks_${currentUser?.id || 'guest'}_${new Date().toISOString().slice(0, 10)}`);
+      const raw = localStorage.getItem(todayTasksKey);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
     }
   });
+
+  // Ensure completed tasks reload whenever currentUser changes (Login / Logout / Switch account)
+  useEffect(() => {
+    if (!currentUser) {
+      setCompletedTaskIndices([]);
+      return;
+    }
+    const key = getUserTasksKey(currentUser);
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        setCompletedTaskIndices(JSON.parse(raw));
+      } else if (currentUser.completedTasks && currentUser.completedTasks[todayDateStr]) {
+        setCompletedTaskIndices(currentUser.completedTasks[todayDateStr]);
+      } else {
+        setCompletedTaskIndices([]);
+      }
+    } catch {
+      setCompletedTaskIndices([]);
+    }
+  }, [currentUser?.id, currentUser?.email, currentUser?.phone]);
 
   useEffect(() => {
     return () => {
@@ -638,6 +716,13 @@ export default function App() {
     if (!requireAuth('task', 'complete task')) return;
     if (taskProcessingIdx !== null) return;
     if (completedTaskIndices.includes(taskIndex)) return;
+
+    // ONLY users who bought/unlocked a VIP package (VIP1-VIP10) can complete tasks
+    if (!userVip || userVip === 'VIP0') {
+      showToast('Please purchase a VIP package from the VIP tab to unlock daily tasks!');
+      navigateToTab('vip');
+      return;
+    }
 
     setTaskProcessingIdx(taskIndex);
     const durationSec = 5;
@@ -950,6 +1035,14 @@ export default function App() {
 
       // Create fresh user account
       const isMail = rawInput.includes('@') || loginMethod === 'email';
+      const effectiveReferrer = (
+        regInviteCode ||
+        getInviteCodeFromUrl() ||
+        (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('nt_referral_code') : '') ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('nt_referral_code') : '') ||
+        ''
+      ).trim().toUpperCase();
+
       const userToSave = {
         id: String(Date.now()),
         name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
@@ -964,7 +1057,7 @@ export default function App() {
         joined: new Date().toISOString().slice(0, 10),
         inviteCode: uniqueInviteCode,
         myInviteCode: uniqueInviteCode,
-        referredBy: (regInviteCode || '').trim().toUpperCase(),
+        referredBy: effectiveReferrer,
         withdrawalAccounts: {
           bkash: '',
           nagad: '',
@@ -1137,16 +1230,56 @@ export default function App() {
       setUserVip(selectedVipForUnlock.level);
 
       const allUsers = getStoredData('users', DEFAULT_USERS);
+      const commissionAmount = parseFloat((reqDeposit * 0.10).toFixed(2)); // 10% referral commission
+      let referrerCredited = false;
+      let referrerName = '';
+
       const updated = allUsers.map((u) => {
+        // Update the purchasing user
         if (
+          (u.id && currentUser?.id && String(u.id) === String(currentUser.id)) ||
           (u.email && u.email.toLowerCase() === emailOrPhone.toLowerCase()) ||
           (u.phone && u.phone === emailOrPhone)
         ) {
           return { ...u, vip: selectedVipForUnlock.level, balance: newBalance };
         }
+
+        // Credit the referrer
+        if (isReferredByUser(currentUser, u) && commissionAmount > 0) {
+          referrerCredited = true;
+          referrerName = u.name || u.email || u.myInviteCode || 'Referrer';
+          const prevB = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
+          const prevEarn = typeof u.referralEarnings === 'number' ? u.referralEarnings : 0;
+          return {
+            ...u,
+            balance: parseFloat((prevB + commissionAmount).toFixed(2)),
+            referralEarnings: parseFloat((prevEarn + commissionAmount).toFixed(2))
+          };
+        }
+
         return u;
       });
       setStoredData('users', updated);
+
+      // Record referral commission in transactions
+      if (referrerCredited && commissionAmount > 0) {
+        const allRecharges = getStoredData('recharges', []);
+        const commissionRecord = {
+          id: `COM-${Date.now()}`,
+          userId: currentUser?.referredBy,
+          user: referrerName,
+          senderAccount: currentUser?.name || currentUser?.email || currentUser?.phone || 'Team Member',
+          amount: commissionAmount,
+          method: 'Referral Bonus',
+          network: 'Commission',
+          trxId: `COMM-${selectedVipForUnlock.level}-${Date.now().toString().slice(-6)}`,
+          status: 'approved',
+          date: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          note: `10% referral commission from ${currentUser?.name || currentUser?.id} for unlocking ${selectedVipForUnlock.level}`
+        };
+        setStoredData('recharges', [commissionRecord, ...allRecharges]);
+      }
+
       showToast(`🎉 Congratulations! You have unlocked ${selectedVipForUnlock.level}`);
       return;
     }
@@ -1705,16 +1838,6 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {!isAppInstalled && (
-                      <button
-                        onClick={handleInstallApp}
-                        className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-md active:scale-95 transition cursor-pointer"
-                        title="Install NextTask App"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Install</span>
-                      </button>
-                    )}
                     <button onClick={() => setShowAnnouncement(true)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
                       <Mail className="w-4 h-4 text-slate-200" />
                     </button>
@@ -1826,10 +1949,11 @@ export default function App() {
                         <span className="text-[11px] font-semibold text-slate-700">Withdraw</span>
                       </button>
 
-                      {/* App */}
+                      {/* App (Direct APK Download) */}
                       <button
-                        onClick={() => setShowAppModal(true)}
-                        className="flex flex-col items-center gap-1.5 p-1 group"
+                        onClick={handleDownloadApk}
+                        className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
+                        title="Download NextTask Android APK"
                       >
                         <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
                           <Download className="w-5 h-5 text-emerald-300" />
@@ -2306,6 +2430,26 @@ export default function App() {
                       </button>
                     </div>
 
+                    {/* VIP Locked Warning Banner if VIP0 */}
+                    {(!userVip || userVip === 'VIP0') && (
+                      <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 text-center space-y-2.5">
+                        <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+                          <Crown className="w-5 h-5" />
+                        </div>
+                        <h4 className="text-xs font-bold text-slate-900">VIP Package Required</h4>
+                        <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                          You are currently on <b className="text-slate-800">VIP0</b>. Please unlock any VIP package (VIP1–VIP10) from the VIP tab to start completing daily tasks and earning rewards.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => navigateToTab('vip')}
+                          className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition cursor-pointer"
+                        >
+                          Unlock VIP Package Now
+                        </button>
+                      </div>
+                    )}
+
                     {/* Tasks List */}
                     <div className="space-y-3">
                       {taskTab === 'running' ? (
@@ -2434,21 +2578,6 @@ export default function App() {
                   </div>
 
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-100">
-                    {!isAppInstalled && (
-                      <button
-                        type="button"
-                        onClick={handleInstallApp}
-                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Download className="w-5 h-5 text-cyan-600" />
-                          <span className="text-sm font-medium text-slate-800">Download & Install App</span>
-                        </div>
-                        <span className="text-[11px] font-semibold text-cyan-700 bg-cyan-50 px-2.5 py-0.5 rounded-full border border-cyan-100">
-                          PWA App
-                        </span>
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => handleOpenProfileModal('personal')}

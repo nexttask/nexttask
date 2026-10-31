@@ -236,13 +236,25 @@ export const generateUniqueInviteCode = (users = []) => {
 export const isReferredByUser = (member, parentUser) => {
   if (!member || !parentUser || !member.referredBy) return false;
   if (String(member.id) === String(parentUser.id)) return false;
-  const ref = String(member.referredBy).trim().toUpperCase();
-  const parentCode = String(parentUser.myInviteCode || parentUser.inviteCode || '').trim().toUpperCase();
-  const parentId = String(parentUser.id || '').trim().toUpperCase();
 
-  if (ref === parentCode || ref === parentId) return true;
+  const clean = (s) => String(s || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const ref = clean(member.referredBy);
+  if (!ref) return false;
+
+  const parentCode1 = clean(parentUser.myInviteCode);
+  const parentCode2 = clean(parentUser.inviteCode);
+  const parentId = clean(parentUser.id);
+  const parentEmail = clean(parentUser.email);
+  const parentPhone = clean(parentUser.phone);
+
+  if (parentCode1 && ref === parentCode1) return true;
+  if (parentCode2 && ref === parentCode2) return true;
+  if (parentId && ref === parentId) return true;
+  if (parentEmail && ref === parentEmail) return true;
+  if (parentPhone && ref === parentPhone) return true;
+
   // Backward compatibility: If referral was '806211' and parent is admin
-  if (ref === '806211' && (parentCode === 'NT1001' || parentCode === '806211' || parentUser.email === 'admin@nexttask.online')) {
+  if (ref === '806211' && (parentCode1 === 'NT1001' || parentCode2 === 'NT1001' || parentUser.email === 'admin@nexttask.online')) {
     return true;
   }
   return false;
@@ -253,8 +265,17 @@ export const getInviteCodeFromUrl = () => {
   const href = window.location.href;
   const match = href.match(/[?&#](?:i|ref|code|invite)=([A-Za-z0-9_-]+)/i);
   if (match && match[1]) {
-    return match[1].trim().toUpperCase();
+    const code = match[1].trim().toUpperCase();
+    try {
+      sessionStorage.setItem('nt_referral_code', code);
+      localStorage.setItem('nt_referral_code', code);
+    } catch {}
+    return code;
   }
+  try {
+    const stored = sessionStorage.getItem('nt_referral_code') || localStorage.getItem('nt_referral_code');
+    if (stored) return stored.trim().toUpperCase();
+  } catch {}
   return '';
 };
 
