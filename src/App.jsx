@@ -265,9 +265,8 @@ export default function App() {
     if (!id || !u) return false;
     const cleanId = id.trim().toLowerCase();
 
-    // 1. If it's an email address or username
+    // 1. If it's an email address
     if (u.email && u.email.toLowerCase() === cleanId) return true;
-    if (u.name && u.name.trim().toLowerCase() === cleanId) return true;
 
     // 2. If it's a phone number
     const rawIdDigits = cleanId.replace(/\D/g, '');
@@ -355,33 +354,14 @@ export default function App() {
       const allUsers = getStoredData('users', DEFAULT_USERS);
       let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
 
-      // Verify password if account exists
-      if (matched && matched.password && matched.password !== password) {
+      // ONLY registered users who signed up (or Master Admin) can log in!
+      // If user does not exist or password is wrong:
+      if (!matched || !matched.password || matched.password !== password) {
         const err = 'Wrong user name or password';
         setAuthError(err);
         setAuthModalMsg(err);
         showToast(err);
         return;
-      }
-
-      // Auto-create user seamlessly if not registered yet so user/tester is never blocked on login!
-      if (!matched) {
-        const isMail = rawInput.includes('@') || loginMethod === 'email';
-        matched = {
-          id: String(Date.now()),
-          name: isMail ? rawInput.split('@')[0] : 'User',
-          email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
-          phone: !isMail ? fullPhone : '',
-          password: password,
-          vip: 'VIP0',
-          balance: 0.00,
-          recharge: 0.00,
-          status: 'active',
-          joined: new Date().toISOString().slice(0, 10),
-          inviteCode: '806211'
-        };
-        const updated = [matched, ...allUsers];
-        setStoredData('users', updated);
       }
 
       if (matched.status === 'banned') {
@@ -464,37 +444,31 @@ export default function App() {
       const allUsers = getStoredData('users', DEFAULT_USERS);
       let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
 
-      let userToSave = null;
       if (matched) {
-        // Seamlessly update password and sign in so user is NEVER blocked by existing default mock records!
-        matched = {
-          ...matched,
-          name: (fullName || '').trim() || matched.name || 'User',
-          password: password,
-          status: 'active'
-        };
-        const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
-        setStoredData('users', updated);
-        userToSave = matched;
-      } else {
-        // Create fresh user account
-        const isMail = rawInput.includes('@') || loginMethod === 'email';
-        userToSave = {
-          id: String(Date.now()),
-          name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
-          email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
-          phone: !isMail ? fullPhone : '',
-          password: password,
-          vip: 'VIP0',
-          balance: 0.00,
-          recharge: 0.00,
-          status: 'active',
-          joined: new Date().toISOString().slice(0, 10),
-          inviteCode: regInviteCode || '806211'
-        };
-        const updated = [userToSave, ...allUsers];
-        setStoredData('users', updated);
+        const err = 'This account is already registered. Please sign in.';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
       }
+
+      // Create fresh user account
+      const isMail = rawInput.includes('@') || loginMethod === 'email';
+      const userToSave = {
+        id: String(Date.now()),
+        name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
+        email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
+        phone: !isMail ? fullPhone : '',
+        password: password,
+        vip: 'VIP0',
+        balance: 0.00,
+        recharge: 0.00,
+        status: 'active',
+        joined: new Date().toISOString().slice(0, 10),
+        inviteCode: regInviteCode || '806211'
+      };
+      const updated = [userToSave, ...allUsers];
+      setStoredData('users', updated);
 
       try {
         localStorage.setItem('nt_currentUser', JSON.stringify(userToSave));
@@ -538,8 +512,8 @@ export default function App() {
       showToast(err);
       return;
     }
-    if (password.length < 8) {
-      const err = 'Password must be at least 8 characters long';
+    if (password.trim().length < 6) {
+      const err = 'Password must be at least 6 characters long';
       setAuthModalMsg(err);
       showToast(err);
       return;
