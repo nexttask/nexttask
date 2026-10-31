@@ -903,27 +903,6 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {!isLoggedIn ? (
-                      <button
-                        onClick={() => {
-                          setIntendedTab('me');
-                          setActiveTab('auth');
-                          setAuthMode('login');
-                        }}
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md active:scale-95 transition flex items-center gap-1 cursor-pointer"
-                      >
-                        <User className="w-3.5 h-3.5" />
-                        <span>Sign In</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setActiveTab('me')}
-                        className="bg-white/10 hover:bg-white/20 text-white text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 transition cursor-pointer"
-                      >
-                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span className="max-w-[70px] truncate">{currentUser?.email || currentUser?.phone || 'Account'}</span>
-                      </button>
-                    )}
                     <button onClick={() => setShowAnnouncement(true)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
                       <Mail className="w-4 h-4 text-slate-200" />
                     </button>
