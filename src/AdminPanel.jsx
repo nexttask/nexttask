@@ -1673,10 +1673,10 @@ export default function AdminPanel({ onNavigateToApp }) {
                     onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
                   >
-                    <option value="bKash">bKash (বিকাশ)</option>
-                    <option value="Nagad">Nagad (নগদ)</option>
-                    <option value="Rocket">Rocket (রকেট)</option>
-                    <option value="Upay">Upay (উপায়)</option>
+                    <option value="bKash">bKash</option>
+                    <option value="Nagad">Nagad</option>
+                    <option value="Rocket">Rocket</option>
+                    <option value="Upay">Upay</option>
                     <option value="USDT (TRC20)">USDT (TRC20)</option>
                     <option value="Bank Transfer">Bank Transfer</option>
                   </select>
@@ -1689,10 +1689,10 @@ export default function AdminPanel({ onNavigateToApp }) {
                     onChange={(e) => setPaymentForm({ ...paymentForm, type: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
                   >
-                    <option value="Personal">Personal (ব্যক্তিগত)</option>
-                    <option value="Agent">Agent (এজেন্ট)</option>
-                    <option value="Merchant">Merchant (মার্চেন্ট)</option>
-                    <option value="Crypto">Crypto (ক্রিপ্টো)</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Agent">Agent</option>
+                    <option value="Merchant">Merchant</option>
+                    <option value="Crypto">Crypto</option>
                   </select>
                 </div>
               </div>

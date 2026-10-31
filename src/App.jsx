@@ -77,15 +77,45 @@ const MEMBER_LIST_DATA = [
   { amount: '+$49.00', user: 'maria******77', vip: 'VIP2' },
 ];
 
+export const resolveInitialRoute = () => {
+  if (typeof window === 'undefined') return { tab: 'home', authMode: 'login', isAdmin: false };
+  const rawPath = (window.location.pathname || '').toLowerCase();
+  const path = rawPath.replace(/\/+$/, '') || '/';
+  const hash = (window.location.hash || '').toLowerCase();
+
+  const isAdm =
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    hash.startsWith('#/admin') ||
+    hash.startsWith('#admin');
+  if (isAdm) return { tab: 'admin', authMode: 'login', isAdmin: true };
+
+  if (path === '/register' || hash.includes('register') || isRegisterRoute()) {
+    return { tab: 'auth', authMode: 'register', isAdmin: false };
+  }
+  if (path === '/login' || hash.includes('login')) {
+    return { tab: 'auth', authMode: 'login', isAdmin: false };
+  }
+  if (path === '/team' || hash === '#/team' || hash === '#team') {
+    return { tab: 'team', authMode: 'login', isAdmin: false };
+  }
+  if (path === '/task' || path === '/tasks' || hash === '#/task' || hash === '#task') {
+    return { tab: 'task', authMode: 'login', isAdmin: false };
+  }
+  if (path === '/vip' || hash === '#/vip' || hash === '#vip') {
+    return { tab: 'vip', authMode: 'login', isAdmin: false };
+  }
+  if (path === '/me' || path === '/profile' || hash === '#/me' || hash === '#me') {
+    return { tab: 'me', authMode: 'login', isAdmin: false };
+  }
+  return { tab: 'home', authMode: 'login', isAdmin: false };
+};
+
 export default function App() {
+  const initialRoute = resolveInitialRoute();
+
   // Master Admin Route Detection (supports /admin and #/admin)
-  const [isAdminRoute, setIsAdminRoute] = useState(() => {
-    return (
-      window.location.pathname.startsWith('/admin') ||
-      window.location.hash.startsWith('#/admin') ||
-      window.location.hash.startsWith('#admin')
-    );
-  });
+  const [isAdminRoute, setIsAdminRoute] = useState(initialRoute.isAdmin);
 
   // Dynamic Store Data
   const [vipTiers, setVipTiers] = useState(() => getStoredData('vips', DEFAULT_VIP_TIERS));
@@ -103,19 +133,25 @@ export default function App() {
 
   useEffect(() => {
     const handleUrlChange = () => {
-      const isAdm =
-        window.location.pathname.startsWith('/admin') ||
-        window.location.hash.startsWith('#/admin') ||
-        window.location.hash.startsWith('#admin');
-      setIsAdminRoute(isAdm);
+      const route = resolveInitialRoute();
+      setIsAdminRoute(route.isAdmin);
+      if (route.isAdmin) return;
 
       const codeFromUrl = getInviteCodeFromUrl();
       if (codeFromUrl) {
         setRegInviteCode(codeFromUrl);
       }
-      if (isRegisterRoute()) {
+
+      const storedUser = localStorage.getItem('nt_currentUser');
+      if (route.tab === 'auth') {
         setActiveTab('auth');
-        setAuthMode('register');
+        setAuthMode(route.authMode || 'login');
+      } else if (!storedUser && (route.tab === 'task' || route.tab === 'team' || route.tab === 'vip' || route.tab === 'me')) {
+        setIntendedTab(route.tab);
+        setActiveTab('auth');
+        setAuthMode('login');
+      } else {
+        setActiveTab(route.tab);
       }
 
       setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
@@ -134,6 +170,57 @@ export default function App() {
     };
   }, []);
 
+  // PWA Installation state
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  });
+  const [showIosInstallModal, setShowIosInstallModal] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setDeferredInstallPrompt(null);
+      showToast('NextTask App installed successfully!');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredInstallPrompt) {
+      try {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          setIsAppInstalled(true);
+        }
+      } catch (err) {
+        console.warn('Install prompt error:', err);
+      }
+      setDeferredInstallPrompt(null);
+      return;
+    }
+
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    if (isIos) {
+      setShowIosInstallModal(true);
+    } else {
+      showToast('To install: click the Install icon (⊕) in your browser address bar or menu');
+    }
+  };
+
   // Navigation & Auth state
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -143,10 +230,27 @@ export default function App() {
       return null;
     }
   });
-  const [activeTab, setActiveTab] = useState(() => isRegisterRoute() ? 'auth' : 'home');
-  const [intendedTab, setIntendedTab] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('nt_currentUser'));
-  const [authMode, setAuthMode] = useState(() => isRegisterRoute() ? 'register' : 'login'); // 'login' | 'register' | 'forgot'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (initialRoute.tab === 'auth') return 'auth';
+    const hasUser = !!localStorage.getItem('nt_currentUser');
+    if (!hasUser && (initialRoute.tab === 'task' || initialRoute.tab === 'team' || initialRoute.tab === 'vip' || initialRoute.tab === 'me')) {
+      return 'auth';
+    }
+    return initialRoute.tab;
+  });
+  const [intendedTab, setIntendedTab] = useState(() => {
+    if (initialRoute.tab !== 'auth' && initialRoute.tab !== 'home') return initialRoute.tab;
+    return 'home';
+  });
+  const [authMode, setAuthMode] = useState(() => {
+    if (initialRoute.tab === 'auth') return initialRoute.authMode || 'login';
+    const hasUser = !!localStorage.getItem('nt_currentUser');
+    if (!hasUser && (initialRoute.tab === 'task' || initialRoute.tab === 'team' || initialRoute.tab === 'vip' || initialRoute.tab === 'me')) {
+      return 'login';
+    }
+    return 'login';
+  });
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [accountInput, setAccountInput] = useState(() => {
@@ -311,10 +415,44 @@ export default function App() {
     showToast(`${label} copied!`);
   };
 
+  const navigateToTab = (tabId, mode = null, replace = false) => {
+    let targetPath = '/';
+    if (tabId === 'task') targetPath = '/task';
+    else if (tabId === 'team') targetPath = '/team';
+    else if (tabId === 'vip') targetPath = '/vip';
+    else if (tabId === 'me') targetPath = '/me';
+    else if (tabId === 'home') targetPath = '/';
+    else if (tabId === 'auth') {
+      const activeMode = mode || authMode;
+      const inviteCode = regInviteCode || getInviteCodeFromUrl();
+      if (activeMode === 'register' && inviteCode) {
+        targetPath = `/register?i=${encodeURIComponent(inviteCode)}`;
+      } else {
+        targetPath = activeMode === 'register' ? '/register' : '/login';
+      }
+    }
+
+    try {
+      const currentFull = (window.location.pathname || '') + (window.location.search || '');
+      if (currentFull !== targetPath) {
+        if (replace) {
+          window.history.replaceState({ tab: tabId, authMode: mode || authMode }, '', targetPath);
+        } else {
+          window.history.pushState({ tab: tabId, authMode: mode || authMode }, '', targetPath);
+        }
+      }
+    } catch (err) {
+      console.warn('Navigation state error:', err);
+    }
+
+    setActiveTab(tabId);
+    if (mode) setAuthMode(mode);
+  };
+
   const requireAuth = (targetTab, actionDesc) => {
     if (!isLoggedIn) {
       setIntendedTab(targetTab);
-      setActiveTab('auth');
+      navigateToTab('auth', 'login');
       showToast(actionDesc ? `Please sign in to ${actionDesc}` : 'Please sign in or register');
       return false;
     }
@@ -323,17 +461,16 @@ export default function App() {
 
   const handleTabClick = (tabId) => {
     if (tabId === 'home') {
-      setActiveTab('home');
+      navigateToTab('home');
       return;
     }
     if (!isLoggedIn) {
       setIntendedTab(tabId);
-      setActiveTab('auth');
-      setAuthMode('login');
+      navigateToTab('auth', 'login');
       showToast(`Please sign in or register to open ${tabId.toUpperCase()}`);
       return;
     }
-    setActiveTab(tabId);
+    navigateToTab(tabId);
   };
 
   // Dynamic referral & VIP Level synchronization
@@ -688,7 +825,7 @@ export default function App() {
           setUserEmail('admin@nexttask.online');
           setUserPhone('');
           setIsLoggedIn(true);
-          setActiveTab('me');
+          navigateToTab('me');
           setIntendedTab('me');
           showToast('Welcome back, Master Admin!');
           return;
@@ -746,7 +883,7 @@ export default function App() {
       setAuthModalMsg('');
 
       const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
-      setActiveTab(targetTab);
+      navigateToTab(targetTab);
       setIntendedTab(targetTab);
       showToast(`Welcome back, ${matched.name || matched.email || matched.phone || 'User'}!`);
     } catch (err) {
@@ -868,7 +1005,7 @@ export default function App() {
       setAuthModalMsg('');
 
       const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
-      setActiveTab(targetTab);
+      navigateToTab(targetTab);
       setIntendedTab(targetTab);
       showToast(`Account ready! Welcome, ${userToSave.name || userToSave.email || userToSave.phone || 'User'}`);
     } catch (err) {
@@ -960,7 +1097,7 @@ export default function App() {
     }
     setCurrentUser(null);
     setIsLoggedIn(false);
-    setActiveTab('home');
+    navigateToTab('home');
     setIntendedTab('home');
     setAccountInput('');
     setUserEmail('');
@@ -1184,6 +1321,42 @@ export default function App() {
           </div>
         )}
 
+        {/* iOS PWA Install Instruction Modal */}
+        {showIosInstallModal && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[320px] overflow-hidden shadow-2xl border border-slate-100 p-6 text-center space-y-4">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center shadow-lg">
+                <Download className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Install NextTask App</h3>
+                <p className="text-xs text-slate-500 mt-1">Install on your iPhone or iPad in 3 simple steps:</p>
+              </div>
+              <div className="text-left bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2.5 text-xs text-slate-700">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                  <span>Tap the <strong>Share</strong> icon ( <span className="inline-block border border-slate-300 rounded px-1 text-[11px]">⎋</span> ) at the bottom of Safari</span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                  <span>Scroll down and tap <strong>Add to Home Screen</strong> ( ➕ )</span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-cyan-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                  <span>Tap <strong>Add</strong> in the top-right corner</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowIosInstallModal(false)}
+                className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-semibold py-2.5 rounded-full text-xs shadow-md active:scale-95 transition cursor-pointer"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ================= ANNOUNCEMENT POPUP MODAL ================= */}
         {showAnnouncement && isLoggedIn && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -1226,7 +1399,7 @@ export default function App() {
               {/* Header */}
               <div className="p-6 pt-10 text-white flex justify-between items-center">
                 <div 
-                  onClick={() => setActiveTab('home')}
+                  onClick={() => navigateToTab('home')}
                   className="flex items-center gap-2.5 cursor-pointer active:scale-95 transition"
                   title="Back to Home"
                 >
@@ -1453,7 +1626,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
-                        setAuthMode('login');
+                        navigateToTab('auth', 'login');
                         setAuthError('');
                         setAuthSuccess('');
                         setAuthModalMsg('');
@@ -1498,7 +1671,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
-                        setAuthMode('register');
+                        navigateToTab('auth', 'register');
                         setAuthError('');
                         setAuthSuccess('');
                         setAuthModalMsg('');
@@ -1532,6 +1705,16 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {!isAppInstalled && (
+                      <button
+                        onClick={handleInstallApp}
+                        className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-md active:scale-95 transition cursor-pointer"
+                        title="Install NextTask App"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Install</span>
+                      </button>
+                    )}
                     <button onClick={() => setShowAnnouncement(true)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
                       <Mail className="w-4 h-4 text-slate-200" />
                     </button>
@@ -1671,7 +1854,7 @@ export default function App() {
                       <button
                         onClick={() => {
                           if (!requireAuth('team', 'invite friends and view team')) return;
-                          setActiveTab('team');
+                          navigateToTab('team');
                         }}
                         className="flex flex-col items-center gap-1.5 px-1 group"
                       >
@@ -2251,6 +2434,21 @@ export default function App() {
                   </div>
 
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-100">
+                    {!isAppInstalled && (
+                      <button
+                        type="button"
+                        onClick={handleInstallApp}
+                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Download className="w-5 h-5 text-cyan-600" />
+                          <span className="text-sm font-medium text-slate-800">Download & Install App</span>
+                        </div>
+                        <span className="text-[11px] font-semibold text-cyan-700 bg-cyan-50 px-2.5 py-0.5 rounded-full border border-cyan-100">
+                          PWA App
+                        </span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleOpenProfileModal('personal')}
