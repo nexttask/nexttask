@@ -49,6 +49,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="NextTask" />
 
+    <!-- Canonical Domain Redirect (www to non-www) -->
+    <script>
+      if (window.location.hostname === 'www.nexttask.online') {
+        window.location.replace('https://nexttask.online' + window.location.pathname + window.location.search + window.location.hash);
+      }
+    </script>
+
     <!-- Structured Data / JSON-LD for Google Rich Results -->
     <script type="application/ld+json">
     {

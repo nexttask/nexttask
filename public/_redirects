@@ -1,0 +1,4 @@
+# Cloudflare Pages Redirects
+# Redirect www to non-www
+https://www.nexttask.online/* https://nexttask.online/:splat 301!
+http://www.nexttask.online/* https://nexttask.online/:splat 301!
