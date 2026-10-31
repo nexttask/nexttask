@@ -34,7 +34,8 @@ import {
   ChevronsRight,
   Coins,
   Shield,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import {
