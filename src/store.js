@@ -90,18 +90,32 @@ export const DEFAULT_SLIDES = [
   }
 ];
 
-// Helper methods to read/write from localStorage safely
+// Local in-memory cache to guarantee synchronous 0ms render
+const memoryCache = new Map();
+
+// Helper methods to read/write from Cloudflare D1 & Local Cache safely
 export const getStoredData = (key, fallback) => {
   try {
-    const data = localStorage.getItem(`nt_${key}`);
-    if (!data) return fallback;
-    const parsed = JSON.parse(data);
+    let parsed = memoryCache.get(key);
+    if (parsed === undefined) {
+      const data = typeof window !== 'undefined' ? localStorage.getItem(`nt_${key}`) : null;
+      if (data) {
+        try {
+          parsed = JSON.parse(data);
+          memoryCache.set(key, parsed);
+        } catch {
+          parsed = fallback;
+        }
+      } else {
+        parsed = fallback;
+      }
+    }
 
     // Load users safely and preserve all real users
     if (key === 'users' && Array.isArray(parsed)) {
       // Ensure master admin is always present
       if (!parsed.some((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online')) {
-        parsed.unshift(DEFAULT_USERS[0]);
+        parsed = [DEFAULT_USERS[0], ...parsed];
       }
       return parsed;
     }
@@ -180,14 +194,106 @@ export const getStoredData = (key, fallback) => {
 
 export const setStoredData = (key, value) => {
   try {
-    localStorage.setItem(`nt_${key}`, JSON.stringify(value));
+    memoryCache.set(key, value);
     if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`nt_${key}`, JSON.stringify(value));
+      } catch (err) {
+        console.warn('localStorage quota warning, prioritizing D1 Cloud:', err);
+      }
       window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { key, value } }));
+    }
+
+    // Asynchronously push update to Cloudflare D1 database
+    if (typeof fetch !== 'undefined') {
+      fetch('/api/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value })
+      }).catch((err) => {
+        console.warn('D1 Cloud sync background push warning:', err);
+      });
     }
   } catch (err) {
-    console.error('Failed to save to localStorage:', err);
+    console.error('Failed to set stored data:', err);
   }
 };
+
+let isCloudSyncing = false;
+export const fetchCloudDataNow = async () => {
+  if (typeof fetch === 'undefined' || typeof window === 'undefined') return;
+  if (isCloudSyncing) return;
+  isCloudSyncing = true;
+
+  try {
+    const res = await fetch('/api/data');
+    if (!res.ok) return;
+    const json = await res.json();
+
+    if (json && json.success && json.data) {
+      let hasUpdates = false;
+
+      // If D1 is connected but has 0 keys, auto-seed defaults into D1
+      if (json.source === 'd1' && Object.keys(json.data).length === 0) {
+        console.log('[Cloudflare D1] Initializing fresh database with default platform state...');
+        fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bulk: {
+              users: DEFAULT_USERS,
+              vips: DEFAULT_VIP_TIERS,
+              slides: DEFAULT_SLIDES,
+              payments: DEFAULT_PAYMENT_METHODS,
+              settings: DEFAULT_SETTINGS,
+              recharges: [],
+              withdrawals: [],
+              notifications: []
+            }
+          })
+        }).catch(() => {});
+        return;
+      }
+
+      for (const [k, v] of Object.entries(json.data)) {
+        if (v !== undefined && v !== null) {
+          const currentMem = memoryCache.get(k);
+          const currentStr = JSON.stringify(currentMem);
+          const newStr = JSON.stringify(v);
+
+          if (currentStr !== newStr) {
+            memoryCache.set(k, v);
+            try {
+              localStorage.setItem(`nt_${k}`, newStr);
+            } catch {}
+            hasUpdates = true;
+          }
+        }
+      }
+
+      if (hasUpdates) {
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { data: json.data } }));
+      }
+    }
+  } catch {
+    // Graceful offline fallback
+  } finally {
+    isCloudSyncing = false;
+  }
+};
+
+// Initialize automatic cloud synchronization
+if (typeof window !== 'undefined') {
+  setTimeout(fetchCloudDataNow, 100);
+  setInterval(fetchCloudDataNow, 6000);
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      fetchCloudDataNow();
+    }
+  });
+}
 
 export const generateUniqueInviteCode = (users = []) => {
   const existingCodes = new Set();

@@ -107,9 +107,11 @@ export default function AdminPanel({ onNavigateToApp }) {
   useEffect(() => {
     syncData();
     window.addEventListener('storage', syncData);
+    window.addEventListener('cloud-sync', syncData);
     const syncTimer = setInterval(syncData, 2000);
     return () => {
       window.removeEventListener('storage', syncData);
+      window.removeEventListener('cloud-sync', syncData);
       clearInterval(syncTimer);
     };
   }, [currentTab]);

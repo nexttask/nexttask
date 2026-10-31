@@ -230,11 +230,13 @@ export default function App() {
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
     window.addEventListener('storage', handleUrlChange);
+    window.addEventListener('cloud-sync', handleUrlChange);
     const syncInterval = setInterval(syncCurrentUserData, 2000);
     return () => {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
       window.removeEventListener('storage', handleUrlChange);
+      window.removeEventListener('cloud-sync', handleUrlChange);
       clearInterval(syncInterval);
     };
   }, []);

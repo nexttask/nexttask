@@ -8,5 +8,12 @@
   "assets": {
     "directory": "dist",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nexttask-db",
+      "database_id": "nexttask-db"
+    }
+  ]
 }
