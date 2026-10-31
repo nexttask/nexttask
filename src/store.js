@@ -97,28 +97,13 @@ export const getStoredData = (key, fallback) => {
     if (!data) return fallback;
     const parsed = JSON.parse(data);
 
-    // Clean out mock users from previous sessions
+    // Load users safely and preserve all real users
     if (key === 'users' && Array.isArray(parsed)) {
-      const cleaned = parsed.filter((u) => {
-        if (!u) return false;
-        // Keep master admin
-        if (String(u.email || '').toLowerCase() === 'admin@nexttask.online') return true;
-
-        // Remove hardcoded demo/test users
-        const idStr = String(u.id || '');
-        if (['101', '102', '103', '104'].includes(idStr)) return false;
-        const emailStr = String(u.email || '').toLowerCase();
-        const nameStr = String(u.name || '').toLowerCase();
-        if (emailStr.includes('test') || emailStr.includes('demo') || emailStr.includes('fake') || emailStr.includes('example.com')) return false;
-        if (nameStr.includes('demo') || nameStr.includes('test user')) return false;
-        if (['alex.trader@gmail.com', 'crypto_boss@yahoo.com', 'spammer99@fake.org'].includes(emailStr)) return false;
-        return true;
-      });
       // Ensure master admin is always present
-      if (!cleaned.some((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online')) {
-        cleaned.unshift(DEFAULT_USERS[0]);
+      if (!parsed.some((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online')) {
+        parsed.unshift(DEFAULT_USERS[0]);
       }
-      return cleaned;
+      return parsed;
     }
 
     // Clean out mock recharges from previous sessions

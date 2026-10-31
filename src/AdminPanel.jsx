@@ -539,18 +539,24 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   const handleSaveSlide = (e) => {
     e.preventDefault();
-    if (!slideForm.amount || !slideForm.subtitle) {
-      showToast('Amount and subtitle are required');
+    if (!slideForm.image && !slideForm.amount && !slideForm.subtitle) {
+      showToast('Please upload a photo banner or enter text details');
       return;
     }
 
+    const payload = {
+      ...slideForm,
+      amount: slideForm.amount || '',
+      subtitle: slideForm.subtitle || ''
+    };
+
     if (editingSlide) {
-      const updated = slides.map((s) => (s.id === editingSlide.id ? { ...slideForm, id: s.id } : s));
+      const updated = slides.map((s) => (s.id === editingSlide.id ? { ...payload, id: s.id } : s));
       updateSlides(updated);
       showToast('Slide banner updated!');
     } else {
       const newSlide = {
-        ...slideForm,
+        ...payload,
         id: `s_${Date.now()}`
       };
       updateSlides([...slides, newSlide]);
@@ -2113,7 +2119,20 @@ export default function AdminPanel({ onNavigateToApp }) {
                       if (file) {
                         const reader = new FileReader();
                         reader.onload = (re) => {
-                          setSlideForm((prev) => ({ ...prev, image: re.target?.result }));
+                          const rawData = re.target?.result;
+                          const img = new Image();
+                          img.onload = () => {
+                            const maxW = 900;
+                            const scale = Math.min(1, maxW / img.width);
+                            const canvas = document.createElement('canvas');
+                            canvas.width = Math.round(img.width * scale);
+                            canvas.height = Math.round(img.height * scale);
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            const compressed = canvas.toDataURL('image/jpeg', 0.82);
+                            setSlideForm((prev) => ({ ...prev, image: compressed }));
+                          };
+                          img.src = rawData;
                         };
                         reader.readAsDataURL(file);
                       }
