@@ -1554,11 +1554,9 @@ export default function App() {
                   className="flex items-center gap-2.5 cursor-pointer active:scale-95 transition"
                   title="Back to Home"
                 >
-                  <img
-                    src="/pwa-192.png"
-                    alt="NextTask"
-                    className="w-10 h-10 rounded-2xl shadow-lg object-contain bg-[#05132d] p-1 border border-purple-500/30"
-                  />
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center shadow-lg font-black text-white text-base">
+                    N
+                  </div>
                   <div>
                     <h1 className="text-xl font-bold tracking-tight">NextTask</h1>
                     <p className="text-xs text-slate-300">{t('welcome')}</p>
@@ -1848,12 +1846,12 @@ export default function App() {
               <div className="bg-[#05132d] text-white px-4 pt-4 pb-3 relative">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2.5">
-                    {/* NextTask Official Logo */}
-                    <img
-                      src="/pwa-192.png"
-                      alt="NextTask"
-                      className="w-9 h-9 rounded-2xl shadow-md object-contain bg-[#05132d] p-0.5 border border-purple-500/30"
-                    />
+                    {/* Cosmic Planet Logo Avatar */}
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-800 via-indigo-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-md">
+                      <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center overflow-hidden">
+                        <Sparkles className="w-4 h-4 text-cyan-300" />
+                      </div>
+                    </div>
                     <span className="font-bold text-lg tracking-wide">NextTask</span>
                   </div>
 
