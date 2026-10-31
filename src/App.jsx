@@ -840,26 +840,38 @@ export default function App() {
     showToast('Password changed successfully!');
   };
 
-  // Helper to match user by email (case-insensitive) or phone (flexible formats)
+  // Helper to match user flexibly by email, username, phone, UID, or invitation code
   const matchAccount = (u, id) => {
     if (!id || !u) return false;
-    const cleanId = id.trim().toLowerCase();
+    const cleanId = String(id).trim().toLowerCase();
+    if (!cleanId) return false;
 
-    // 1. If it's an email address
-    if (u.email && u.email.toLowerCase() === cleanId) return true;
+    // 1. Email match (case-insensitive & trimmed)
+    if (u.email && u.email.trim().toLowerCase() === cleanId) return true;
 
-    // 2. If it's a phone number
-    const rawIdDigits = cleanId.replace(/\D/g, '');
-    const userPhoneDigits = (u.phone || '').replace(/\D/g, '');
-    if (rawIdDigits.length >= 6 && userPhoneDigits.length >= 6) {
-      if (u.phone === cleanId || userPhoneDigits === rawIdDigits) return true;
-      const last10Input = rawIdDigits.slice(-10);
+    // 2. Name / Username match (case-insensitive & trimmed)
+    if (u.name && u.name.trim().toLowerCase() === cleanId) return true;
+
+    // 3. Match UID
+    if (u.id && String(u.id).trim().toLowerCase() === cleanId) return true;
+
+    // 4. Match Invitation Code (e.g. NT1001, NT1002)
+    const code1 = String(u.myInviteCode || '').trim().toLowerCase();
+    const code2 = String(u.inviteCode || '').trim().toLowerCase();
+    if (code1 && code1 === cleanId) return true;
+    if (code2 && code2 === cleanId) return true;
+
+    // 5. Match Phone number flexibly
+    const idDigits = cleanId.replace(/\D/g, '');
+    const userPhoneDigits = String(u.phone || '').replace(/\D/g, '');
+    if (idDigits.length >= 6 && userPhoneDigits.length >= 6) {
+      if (idDigits === userPhoneDigits) return true;
+      if (idDigits.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(idDigits)) return true;
+      const last10Input = idDigits.slice(-10);
       const last10User = userPhoneDigits.slice(-10);
       if (last10Input.length >= 8 && last10Input === last10User) return true;
     }
-
-    // 3. Match by unique ID
-    if (u.id && String(u.id) === cleanId) return true;
+    if (u.phone && u.phone.trim().toLowerCase() === cleanId) return true;
 
     return false;
   };
@@ -871,14 +883,16 @@ export default function App() {
 
     try {
       const rawInput = (accountInput || userEmail || userPhone || '').trim();
+      const inputPass = (password || '').trim();
+
       if (!rawInput) {
-        const err = loginMethod === 'email' ? 'Please enter your email' : 'Please enter your phone number';
+        const err = loginMethod === 'email' ? 'Please enter your email or username' : 'Please enter your phone number';
         setAuthError(err);
         setAuthModalMsg(err);
         showToast(err);
         return;
       }
-      if (!password) {
+      if (!inputPass) {
         const err = 'Please enter password';
         setAuthError(err);
         setAuthModalMsg(err);
@@ -887,8 +901,8 @@ export default function App() {
       }
 
       // Master Admin Login Support
-      if (rawInput.toLowerCase() === 'admin@nexttask.online') {
-        if (password === 'Admin@NextTask') {
+      if (rawInput.toLowerCase() === 'admin@nexttask.online' || rawInput.toLowerCase() === 'admin') {
+        if (inputPass === 'Admin@NextTask' || password === 'Admin@NextTask') {
           const adminUser = {
             id: '100',
             name: 'Master Admin',
@@ -940,17 +954,28 @@ export default function App() {
       }
 
       const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
-      const fullPhone = (loginMethod === 'phone' || isPhonePattern)
+      const fullPhone = isPhonePattern
         ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
-        : '';
-      const idToMatch = fullPhone || rawInput;
+        : (loginMethod === 'phone' && !rawInput.includes('@')
+            ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
+            : '');
 
       const allUsers = getStoredData('users', DEFAULT_USERS);
-      let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
 
-      // ONLY registered users who signed up (or Master Admin) can log in!
-      // If user does not exist or password is wrong:
-      if (!matched || !matched.password || matched.password !== password) {
+      // Find user matching by email, username, phone, or id
+      let matched = allUsers.find((u) => 
+        matchAccount(u, rawInput) ||
+        (fullPhone && matchAccount(u, fullPhone)) ||
+        (u.email && u.email.trim().toLowerCase() === rawInput.toLowerCase()) ||
+        (u.name && u.name.trim().toLowerCase() === rawInput.toLowerCase()) ||
+        (u.phone && u.phone.trim() === rawInput)
+      );
+
+      // Password comparison: check trimmed or exact
+      const storedPass = String(matched?.password || '').trim();
+      const isPassValid = matched && storedPass && (storedPass === inputPass || matched.password === password);
+
+      if (!matched || !isPassValid) {
         const err = 'Wrong user name or password';
         setAuthError(err);
         setAuthModalMsg(err);
@@ -1065,7 +1090,7 @@ export default function App() {
         email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
         phone: !isMail ? fullPhone : '',
         dob: '',
-        password: password,
+        password: (password || '').trim(),
         vip: 'VIP0',
         balance: 0.00,
         recharge: 0.00,
@@ -1359,7 +1384,21 @@ export default function App() {
     return (
       <AdminPanel
         onNavigateToApp={() => {
-          window.history.pushState({}, '', '/');
+          const raw = localStorage.getItem('nt_currentUser');
+          if (raw) {
+            try {
+              const u = JSON.parse(raw);
+              setCurrentUser(u);
+              setIsLoggedIn(true);
+              setBalance(typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0));
+              setRechargeTotal(typeof u.recharge === 'number' ? u.recharge : (parseFloat(u.recharge) || 0));
+              setUserVip(u.vip || 'VIP0');
+              setUserEmail(u.email || '');
+              setUserPhone(u.phone || '');
+              setActiveTab('me');
+            } catch (e) {}
+          }
+          window.history.pushState({}, '', '/me');
           window.location.hash = '';
           setIsAdminRoute(false);
           setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));

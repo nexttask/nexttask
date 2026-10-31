@@ -3,6 +3,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
   LayoutDashboard,
+  LogIn,
   FileDown,
   Calendar,
   Gem,
@@ -626,6 +627,25 @@ export default function AdminPanel({ onNavigateToApp }) {
       return u;
     });
     updateUsers(updated);
+  };
+
+  const handleLoginAsUser = (targetUser) => {
+    if (!targetUser) return;
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(targetUser));
+      window.dispatchEvent(new Event('storage'));
+      showToast(`Logging in as ${targetUser.name || targetUser.email || targetUser.id}...`);
+      setTimeout(() => {
+        if (typeof onNavigateToApp === 'function') {
+          onNavigateToApp();
+        } else {
+          window.location.href = '/me';
+        }
+      }, 250);
+    } catch (err) {
+      console.error('Login as user error:', err);
+      showToast('Error logging in as user: ' + (err?.message || err));
+    }
   };
 
   const handleToggleBanUser = (id) => {
@@ -1473,6 +1493,16 @@ export default function AdminPanel({ onNavigateToApp }) {
                       </td>
                       <td className="py-3 px-4 text-slate-500 text-[10px]">{u.joined}</td>
                       <td className="py-3 px-4 text-right space-x-1.5">
+                        {/* Login as User */}
+                        <button
+                          type="button"
+                          onClick={() => handleLoginAsUser(u)}
+                          className="px-2.5 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg transition font-bold text-[10px] inline-flex items-center gap-1 shadow-sm cursor-pointer"
+                          title={`Log in as ${u.name || u.email || u.id}`}
+                        >
+                          <LogIn className="w-3 h-3" />
+                          <span>Login as user</span>
+                        </button>
                         {/* Adjust Balance */}
                         <button
                           onClick={() => {
