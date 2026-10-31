@@ -263,18 +263,15 @@ export default function App() {
     if (!id || !u) return false;
     const cleanId = id.trim().toLowerCase();
 
-    // 1. If it's an email address
-    if (cleanId.includes('@')) {
-      return (u.email && u.email.toLowerCase() === cleanId);
-    }
+    // 1. If it's an email address or username
+    if (u.email && u.email.toLowerCase() === cleanId) return true;
+    if (u.name && u.name.trim().toLowerCase() === cleanId) return true;
 
     // 2. If it's a phone number
     const rawIdDigits = cleanId.replace(/\D/g, '');
-    if (rawIdDigits.length >= 6 && u.phone) {
-      const userPhoneDigits = u.phone.replace(/\D/g, '');
-      if (u.phone === cleanId) return true;
-      if (userPhoneDigits === rawIdDigits) return true;
-      // Match by last 10 digits
+    const userPhoneDigits = (u.phone || '').replace(/\D/g, '');
+    if (rawIdDigits.length >= 6 && userPhoneDigits.length >= 6) {
+      if (u.phone === cleanId || userPhoneDigits === rawIdDigits) return true;
       const last10Input = rawIdDigits.slice(-10);
       const last10User = userPhoneDigits.slice(-10);
       if (last10Input.length >= 8 && last10Input === last10User) return true;
@@ -300,42 +297,60 @@ export default function App() {
       return;
     }
     if (!password) {
-      const err = 'Wrong user name or password';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (password.length < 8) {
-      const err = 'Wrong user name or password';
+      const err = 'Please enter password';
       setAuthError(err);
       setAuthModalMsg(err);
       showToast(err);
       return;
     }
 
-    const fullPhone = loginMethod === 'phone'
+    // Master Admin Login Support
+    if (rawInput.toLowerCase() === 'admin@nexttask.online') {
+      if (password === 'Admin@NextTask') {
+        const adminUser = {
+          id: '100',
+          name: 'Master Admin',
+          email: 'admin@nexttask.online',
+          phone: '',
+          password: 'Admin@NextTask',
+          vip: 'VIP10',
+          balance: 99999.00,
+          recharge: 99999.00,
+          status: 'active'
+        };
+        try {
+          localStorage.setItem('nt_currentUser', JSON.stringify(adminUser));
+        } catch (e) {
+          console.error(e);
+        }
+        setCurrentUser(adminUser);
+        setUserVip('VIP10');
+        setBalance(99999.00);
+        setRechargeTotal(99999.00);
+        setUserEmail('admin@nexttask.online');
+        setUserPhone('');
+        setIsLoggedIn(true);
+        setActiveTab('me');
+        setIntendedTab('me');
+        showToast('Welcome back, Master Admin!');
+        return;
+      } else {
+        const err = 'Wrong user name or password';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+    }
+
+    const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
+    const fullPhone = (loginMethod === 'phone' || isPhonePattern)
       ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry.dial}${rawInput.replace(/^0+/, '')}`)
       : '';
-    const idToMatch = loginMethod === 'phone' ? fullPhone : rawInput;
+    const idToMatch = fullPhone || rawInput;
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
     let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
-
-    // Master Admin Login Support
-    if (rawInput.toLowerCase() === 'admin@nexttask.online' && password === 'Admin@NextTask') {
-      matched = {
-        id: '100',
-        name: 'Master Admin',
-        email: 'admin@nexttask.online',
-        phone: '+8801700000000',
-        password: 'Admin@NextTask',
-        vip: 'VIP10',
-        balance: 99999.00,
-        recharge: 99999.00,
-        status: 'active'
-      };
-    }
 
     // Verify password if account exists
     if (matched && matched.password && matched.password !== password) {
@@ -348,7 +363,7 @@ export default function App() {
 
     // Auto-create user seamlessly if not registered yet so user/tester is never blocked on login!
     if (!matched) {
-      const isMail = loginMethod === 'email' || rawInput.includes('@');
+      const isMail = rawInput.includes('@') || loginMethod === 'email';
       matched = {
         id: String(Date.now()),
         name: isMail ? rawInput.split('@')[0] : 'User',
@@ -388,8 +403,11 @@ export default function App() {
     setUserPhone(matched.phone || (loginMethod === 'phone' ? fullPhone : ''));
     setIsLoggedIn(true);
     setAuthSuccess('Signed in successfully! Loading profile...');
+    setAuthError('');
+    setAuthModalMsg('');
 
     setActiveTab('me');
+    setIntendedTab('me');
     showToast(`Welcome back, ${matched.name || matched.email || matched.phone || 'User'}!`);
   };
 
@@ -881,8 +899,13 @@ export default function App() {
                 </button>
               </div>
 
-              {/* White Form Card (Only Inputs) */}
-              <div className="mx-4 mt-4 bg-white rounded-3xl p-5 shadow-xl space-y-3.5">
+              {/* Form wrapping card and buttons for seamless keyboard Enter & submit */}
+              <form
+                onSubmit={authMode === 'register' ? handleRegister : authMode === 'forgot' ? handleResetPassword : handleLogin}
+                className="flex flex-col flex-1"
+              >
+                {/* White Form Card (Only Inputs) */}
+                <div className="mx-4 mt-4 bg-white rounded-3xl p-5 shadow-xl space-y-3.5">
                 {authError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 animate-fade-in">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -1040,8 +1063,7 @@ export default function App() {
                 {authMode === 'register' ? (
                   <>
                     <button
-                      type="button"
-                      onClick={handleRegister}
+                      type="submit"
                       className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                     >
                       Sign Up
@@ -1062,8 +1084,7 @@ export default function App() {
                 ) : authMode === 'forgot' ? (
                   <>
                     <button
-                      type="button"
-                      onClick={handleResetPassword}
+                      type="submit"
                       className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                     >
                       Reset Password
@@ -1085,8 +1106,7 @@ export default function App() {
                 ) : (
                   <>
                     <button
-                      type="button"
-                      onClick={handleLogin}
+                      type="submit"
                       className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                     >
                       Sign In
@@ -1106,6 +1126,7 @@ export default function App() {
                   </>
                 )}
               </div>
+              </form>
 
               <div className="mt-auto py-6 text-center text-xs text-slate-400">
                 NextTask Official Safe & Encrypted Platform
@@ -1128,17 +1149,6 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {!isLoggedIn && (
-                      <button
-                        onClick={() => {
-                          setAuthMode('login');
-                          setActiveTab('auth');
-                        }}
-                        className="bg-white/15 hover:bg-white/25 text-white text-xs px-3 py-1 rounded-full font-semibold transition active:scale-95"
-                      >
-                        Sign In
-                      </button>
-                    )}
                     <button onClick={() => setShowAnnouncement(true)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
                       <Mail className="w-4 h-4 text-slate-200" />
                     </button>

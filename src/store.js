@@ -14,7 +14,7 @@ export const DEFAULT_VIP_TIERS = [
 ];
 
 export const DEFAULT_USERS = [
-  { id: '100', name: 'Master Admin', email: 'admin@nexttask.online', phone: '+8801700000000', password: 'Admin@NextTask', vip: 'VIP10', balance: 99999.00, recharge: 99999.00, status: 'active', joined: '2026-10-01' }
+  { id: '100', name: 'Master Admin', email: 'admin@nexttask.online', phone: '', password: 'Admin@NextTask', vip: 'VIP10', balance: 99999.00, recharge: 99999.00, status: 'active', joined: '2026-10-01' }
 ];
 
 export const DEFAULT_RECHARGES = [];
