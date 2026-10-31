@@ -14,7 +14,31 @@ export const DEFAULT_VIP_TIERS = [
 ];
 
 export const DEFAULT_USERS = [
-  { id: '100', name: 'Master Admin', email: 'admin@nexttask.online', phone: '', password: 'Admin@NextTask', vip: 'VIP10', balance: 99999.00, recharge: 99999.00, status: 'active', joined: '2026-10-01' }
+  {
+    id: '100',
+    name: 'Master Admin',
+    email: 'admin@nexttask.online',
+    phone: '',
+    dob: '',
+    password: 'Admin@NextTask',
+    vip: 'VIP10',
+    balance: 99999.00,
+    recharge: 99999.00,
+    status: 'active',
+    joined: '2026-10-01',
+    inviteCode: '806211',
+    myInviteCode: '806211',
+    referredBy: '',
+    withdrawalAccounts: {
+      bkash: '',
+      nagad: '',
+      rocket: '',
+      trc20: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
+      bankName: '',
+      bankAccount: '',
+      bankHolder: ''
+    }
+  }
 ];
 
 export const DEFAULT_RECHARGES = [];
@@ -113,4 +137,23 @@ export const setStoredData = (key, value) => {
   } catch (err) {
     console.error('Failed to save to localStorage:', err);
   }
+};
+
+export const getVipLevelFromReferrals = (refCount, currentVip = 'VIP0') => {
+  const vipOrder = ['VIP0', 'VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5', 'VIP6', 'VIP7', 'VIP8', 'VIP9', 'VIP10'];
+  let refVip = 'VIP0';
+  if (refCount >= 120) refVip = 'VIP10';
+  else if (refCount >= 85) refVip = 'VIP9';
+  else if (refCount >= 60) refVip = 'VIP8';
+  else if (refCount >= 40) refVip = 'VIP7';
+  else if (refCount >= 25) refVip = 'VIP6';
+  else if (refCount >= 15) refVip = 'VIP5';
+  else if (refCount >= 10) refVip = 'VIP4';
+  else if (refCount >= 6) refVip = 'VIP3';
+  else if (refCount >= 3) refVip = 'VIP2';
+  else if (refCount >= 1) refVip = 'VIP1';
+
+  const refIdx = vipOrder.indexOf(refVip);
+  const curIdx = vipOrder.indexOf(currentVip);
+  return refIdx > curIdx ? refVip : currentVip;
 };

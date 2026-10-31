@@ -36,18 +36,24 @@ import {
   Coins,
   Shield,
   ChevronDown,
-  AlertTriangle
+  AlertTriangle,
+  Calendar,
+  Check,
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import {
   getStoredData,
   setStoredData,
+  getVipLevelFromReferrals,
   DEFAULT_USERS,
   DEFAULT_VIP_TIERS,
   DEFAULT_SETTINGS,
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
-  DEFAULT_RECHARGES
+  DEFAULT_RECHARGES,
+  DEFAULT_WITHDRAWALS
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
@@ -161,7 +167,8 @@ export default function App() {
   const [reenterPassword, setReenterPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showReenterPassword, setShowReenterPassword] = useState(false);
-  const [inviteCode] = useState('806211');
+  const userInviteCode = currentUser?.myInviteCode || currentUser?.inviteCode || '806211';
+  const [inviteCode] = useState('806211'); // fallback
   const [regInviteCode, setRegInviteCode] = useState('');
   const [balance, setBalance] = useState(() => {
     try {
@@ -185,6 +192,45 @@ export default function App() {
       return u?.vip || 'VIP0';
     } catch {
       return 'VIP0';
+    }
+  });
+
+  // User Profile & Withdrawal Accounts State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileTab, setProfileTab] = useState('personal'); // 'personal' | 'withdraw'
+  const [profileName, setProfileName] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileDob, setProfileDob] = useState('');
+  const [profileBkash, setProfileBkash] = useState('');
+  const [profileNagad, setProfileNagad] = useState('');
+  const [profileRocket, setProfileRocket] = useState('');
+  const [profileTrc20, setProfileTrc20] = useState('');
+  const [profileBankName, setProfileBankName] = useState('');
+  const [profileBankAccount, setProfileBankAccount] = useState('');
+  const [profileBankHolder, setProfileBankHolder] = useState('');
+
+  // Financial Records State (Deposited vs Withdrawn)
+  const [recordsTab, setRecordsTab] = useState('deposit'); // 'deposit' | 'withdraw'
+
+  // Withdraw Modal State
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawMethod, setWithdrawMethod] = useState('bKash');
+  const [withdrawAccountInput, setWithdrawAccountInput] = useState('');
+
+  // Team Tab State
+  const [teamLevelTab, setTeamLevelTab] = useState(1);
+
+  // Task Tab State
+  const [taskTab, setTaskTab] = useState('running'); // 'running' | 'completed'
+  const [taskProcessingIdx, setTaskProcessingIdx] = useState(null);
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const todayTasksKey = `nt_completed_tasks_${currentUser?.id || 'guest'}_${todayDateStr}`;
+  const [completedTaskIndices, setCompletedTaskIndices] = useState(() => {
+    try {
+      const raw = localStorage.getItem(`nt_completed_tasks_${currentUser?.id || 'guest'}_${new Date().toISOString().slice(0, 10)}`);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
     }
   });
 
@@ -260,6 +306,198 @@ export default function App() {
     setActiveTab(tabId);
   };
 
+  // Dynamic referral & VIP Level synchronization
+  useEffect(() => {
+    if (!currentUser) return;
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const myCode = String(currentUser.myInviteCode || currentUser.inviteCode || '');
+    const myId = String(currentUser.id || '');
+    if (!myCode && !myId) return;
+
+    const directRefs = allUsers.filter(u => u && u.id !== currentUser.id && u.referredBy && (u.referredBy === myCode || u.referredBy === myId));
+    const earnedVip = getVipLevelFromReferrals(directRefs.length, currentUser.vip || 'VIP0');
+
+    if (earnedVip !== userVip) {
+      setUserVip(earnedVip);
+      const updatedUser = { ...currentUser, vip: earnedVip };
+      setCurrentUser(updatedUser);
+      try {
+        localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+      } catch (e) {
+        console.error(e);
+      }
+      const updatedList = allUsers.map(u => u.id === currentUser.id ? { ...u, vip: earnedVip } : u);
+      setStoredData('users', updatedList);
+    }
+  }, [activeTab, currentUser]);
+
+  const handleOpenProfileModal = (tab = 'personal') => {
+    if (!currentUser) return;
+    setProfileTab(tab);
+    setProfileName(currentUser.name || '');
+    setProfilePhone(currentUser.phone || '');
+    setProfileDob(currentUser.dob || '');
+    setProfileBkash(currentUser.withdrawalAccounts?.bkash || '');
+    setProfileNagad(currentUser.withdrawalAccounts?.nagad || '');
+    setProfileRocket(currentUser.withdrawalAccounts?.rocket || '');
+    setProfileTrc20(currentUser.withdrawalAccounts?.trc20 || '');
+    setProfileBankName(currentUser.withdrawalAccounts?.bankName || '');
+    setProfileBankAccount(currentUser.withdrawalAccounts?.bankAccount || '');
+    setProfileBankHolder(currentUser.withdrawalAccounts?.bankHolder || '');
+    setShowProfileModal(true);
+  };
+
+  const handleSaveProfile = () => {
+    if (!currentUser) return;
+    const updatedUser = {
+      ...currentUser,
+      name: profileName.trim() || currentUser.name || 'User',
+      phone: profilePhone.trim() || currentUser.phone || '',
+      dob: profileDob.trim(),
+      withdrawalAccounts: {
+        bkash: profileBkash.trim(),
+        nagad: profileNagad.trim(),
+        rocket: profileRocket.trim(),
+        trc20: profileTrc20.trim(),
+        bankName: profileBankName.trim(),
+        bankAccount: profileBankAccount.trim(),
+        bankHolder: profileBankHolder.trim(),
+      }
+    };
+    setCurrentUser(updatedUser);
+    setUserPhone(updatedUser.phone);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+    } catch (e) {
+      console.error(e);
+    }
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map(u => u.id === currentUser.id ? updatedUser : u);
+    setStoredData('users', updatedUsers);
+    setShowProfileModal(false);
+    showToast('Profile & Withdrawal accounts saved!');
+  };
+
+  // Withdraw Handler
+  const handleWithdrawSubmit = (e) => {
+    e?.preventDefault();
+    if (!requireAuth('me', 'withdraw')) return;
+
+    const num = parseFloat(withdrawAmount);
+    if (!num || num <= 0) {
+      showToast('Please enter a valid withdrawal amount');
+      return;
+    }
+    if (num > balance) {
+      showToast('Insufficient balance!');
+      return;
+    }
+    const minWth = settings?.minWithdrawal || 1.0;
+    if (num < minWth) {
+      showToast(`Minimum withdrawal is ${minWth} USDT`);
+      return;
+    }
+
+    // Determine target account number / address
+    const savedAcc = currentUser?.withdrawalAccounts?.[withdrawMethod.toLowerCase()] ||
+                     (withdrawMethod === 'Bank Transfer' ? currentUser?.withdrawalAccounts?.bankAccount : '') ||
+                     (withdrawMethod === 'USDT (TRC20)' ? currentUser?.withdrawalAccounts?.trc20 : '');
+    const finalAccount = (withdrawAccountInput || savedAcc || '').trim();
+
+    if (!finalAccount) {
+      showToast(`Please enter your ${withdrawMethod} account number/address`);
+      return;
+    }
+
+    // Auto-save account to profile if it wasn't saved yet
+    let updatedUser = { ...currentUser };
+    const fieldMap = {
+      'bKash': 'bkash',
+      'Nagad': 'nagad',
+      'Rocket': 'rocket',
+      'USDT (TRC20)': 'trc20',
+      'Bank Transfer': 'bankAccount'
+    };
+    const accKey = fieldMap[withdrawMethod] || 'bkash';
+    if (!savedAcc) {
+      updatedUser = {
+        ...currentUser,
+        withdrawalAccounts: {
+          ...(currentUser.withdrawalAccounts || {}),
+          [accKey]: finalAccount
+        }
+      };
+      setCurrentUser(updatedUser);
+    }
+
+    // Deduct balance
+    const newBal = parseFloat((balance - num).toFixed(2));
+    setBalance(newBal);
+    updatedUser.balance = newBal;
+    setCurrentUser(updatedUser);
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+    } catch (e) {
+      console.error(e);
+    }
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
+
+    // Save real withdrawal record
+    const currentWithdrawals = getStoredData('withdrawals', DEFAULT_WITHDRAWALS);
+    const newWth = {
+      id: `WTH-${Math.floor(100 + Math.random() * 900)}`,
+      userId: currentUser?.id,
+      user: currentUser?.email || currentUser?.phone || 'User',
+      amount: num,
+      method: withdrawMethod,
+      account: finalAccount,
+      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      status: 'pending'
+    };
+    setStoredData('withdrawals', [newWth, ...currentWithdrawals]);
+
+    setShowWithdrawModal(false);
+    setWithdrawAmount('');
+    setWithdrawAccountInput('');
+    showToast(`Withdrawal of $${num.toFixed(2)} submitted successfully!`);
+  };
+
+  // Complete Task Handler
+  const handleCompleteTask = (taskIndex, reward) => {
+    if (!requireAuth('task', 'complete task')) return;
+    if (completedTaskIndices.includes(taskIndex)) return;
+
+    setTaskProcessingIdx(taskIndex);
+    setTimeout(() => {
+      const nextCompleted = [...completedTaskIndices, taskIndex];
+      setCompletedTaskIndices(nextCompleted);
+      try {
+        localStorage.setItem(todayTasksKey, JSON.stringify(nextCompleted));
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Add balance
+      const newBal = parseFloat((balance + reward).toFixed(2));
+      setBalance(newBal);
+      if (currentUser) {
+        const updated = { ...currentUser, balance: newBal };
+        setCurrentUser(updated);
+        try {
+          localStorage.setItem('nt_currentUser', JSON.stringify(updated));
+        } catch (e) {
+          console.error(e);
+        }
+        const allUsers = getStoredData('users', DEFAULT_USERS);
+        setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
+      }
+
+      setTaskProcessingIdx(null);
+      showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
+    }, 700);
+  };
+
   // Helper to match user by email (case-insensitive) or phone (flexible formats)
   const matchAccount = (u, id) => {
     if (!id || !u) return false;
@@ -314,11 +552,25 @@ export default function App() {
             name: 'Master Admin',
             email: 'admin@nexttask.online',
             phone: '',
+            dob: '',
             password: 'Admin@NextTask',
             vip: 'VIP10',
             balance: 99999.00,
             recharge: 99999.00,
-            status: 'active'
+            status: 'active',
+            joined: '2026-10-01',
+            inviteCode: '806211',
+            myInviteCode: '806211',
+            referredBy: '',
+            withdrawalAccounts: {
+              bkash: '01712345678',
+              nagad: '01812345678',
+              rocket: '',
+              trc20: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
+              bankName: 'City Bank',
+              bankAccount: '11029384756',
+              bankHolder: 'Master Admin'
+            }
           };
           try {
             localStorage.setItem('nt_currentUser', JSON.stringify(adminUser));
@@ -452,6 +704,13 @@ export default function App() {
         return;
       }
 
+      // Generate unique 6-digit numeric invite code for this new user
+      const existingCodes = new Set(allUsers.map((u) => String(u.inviteCode || u.myInviteCode || '')));
+      let uniqueInviteCode = '';
+      do {
+        uniqueInviteCode = String(Math.floor(100000 + Math.random() * 900000));
+      } while (existingCodes.has(uniqueInviteCode));
+
       // Create fresh user account
       const isMail = rawInput.includes('@') || loginMethod === 'email';
       const userToSave = {
@@ -459,13 +718,25 @@ export default function App() {
         name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
         email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
         phone: !isMail ? fullPhone : '',
+        dob: '',
         password: password,
         vip: 'VIP0',
         balance: 0.00,
         recharge: 0.00,
         status: 'active',
         joined: new Date().toISOString().slice(0, 10),
-        inviteCode: regInviteCode || '806211'
+        inviteCode: uniqueInviteCode,
+        myInviteCode: uniqueInviteCode,
+        referredBy: (regInviteCode || '').trim(),
+        withdrawalAccounts: {
+          bkash: '',
+          nagad: '',
+          rocket: '',
+          trc20: '',
+          bankName: '',
+          bankAccount: '',
+          bankHolder: ''
+        }
       };
       const updated = [userToSave, ...allUsers];
       setStoredData('users', updated);
@@ -1193,8 +1464,9 @@ export default function App() {
                         </span>
                       </div>
                       <button 
-                        onClick={() => showToast('Account status: Verified')}
-                        className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full flex items-center gap-1"
+                        type="button"
+                        onClick={() => handleOpenProfileModal('personal')}
+                        className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full flex items-center gap-1 transition cursor-pointer"
                       >
                         Account &gt;
                       </button>
@@ -1476,102 +1748,346 @@ export default function App() {
               )}
 
               {/* ================= TAB 3: TEAM ================= */}
-              {activeTab === 'team' && (
-                <div className="px-4 py-4 space-y-4">
-                  <div className="bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border border-blue-500/30 rounded-2xl p-4 relative overflow-hidden backdrop-blur">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-xs text-slate-300">Invitation code:</div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-2xl font-black tracking-wider text-white">{inviteCode}</span>
-                          <button
-                            onClick={() => copyToClipboard(inviteCode, 'Invitation code')}
-                            className="bg-blue-600 hover:bg-blue-500 text-white text-[11px] px-3 py-1 rounded-full font-medium"
-                          >
-                            Copy
-                          </button>
+              {activeTab === 'team' && (() => {
+                const allUsers = getStoredData('users', DEFAULT_USERS);
+                const myCode = String(currentUser?.myInviteCode || currentUser?.inviteCode || '806211');
+                const myId = String(currentUser?.id || '');
+
+                // Level 1: Direct referrals (referredBy === myCode or myId)
+                const level1Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && (String(u.referredBy) === myCode || String(u.referredBy) === myId));
+
+                // Level 2: Referred by Level 1 members
+                const l1Codes = new Set(level1Members.map(u => String(u.myInviteCode || u.inviteCode || u.id)));
+                const level2Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && l1Codes.has(String(u.referredBy)));
+
+                // Level 3: Referred by Level 2 members
+                const l2Codes = new Set(level2Members.map(u => String(u.myInviteCode || u.inviteCode || u.id)));
+                const level3Members = allUsers.filter(u => u && String(u.id) !== String(currentUser?.id) && u.referredBy && l2Codes.has(String(u.referredBy)));
+
+                const currentLevelMembers = teamLevelTab === 1 ? level1Members : teamLevelTab === 2 ? level2Members : level3Members;
+                const totalTeamCount = level1Members.length + level2Members.length + level3Members.length;
+
+                // Referral VIP ladder
+                const vipOrder = ['VIP0', 'VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5', 'VIP6', 'VIP7', 'VIP8', 'VIP9', 'VIP10'];
+                const curIdx = vipOrder.indexOf(userVip);
+                const nextVip = curIdx < vipOrder.length - 1 ? vipOrder[curIdx + 1] : null;
+                const refReqMap = { VIP1: 1, VIP2: 3, VIP3: 6, VIP4: 10, VIP5: 15, VIP6: 25, VIP7: 40, VIP8: 60, VIP9: 85, VIP10: 120 };
+                const nextTarget = nextVip ? refReqMap[nextVip] : null;
+
+                return (
+                  <div className="px-4 py-4 space-y-4">
+                    {/* Invitation Card */}
+                    <div className="bg-gradient-to-r from-blue-900/80 via-indigo-900/80 to-[#0c1f44] border border-cyan-500/30 rounded-3xl p-5 relative overflow-hidden backdrop-blur shadow-xl">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 pr-2">
+                          <div className="text-[11px] font-semibold text-cyan-300 uppercase tracking-wider">Your Invitation Code</div>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <span className="text-2xl font-black tracking-widest text-white drop-shadow">{userInviteCode}</span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(userInviteCode, 'Invitation code')}
+                              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs px-3 py-1 rounded-full font-bold active:scale-95 transition shadow-sm cursor-pointer"
+                            >
+                              Copy
+                            </button>
+                          </div>
+
+                          <div className="text-[11px] text-slate-300 mt-3 font-medium">Share referral link & grow team</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-cyan-300/90 truncate max-w-[190px] font-mono bg-white/5 px-2 py-1 rounded-lg">
+                              https://nexttask.online/#/register?i={userInviteCode}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(`https://nexttask.online/#/register?i=${userInviteCode}`, 'Referral link')}
+                              className="bg-white/10 hover:bg-white/20 text-white text-[10px] px-2.5 py-1 rounded-lg transition cursor-pointer"
+                            >
+                              Copy
+                            </button>
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-300 mt-3">Share your referral link and start earning</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-cyan-300 truncate max-w-[170px]">
-                            https://nexttask.com/#/register?i={inviteCode}
+
+                        <div className="w-14 h-14 rounded-2xl bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center shrink-0">
+                          <Gem className="w-7 h-7 text-cyan-300 drop-shadow" />
+                        </div>
+                      </div>
+
+                      {/* Level Up Progress Banner */}
+                      <div className="mt-4 pt-3.5 border-t border-white/10 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                            {userVip} ACTIVE
                           </span>
-                          <button
-                            onClick={() => copyToClipboard(`https://nexttask.com/#/register?i=${inviteCode}`, 'Referral link')}
-                            className="bg-blue-600/80 text-white text-[10px] px-2.5 py-0.5 rounded-full"
-                          >
-                            Copy
-                          </button>
+                          <span className="text-slate-300 text-[11px]">
+                            Direct Referrals: <b className="text-white font-bold">{level1Members.length}</b>
+                          </span>
                         </div>
+                        {nextVip && (
+                          <div className="text-[10px] text-cyan-300 font-medium">
+                            {Math.max(0, nextTarget - level1Members.length)} more to <span className="font-bold text-white">{nextVip}</span>
+                          </div>
+                        )}
                       </div>
+                    </div>
 
-                      <div className="w-16 h-16 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center">
-                        <Gem className="w-8 h-8 text-amber-400 drop-shadow" />
+                    {/* Team Size & Stats Bar */}
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 text-center">
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Total Team</div>
+                        <div className="text-lg font-black text-slate-900 mt-0.5">{totalTeamCount}</div>
+                      </div>
+                      <div className="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 text-center">
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Direct (L1)</div>
+                        <div className="text-lg font-black text-blue-600 mt-0.5">{level1Members.length}</div>
+                      </div>
+                      <div className="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 text-center">
+                        <div className="text-[10px] text-slate-500 font-semibold uppercase">Sub-tier (L2+L3)</div>
+                        <div className="text-lg font-black text-emerald-600 mt-0.5">{level2Members.length + level3Members.length}</div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="bg-gradient-to-r from-[#d946ef] to-[#ec4899] rounded-2xl p-4 text-white shadow-md">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-extrabold tracking-wider text-base">LEVEL 1</span>
-                      <span className="bg-black/60 px-3 py-1 rounded-full text-xs font-semibold">16%</span>
-                    </div>
-                    <div className="text-xs opacity-90">Direct referral partners commission</div>
-                  </div>
-
-                  <div className="bg-gradient-to-r from-[#10b981] to-[#059669] rounded-2xl p-4 text-white shadow-md">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-extrabold tracking-wider text-base">LEVEL 2</span>
-                      <span className="bg-black/60 px-3 py-1 rounded-full text-xs font-semibold">2%</span>
-                    </div>
-                    <div className="text-xs opacity-90">Second-tier members commission</div>
-                  </div>
-
-                  <div className="bg-gradient-to-r from-[#1e293b] to-[#0f172a] rounded-2xl p-4 text-white shadow-md border border-slate-700">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="font-extrabold tracking-wider text-base">LEVEL 3</span>
-                      <span className="bg-black/60 px-3 py-1 rounded-full text-xs font-semibold">1%</span>
-                    </div>
-                    <div className="text-xs opacity-90">Third-level members commission</div>
-                  </div>
-                </div>
-              )}
-
-              {/* ================= TAB 4: TASK ================= */}
-              {activeTab === 'task' && (
-                <div className="px-4 py-4 space-y-4">
-                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-sm font-bold text-slate-800">Daily Task Mission</h3>
-                      <span className="text-xs text-indigo-600 font-semibold">10 Tasks available</span>
-                    </div>
-
-                    <div className="bg-slate-50 p-3 rounded-xl flex justify-between items-center mb-3">
-                      <div>
-                        <div className="text-xs font-semibold text-slate-800">NextTask Mission 1</div>
-                        <div className="text-[11px] text-slate-500">Reward: 0.70 USDT</div>
-                      </div>
+                    {/* Level Filter Tabs */}
+                    <div className="flex bg-[#e8eef8] p-1 rounded-2xl text-xs font-bold text-slate-600">
                       <button
-                        onClick={() => {
-                          setBalance(b => b + 0.7);
-                          showToast('Mission completed! +0.70 USDT added');
-                        }}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-full font-medium"
+                        type="button"
+                        onClick={() => setTeamLevelTab(1)}
+                        className={`flex-1 py-2 rounded-xl transition cursor-pointer ${teamLevelTab === 1 ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
                       >
-                        Complete
+                        Level 1 ({level1Members.length}) <span className="text-[10px] text-rose-500 font-black ml-0.5">16%</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTeamLevelTab(2)}
+                        className={`flex-1 py-2 rounded-xl transition cursor-pointer ${teamLevelTab === 2 ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                      >
+                        Level 2 ({level2Members.length}) <span className="text-[10px] text-emerald-600 font-black ml-0.5">2%</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTeamLevelTab(3)}
+                        className={`flex-1 py-2 rounded-xl transition cursor-pointer ${teamLevelTab === 3 ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                      >
+                        Level 3 ({level3Members.length}) <span className="text-[10px] text-indigo-600 font-black ml-0.5">1%</span>
                       </button>
                     </div>
+
+                    {/* Team Member List (Showing real user Name & User ID) */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 space-y-3">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2.5">
+                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                          Level {teamLevelTab} Team Members
+                        </h4>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">
+                          {currentLevelMembers.length} Members
+                        </span>
+                      </div>
+
+                      {currentLevelMembers.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 space-y-2">
+                          <Users className="w-9 h-9 mx-auto text-slate-300" />
+                          <p className="text-xs font-semibold text-slate-600">No Level {teamLevelTab} members yet.</p>
+                          <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                            Share your invitation code <b className="text-slate-700">{userInviteCode}</b> with friends. When they register, they will appear here!
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-100">
+                          {currentLevelMembers.map((m, idx) => (
+                            <div key={m.id || idx} className="py-3 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#05132d] via-blue-900 to-indigo-700 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                                  {(m.name || m.email || m.phone || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                                    <span>{m.name || 'Member'}</span>
+                                    <span className="text-[9px] bg-amber-500/10 text-amber-700 border border-amber-300/40 px-1.5 py-0.2 rounded font-extrabold uppercase">
+                                      {m.vip || 'VIP0'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 font-mono flex items-center gap-2 mt-0.5">
+                                    <span>User ID: <b className="text-slate-800">{m.id}</b></span>
+                                    <span>•</span>
+                                    <span>{m.phone || (m.email?.length > 18 ? m.email.slice(0, 15) + '...' : m.email) || 'Member'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                                  Active
+                                </span>
+                                <div className="text-[9px] text-slate-400 mt-0.5">{m.joined || 'Recent'}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
+
+              {/* ================= TAB 4: TASK (CORRESPONDING TO USER VIP LEVEL) ================= */}
+              {activeTab === 'task' && (() => {
+                const currentVipTier = vipTiers.find((v) => v.level === userVip) || vipTiers[0];
+                const maxTasks = currentVipTier?.tasks || 10;
+                const rewardPerTask = parseFloat(currentVipTier?.interest || (parseFloat(currentVipTier?.daily || '7.00') / maxTasks).toFixed(2)) || 0.70;
+
+                const totalTasks = Array.from({ length: maxTasks }, (_, i) => i);
+                const runningTasks = totalTasks.filter((i) => !completedTaskIndices.includes(i));
+                const finishedTasks = totalTasks.filter((i) => completedTaskIndices.includes(i));
+
+                return (
+                  <div className="px-4 py-4 space-y-4">
+                    {/* Current VIP Mission Header */}
+                    <div className="bg-gradient-to-r from-[#071739] via-[#0d2a66] to-[#05132d] rounded-3xl p-5 text-white shadow-xl border border-cyan-500/30 relative overflow-hidden">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-full shadow-sm">
+                              {userVip}
+                            </span>
+                            <span className="text-xs font-bold text-cyan-300">Daily Mission Center</span>
+                          </div>
+                          <h2 className="text-base font-black text-white mt-1.5 tracking-tight">AI & Blockchain Node Tasks</h2>
+                          <p className="text-[11px] text-slate-300 mt-0.5">
+                            Reward per mission: <b className="text-amber-400 font-bold">+{rewardPerTask.toFixed(2)} USDT</b>
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-[10px] text-slate-300 uppercase font-bold">Today's Progress</div>
+                          <div className="text-xl font-black text-white mt-0.5">
+                            {completedTaskIndices.length} <span className="text-xs text-slate-400 font-medium">/ {maxTasks}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mt-4 w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, (completedTaskIndices.length / maxTasks) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Tabs: Running vs Completed */}
+                    <div className="flex bg-[#e8eef8] p-1 rounded-2xl text-xs font-bold text-slate-600">
+                      <button
+                        type="button"
+                        onClick={() => setTaskTab('running')}
+                        className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'running' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                      >
+                        Running ({runningTasks.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTaskTab('completed')}
+                        className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'completed' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                      >
+                        Completed ({finishedTasks.length})
+                      </button>
+                    </div>
+
+                    {/* Tasks List */}
+                    <div className="space-y-3">
+                      {taskTab === 'running' ? (
+                        runningTasks.length === 0 ? (
+                          <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm space-y-3">
+                            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
+                            <h3 className="text-sm font-bold text-slate-900">All tasks completed today!</h3>
+                            <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                              You have finished all {maxTasks} daily tasks for {userVip}. Daily tasks reset every 24 hours.
+                            </p>
+                          </div>
+                        ) : (
+                          runningTasks.map((taskIdx) => (
+                            <div
+                              key={taskIdx}
+                              className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between transition hover:shadow-md"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-slate-900">
+                                    {userVip} Verification Mission #{taskIdx + 1}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    Running
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  Daily Reward: <b className="text-emerald-600 font-bold">+{rewardPerTask.toFixed(2)} USDT</b>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={taskProcessingIdx === taskIdx}
+                                onClick={() => handleCompleteTask(taskIdx, rewardPerTask)}
+                                className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                              >
+                                {taskProcessingIdx === taskIdx ? (
+                                  <>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Verifying...</span>
+                                  </>
+                                ) : (
+                                  <span>Complete</span>
+                                )}
+                              </button>
+                            </div>
+                          ))
+                        )
+                      ) : (
+                        finishedTasks.length === 0 ? (
+                          <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm text-slate-400">
+                            <Clock className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                            <p className="text-xs font-medium">No completed tasks yet today.</p>
+                          </div>
+                        ) : (
+                          finishedTasks.map((taskIdx) => (
+                            <div
+                              key={taskIdx}
+                              className="bg-white/80 rounded-2xl p-4 border border-emerald-100 flex items-center justify-between"
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-slate-700">
+                                    {userVip} Verification Mission #{taskIdx + 1}
+                                  </span>
+                                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                                    <Check className="w-3 h-3" />
+                                    Completed
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  Credited: <b className="text-emerald-600 font-bold">+{rewardPerTask.toFixed(2)} USDT</b>
+                                </div>
+                              </div>
+
+                              <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                                Done ✓
+                              </span>
+                            </div>
+                          ))
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* ================= TAB 5: ME ================= */}
               {activeTab === 'me' && (
                 <div className="px-4 -mt-3 space-y-4">
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 grid grid-cols-3 gap-2 text-center">
                     <button
+                      type="button"
                       onClick={() => setShowRechargeModal(true)}
-                      className="flex flex-col items-center gap-2 p-2 hover:bg-slate-50 rounded-xl transition"
+                      className="flex flex-col items-center gap-2 p-2 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                     >
                       <div className="w-11 h-11 rounded-full bg-[#05132d] text-white flex items-center justify-center shadow-md">
                         <ArrowDownLeft className="w-5 h-5 text-cyan-400" />
@@ -1580,8 +2096,9 @@ export default function App() {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => setShowWithdrawModal(true)}
-                      className="flex flex-col items-center gap-2 p-2 hover:bg-slate-50 rounded-xl transition"
+                      className="flex flex-col items-center gap-2 p-2 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                     >
                       <div className="w-11 h-11 rounded-full bg-[#05132d] text-white flex items-center justify-center shadow-md">
                         <ArrowUpRight className="w-5 h-5 text-amber-400" />
@@ -1590,8 +2107,9 @@ export default function App() {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => setShowRecordsModal(true)}
-                      className="flex flex-col items-center gap-2 p-2 hover:bg-slate-50 rounded-xl transition"
+                      className="flex flex-col items-center gap-2 p-2 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                     >
                       <div className="w-11 h-11 rounded-full bg-[#05132d] text-white flex items-center justify-center shadow-md">
                         <FileText className="w-5 h-5 text-emerald-400" />
@@ -1602,8 +2120,54 @@ export default function App() {
 
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-100">
                     <button
+                      type="button"
+                      onClick={() => handleOpenProfileModal('personal')}
+                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <User className="w-5 h-5 text-indigo-600" />
+                        <div>
+                          <div className="text-sm font-semibold text-slate-800">Personal Profile</div>
+                          <div className="text-[11px] text-slate-400">Name, Phone, DOB, User UID</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenProfileModal('withdraw')}
+                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <CreditCard className="w-5 h-5 text-cyan-600" />
+                        <div>
+                          <div className="text-sm font-semibold text-slate-800">Withdrawal Accounts</div>
+                          <div className="text-[11px] text-slate-400">bKash, Nagad, Rocket, Bank, TRC20</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowRecordsModal(true)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-emerald-500" />
+                        <div>
+                          <div className="text-sm font-semibold text-slate-800">Financial Records</div>
+                          <div className="text-[11px] text-slate-400">Deposited vs Withdrawn summary</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setShowAnnouncement(true)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition"
+                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
                         <Bell className="w-5 h-5 text-amber-500" />
@@ -1612,10 +2176,10 @@ export default function App() {
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
 
-
                     <button
+                      type="button"
                       onClick={() => setShowPasswordModal(true)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition"
+                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
                         <KeyRound className="w-5 h-5 text-slate-500" />
@@ -1625,8 +2189,9 @@ export default function App() {
                     </button>
 
                     <button
+                      type="button"
                       onClick={handleLogout}
-                      className="w-full flex items-center justify-between p-4 hover:bg-rose-50 text-left transition"
+                      className="w-full flex items-center justify-between p-4 hover:bg-rose-50 text-left transition cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
                         <LogOut className="w-5 h-5 text-rose-500" />
@@ -1950,42 +2515,461 @@ export default function App() {
           </div>
         )}
 
-        {/* Withdraw Modal */}
+        {/* ================= WITHDRAW FUNDS MODAL ================= */}
         {showWithdrawModal && (
-          <div className="absolute inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full p-5 space-y-4 animate-slide-up">
-              <div className="flex justify-between items-center">
-                <h3 className="font-bold text-slate-800 text-base">Withdraw Funds</h3>
-                <button onClick={() => setShowWithdrawModal(false)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-slate-600">Available Balance: <span className="font-bold text-slate-900">{balance.toFixed(2)} USDT</span></label>
-                  <input
-                    type="number"
-                    placeholder="Enter withdrawal amount (Min 1 USDT)"
-                    className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-600">USDT (TRC20) Address</label>
-                  <input
-                    type="text"
-                    placeholder="Paste TRC20 address"
-                    className="w-full mt-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
-                  />
-                </div>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[360px] p-5 space-y-4 animate-slide-up shadow-2xl border border-slate-100 max-h-[90%] overflow-y-auto">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <ArrowUpRight className="w-5 h-5 text-amber-500" />
+                  Withdraw Funds
+                </h3>
                 <button
-                  onClick={() => {
-                    showToast('Withdrawal request submitted!');
-                    setShowWithdrawModal(false);
-                  }}
-                  className="w-full bg-[#05132d] hover:bg-slate-800 text-white text-sm font-semibold py-3 rounded-full mt-2"
+                  type="button"
+                  onClick={() => setShowWithdrawModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1"
                 >
-                  Confirm Withdrawal
+                  ✕
                 </button>
               </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex justify-between items-center">
+                <div>
+                  <div className="text-[10px] text-slate-500 font-bold uppercase">Available Balance</div>
+                  <div className="text-xl font-black text-slate-900">{balance.toFixed(2)} USDT</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-slate-400 font-medium">Min Withdrawal</div>
+                  <div className="text-xs font-bold text-indigo-600">{settings?.minWithdrawal || 1.0} USDT</div>
+                </div>
+              </div>
+
+              {/* Method Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Select Withdrawal Method
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {['bKash', 'Nagad', 'Rocket', 'USDT (TRC20)', 'Bank Transfer'].map((m) => (
+                    <button
+                      type="button"
+                      key={m}
+                      onClick={() => {
+                        setWithdrawMethod(m);
+                        const saved = currentUser?.withdrawalAccounts?.[m.toLowerCase()] ||
+                                      (m === 'Bank Transfer' ? currentUser?.withdrawalAccounts?.bankAccount : '') ||
+                                      (m === 'USDT (TRC20)' ? currentUser?.withdrawalAccounts?.trc20 : '');
+                        setWithdrawAccountInput(saved || '');
+                      }}
+                      className={`py-2 px-1 text-[11px] font-bold rounded-xl border text-center transition cursor-pointer ${
+                        withdrawMethod === m
+                          ? 'bg-[#05132d] text-white border-[#05132d] shadow-sm'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Account Input / Display */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold text-slate-700">
+                    {withdrawMethod} Account / Number
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWithdrawModal(false);
+                      handleOpenProfileModal('withdraw');
+                    }}
+                    className="text-[10px] text-indigo-600 hover:underline font-bold"
+                  >
+                    Manage Accounts &gt;
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={withdrawAccountInput}
+                  onChange={(e) => setWithdrawAccountInput(e.target.value)}
+                  placeholder={`Enter your ${withdrawMethod} number or address`}
+                  className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                />
+              </div>
+
+              {/* Amount Input */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Withdrawal Amount (USDT)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Enter amount (e.g. 10)"
+                  className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500 focus:bg-white transition"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleWithdrawSubmit}
+                className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
+              >
+                Confirm Withdrawal
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= REAL FINANCIAL RECORDS MODAL (SPLIT VIEW) ================= */}
+        {showRecordsModal && (() => {
+          const allRecharges = getStoredData('recharges', DEFAULT_RECHARGES);
+          const allWithdrawals = getStoredData('withdrawals', DEFAULT_WITHDRAWALS);
+
+          const userRecharges = allRecharges.filter(r => 
+            r && (
+              (currentUser?.id && String(r.userId) === String(currentUser.id)) ||
+              (currentUser?.email && String(r.user || '').toLowerCase() === currentUser.email.toLowerCase()) ||
+              (currentUser?.phone && String(r.user || '') === currentUser.phone)
+            )
+          );
+
+          const userWithdrawals = allWithdrawals.filter(w =>
+            w && (
+              (currentUser?.id && String(w.userId) === String(currentUser.id)) ||
+              (currentUser?.email && String(w.user || '').toLowerCase() === currentUser.email.toLowerCase()) ||
+              (currentUser?.phone && String(w.user || '') === currentUser.phone)
+            )
+          );
+
+          const totalDeposited = userRecharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+          const totalWithdrawn = userWithdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+
+          return (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-[370px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[88%] flex flex-col">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+                  <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-indigo-600" />
+                    Financial Records
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowRecordsModal(false)}
+                    className="text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* 2-Side Summary: Left = Deposited, Right = Withdrawn */}
+                <div className="grid grid-cols-2 gap-2.5 shrink-0">
+                  {/* Left Column: Deposited Amount */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-3.5 text-center shadow-xs">
+                    <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-800 uppercase tracking-tight">
+                      <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
+                      Total Deposited
+                    </div>
+                    <div className="text-lg font-black text-emerald-700 mt-1">
+                      ${totalDeposited.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] text-emerald-600/90 font-semibold mt-0.5">
+                      {userRecharges.length} Deposits
+                    </div>
+                  </div>
+
+                  {/* Right Column: Withdrawn Amount */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 text-center shadow-xs">
+                    <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-amber-800 uppercase tracking-tight">
+                      <ArrowUpRight className="w-3.5 h-3.5 text-amber-600" />
+                      Total Withdrawn
+                    </div>
+                    <div className="text-lg font-black text-amber-700 mt-1">
+                      ${totalWithdrawn.toFixed(2)}
+                    </div>
+                    <div className="text-[10px] text-amber-600/90 font-semibold mt-0.5">
+                      {userWithdrawals.length} Withdrawals
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex bg-[#eef3fb] p-1 rounded-2xl text-xs font-bold text-slate-600 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRecordsTab('deposit')}
+                    className={`flex-1 py-2 rounded-xl transition cursor-pointer ${recordsTab === 'deposit' ? 'bg-white text-emerald-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                  >
+                    Deposits ({userRecharges.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecordsTab('withdraw')}
+                    className={`flex-1 py-2 rounded-xl transition cursor-pointer ${recordsTab === 'withdraw' ? 'bg-white text-amber-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                  >
+                    Withdrawals ({userWithdrawals.length})
+                  </button>
+                </div>
+
+                {/* Real Transactions List */}
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+                  {recordsTab === 'deposit' ? (
+                    userRecharges.length === 0 ? (
+                      <div className="text-center py-10 text-slate-400 space-y-1">
+                        <ArrowDownLeft className="w-8 h-8 mx-auto text-slate-300" />
+                        <p className="text-xs font-semibold">No deposit records yet.</p>
+                        <p className="text-[10px] text-slate-400">Recharges submitted will show here in real time.</p>
+                      </div>
+                    ) : (
+                      userRecharges.map((r, idx) => (
+                        <div key={r.id || idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <span>Deposit via {r.network || 'bKash'}</span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase ${
+                                r.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                                r.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {r.status}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              TrxID: {r.txid || r.id}
+                            </div>
+                            <div className="text-[10px] text-slate-400">{r.date}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-emerald-600">
+                              +${parseFloat(r.amount).toFixed(2)}
+                            </div>
+                            <div className="text-[10px] text-slate-400">USDT</div>
+                          </div>
+                        </div>
+                      ))
+                    )
+                  ) : (
+                    userWithdrawals.length === 0 ? (
+                      <div className="text-center py-10 text-slate-400 space-y-1">
+                        <ArrowUpRight className="w-8 h-8 mx-auto text-slate-300" />
+                        <p className="text-xs font-semibold">No withdrawal records yet.</p>
+                        <p className="text-[10px] text-slate-400">Withdrawal requests will appear here with live status.</p>
+                      </div>
+                    ) : (
+                      userWithdrawals.map((w, idx) => (
+                        <div key={w.id || idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <span>Withdraw to {w.method}</span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase ${
+                                w.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                                w.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {w.status}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono truncate max-w-[170px]">
+                              A/C: {w.account}
+                            </div>
+                            <div className="text-[10px] text-slate-400">{w.date}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-amber-600">
+                              -${parseFloat(w.amount).toFixed(2)}
+                            </div>
+                            <div className="text-[10px] text-slate-400">USDT</div>
+                          </div>
+                        </div>
+                      ))
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ================= USER PROFILE & WITHDRAWAL ACCOUNTS MODAL ================= */}
+        {showProfileModal && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[370px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[90%] flex flex-col">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <User className="w-5 h-5 text-indigo-600" />
+                  User Profile & Accounts
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex bg-[#eef3fb] p-1 rounded-2xl text-xs font-bold text-slate-600 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setProfileTab('personal')}
+                  className={`flex-1 py-2 rounded-xl transition cursor-pointer ${profileTab === 'personal' ? 'bg-white text-indigo-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                >
+                  Personal Info
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileTab('withdraw')}
+                  className={`flex-1 py-2 rounded-xl transition cursor-pointer ${profileTab === 'withdraw' ? 'bg-white text-indigo-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                >
+                  Withdrawal Accounts
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1 text-xs">
+                {profileTab === 'personal' ? (
+                  <>
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Full Name</label>
+                      <input
+                        type="text"
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Phone Number</label>
+                      <input
+                        type="tel"
+                        value={profilePhone}
+                        onChange={(e) => setProfilePhone(e.target.value)}
+                        placeholder="e.g. 01712345678"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Date of Birth (DOB)</label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={profileDob}
+                          onChange={(e) => setProfileDob(e.target.value)}
+                          className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>User ID:</span>
+                        <span className="font-mono font-bold text-slate-800">{currentUser?.id || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Email:</span>
+                        <span className="font-medium text-slate-800">{currentUser?.email || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Current VIP:</span>
+                        <span className="font-bold text-amber-600">{userVip}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-500">
+                        <span>Invitation Code:</span>
+                        <span className="font-mono font-bold text-cyan-600">{userInviteCode}</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[11px] text-slate-500 leading-tight">
+                      Add your withdrawal accounts to receive fast, verified payouts directly.
+                    </p>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">bKash Account Number</label>
+                      <input
+                        type="tel"
+                        value={profileBkash}
+                        onChange={(e) => setProfileBkash(e.target.value)}
+                        placeholder="e.g. 01712345678"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Nagad Account Number</label>
+                      <input
+                        type="tel"
+                        value={profileNagad}
+                        onChange={(e) => setProfileNagad(e.target.value)}
+                        placeholder="e.g. 01812345678"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">Rocket Account Number</label>
+                      <input
+                        type="tel"
+                        value={profileRocket}
+                        onChange={(e) => setProfileRocket(e.target.value)}
+                        placeholder="e.g. 01912345678"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">USDT (TRC20) Wallet Address</label>
+                      <input
+                        type="text"
+                        value={profileTrc20}
+                        onChange={(e) => setProfileTrc20(e.target.value)}
+                        placeholder="Paste TRC20 address (Starts with T)"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                      <div className="font-bold text-slate-800">Bank Account Details (Optional)</div>
+                      <input
+                        type="text"
+                        value={profileBankName}
+                        onChange={(e) => setProfileBankName(e.target.value)}
+                        placeholder="Bank Name (e.g. Islami Bank)"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={profileBankHolder}
+                        onChange={(e) => setProfileBankHolder(e.target.value)}
+                        placeholder="Account Holder Name"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                      <input
+                        type="text"
+                        value={profileBankAccount}
+                        onChange={(e) => setProfileBankAccount(e.target.value)}
+                        placeholder="Account Number"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveProfile}
+                className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer shrink-0"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         )}
