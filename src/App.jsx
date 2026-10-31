@@ -1039,7 +1039,7 @@ export default function App() {
     return false;
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e?.preventDefault();
     setAuthError('');
     setAuthSuccess('');
@@ -1061,6 +1061,46 @@ export default function App() {
         setAuthModalMsg(err);
         showToast(err);
         return;
+      }
+
+      // 1. Secure Server-Side Login via Cloudflare Worker API
+      try {
+        const authRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account: rawInput, password: inputPass })
+        });
+        const authJson = await authRes.json();
+        if (authJson && authJson.success && authJson.user) {
+          const loggedUser = authJson.user;
+          if (authJson.adminToken) {
+            localStorage.setItem('nt_admin_token', authJson.adminToken);
+            sessionStorage.setItem('nt_admin_token', authJson.adminToken);
+          }
+          try {
+            localStorage.setItem('nt_currentUser', JSON.stringify(loggedUser));
+          } catch (e) {
+            console.error(e);
+          }
+          setCurrentUser(loggedUser);
+          setUserVip(loggedUser.vip || 'VIP0');
+          setBalance(typeof loggedUser.balance === 'number' ? loggedUser.balance : 0);
+          setRechargeTotal(typeof loggedUser.recharge === 'number' ? loggedUser.recharge : 0);
+          setUserEmail(loggedUser.email || '');
+          setUserPhone(loggedUser.phone || '');
+          setIsLoggedIn(true);
+          navigateToTab('me');
+          setIntendedTab('me');
+          showToast(authJson.isAdmin ? 'Welcome back, Master Admin!' : 'Login successful!');
+          return;
+        } else if (authJson && authJson.error) {
+          setAuthError(authJson.error);
+          setAuthModalMsg(authJson.error);
+          showToast(authJson.error);
+          return;
+        }
+      } catch {
+        // Fall back to local check if offline
       }
 
       // Master Admin Login Support

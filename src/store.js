@@ -192,6 +192,20 @@ export const getStoredData = (key, fallback) => {
   }
 };
 
+export const getAdminToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('nt_admin_token') || sessionStorage.getItem('nt_admin_token') || '';
+};
+
+export const getAuthHeaders = () => {
+  const token = getAdminToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['x-admin-token'] = token;
+  }
+  return headers;
+};
+
 export const setStoredData = (key, value) => {
   try {
     memoryCache.set(key, value);
@@ -205,11 +219,11 @@ export const setStoredData = (key, value) => {
       window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { key, value } }));
     }
 
-    // Asynchronously push update to Cloudflare D1 database
+    // Asynchronously push update to Cloudflare D1 database with auth headers
     if (typeof fetch !== 'undefined') {
       fetch('/api/data', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ key, value })
       }).catch((err) => {
         console.warn('D1 Cloud sync background push warning:', err);
@@ -227,7 +241,7 @@ export const fetchCloudDataNow = async () => {
   isCloudSyncing = true;
 
   try {
-    const res = await fetch('/api/data');
+    const res = await fetch('/api/data', { headers: getAuthHeaders() });
     if (!res.ok) return;
     const json = await res.json();
 

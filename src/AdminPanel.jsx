@@ -67,6 +67,8 @@ export default function AdminPanel({ onNavigateToApp }) {
 
     if (trimEmail === 'admin@nexttask.online' && trimPass === 'Admin@NextTask') {
       localStorage.setItem('nt_admin_auth', 'true');
+      localStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
+      sessionStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
       setIsAdminAuth(true);
       showToast('Master Admin Authenticated Successfully');
     } else {
@@ -76,6 +78,8 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   const handleAdminLogout = () => {
     localStorage.removeItem('nt_admin_auth');
+    localStorage.removeItem('nt_admin_token');
+    sessionStorage.removeItem('nt_admin_token');
     setIsAdminAuth(false);
     setAdminEmail('');
     setAdminPassword('');
