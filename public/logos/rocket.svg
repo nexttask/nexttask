@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="rocketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8C2D8E"/>
+      <stop offset="100%" stop-color="#5B125D"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#rocketGrad)"/>
+  <circle cx="60" cy="60" r="42" fill="#FFFFFF"/>
+  <g transform="translate(30, 24) scale(0.6)">
+    <!-- Rocket stylized icon -->
+    <path d="M50 8 C62 25, 74 48, 70 76 L62 76 L60 84 L40 84 L38 76 L30 76 C26 48, 38 25, 50 8 Z" fill="#8C2D8E"/>
+    <!-- Window -->
+    <circle cx="50" cy="40" r="10" fill="#FFD700"/>
+    <circle cx="50" cy="40" r="6" fill="#8C2D8E"/>
+    <!-- Fins -->
+    <path d="M28 62 L12 80 L28 78 Z" fill="#E2136E"/>
+    <path d="M72 62 L88 80 L72 78 Z" fill="#E2136E"/>
+    <!-- Fire Flame -->
+    <path d="M42 86 L50 106 L58 86 Z" fill="#FF5E3A"/>
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="upayGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00529B"/>
+      <stop offset="100%" stop-color="#00284D"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#upayGrad)"/>
+  <circle cx="60" cy="60" r="40" fill="#FFFFFF"/>
+  <text x="60" y="68" font-family="Arial, sans-serif" font-weight="900" font-size="28" fill="#FFB703" text-anchor="middle">upay</text>
+</svg>

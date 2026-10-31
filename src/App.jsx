@@ -57,7 +57,8 @@ import {
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_RECHARGES,
-  DEFAULT_WITHDRAWALS
+  DEFAULT_WITHDRAWALS,
+  getPaymentLogo
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
@@ -390,8 +391,10 @@ export default function App() {
   });
 
   // User Profile & Withdrawal Accounts State
+  const [showPersonalProfileModal, setShowPersonalProfileModal] = useState(false);
+  const [showWithdrawAccountsModal, setShowWithdrawAccountsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileTab, setProfileTab] = useState('personal'); // 'personal' | 'withdraw'
+  const [profileTab, setProfileTab] = useState('personal');
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
   const [profileDob, setProfileDob] = useState('');
@@ -410,6 +413,31 @@ export default function App() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMethod, setWithdrawMethod] = useState('bKash');
   const [withdrawAccountInput, setWithdrawAccountInput] = useState('');
+
+  // Automatically select the user's first configured withdrawal account
+  useEffect(() => {
+    if (showWithdrawModal && currentUser) {
+      const wa = currentUser?.withdrawalAccounts || {};
+      const active = [];
+      if (wa.bkash?.trim()) active.push({ name: 'bKash', val: wa.bkash.trim() });
+      if (wa.nagad?.trim()) active.push({ name: 'Nagad', val: wa.nagad.trim() });
+      if (wa.rocket?.trim()) active.push({ name: 'Rocket', val: wa.rocket.trim() });
+      if (wa.trc20?.trim()) active.push({ name: 'USDT (TRC20)', val: wa.trc20.trim() });
+      if (wa.bankAccount?.trim()) active.push({ name: 'Bank Transfer', val: wa.bankAccount.trim() });
+
+      if (active.length > 0) {
+        const match = active.find((a) => a.name === withdrawMethod);
+        if (match) {
+          setWithdrawAccountInput(match.val);
+        } else {
+          setWithdrawMethod(active[0].name);
+          setWithdrawAccountInput(active[0].val);
+        }
+      } else {
+        setWithdrawAccountInput('');
+      }
+    }
+  }, [showWithdrawModal, currentUser]);
 
   // Team Tab State
   const [teamLevelTab, setTeamLevelTab] = useState(1);
@@ -755,12 +783,16 @@ export default function App() {
     }
   }, [activeTab, currentUser]);
 
-  const handleOpenProfileModal = (tab = 'personal') => {
+  const handleOpenPersonalProfile = () => {
     if (!currentUser) return;
-    setProfileTab(tab);
     setProfileName(currentUser.name || '');
     setProfilePhone(currentUser.phone || '');
     setProfileDob(currentUser.dob || '');
+    setShowPersonalProfileModal(true);
+  };
+
+  const handleOpenWithdrawAccounts = () => {
+    if (!currentUser) return;
     setProfileBkash(currentUser.withdrawalAccounts?.bkash || '');
     setProfileNagad(currentUser.withdrawalAccounts?.nagad || '');
     setProfileRocket(currentUser.withdrawalAccounts?.rocket || '');
@@ -768,7 +800,59 @@ export default function App() {
     setProfileBankName(currentUser.withdrawalAccounts?.bankName || '');
     setProfileBankAccount(currentUser.withdrawalAccounts?.bankAccount || '');
     setProfileBankHolder(currentUser.withdrawalAccounts?.bankHolder || '');
-    setShowProfileModal(true);
+    setShowWithdrawAccountsModal(true);
+  };
+
+  const handleOpenProfileModal = (tab = 'personal') => {
+    if (tab === 'withdraw') {
+      handleOpenWithdrawAccounts();
+    } else {
+      handleOpenPersonalProfile();
+    }
+  };
+
+  const handleSavePersonalProfile = (e) => {
+    e?.preventDefault();
+    if (!currentUser) return;
+    const updatedUser = {
+      ...currentUser,
+      name: profileName.trim() || currentUser.name || 'User',
+      phone: profilePhone.trim() || currentUser.phone || '',
+      dob: profileDob.trim()
+    };
+    setCurrentUser(updatedUser);
+    setUserPhone(updatedUser.phone);
+    try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser)); } catch (err) {}
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u);
+    setStoredData('users', updatedUsers);
+    showToast('Personal profile saved successfully!');
+    setShowPersonalProfileModal(false);
+  };
+
+  const handleSaveWithdrawAccounts = (e) => {
+    e?.preventDefault();
+    if (!currentUser) return;
+    const updatedUser = {
+      ...currentUser,
+      withdrawalAccounts: {
+        ...(currentUser.withdrawalAccounts || {}),
+        bkash: profileBkash.trim(),
+        nagad: profileNagad.trim(),
+        rocket: profileRocket.trim(),
+        trc20: profileTrc20.trim(),
+        bankName: profileBankName.trim(),
+        bankAccount: profileBankAccount.trim(),
+        bankHolder: profileBankHolder.trim()
+      }
+    };
+    setCurrentUser(updatedUser);
+    try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser)); } catch (err) {}
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u);
+    setStoredData('users', updatedUsers);
+    showToast('Withdrawal accounts saved successfully!');
+    setShowWithdrawAccountsModal(false);
   };
 
   const handleSaveProfile = () => {
@@ -3294,7 +3378,7 @@ export default function App() {
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden divide-y divide-slate-100">
                     <button
                       type="button"
-                      onClick={() => handleOpenProfileModal('personal')}
+                      onClick={handleOpenPersonalProfile}
                       className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
@@ -3306,7 +3390,7 @@ export default function App() {
 
                     <button
                       type="button"
-                      onClick={() => handleOpenProfileModal('withdraw')}
+                      onClick={handleOpenWithdrawAccounts}
                       className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
                     >
                       <div className="flex items-center gap-3">
@@ -3495,8 +3579,7 @@ export default function App() {
                     <ArrowDownLeft className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-slate-800 text-base leading-tight">Recharge / Deposit</h3>
-                    <p className="text-[10px] text-slate-400">bKash • Nagad • Rocket • USDT</p>
+                    <h3 className="font-extrabold text-slate-800 text-base leading-tight">Recharge</h3>
                   </div>
                 </div>
                 <button
@@ -3564,30 +3647,25 @@ export default function App() {
                         key={pm.id}
                         type="button"
                         onClick={() => setSelectedPaymentMethod(pm)}
-                        className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition ${
+                        className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition cursor-pointer ${
                           isSelected
                             ? 'border-indigo-600 bg-indigo-50/50 shadow-sm'
                             : 'border-slate-200 hover:border-slate-300 bg-white'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`w-3 h-3 rounded-full ${
-                              isBkash
-                                ? 'bg-pink-600'
-                                : isNagad
-                                ? 'bg-orange-500'
-                                : isRocket
-                                ? 'bg-purple-600'
-                                : 'bg-emerald-600'
-                            }`}
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={getPaymentLogo(pm)}
+                            alt={pm.method}
+                            className="w-7 h-7 rounded-lg object-contain bg-slate-50 border border-slate-200/80 p-0.5 shrink-0 shadow-sm"
+                            onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
                           />
                           <div>
                             <div className="font-bold text-xs text-slate-800">{pm.method}</div>
-                            <div className="text-[10px] text-slate-500">{pm.type}</div>
+                            <div className="text-[10px] text-slate-500 font-medium">{pm.type}</div>
                           </div>
                         </div>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-600" />}
+                        {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />}
                       </button>
                     );
                   })}
@@ -3598,18 +3676,26 @@ export default function App() {
               {selectedPaymentMethod && (
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-500 uppercase">
-                        {selectedPaymentMethod.method} ({selectedPaymentMethod.type})
-                      </span>
-                      <div className="font-mono text-sm font-black text-slate-900 break-all select-all mt-0.5">
-                        {selectedPaymentMethod.number}
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={getPaymentLogo(selectedPaymentMethod)}
+                        alt={selectedPaymentMethod.method}
+                        className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200 p-0.5 shrink-0 shadow-sm"
+                        onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                      />
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-500 uppercase">
+                          {selectedPaymentMethod.method} ({selectedPaymentMethod.type})
+                        </span>
+                        <div className="font-mono text-sm font-black text-slate-900 break-all select-all mt-0.5">
+                          {selectedPaymentMethod.number}
+                        </div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => copyToClipboard(selectedPaymentMethod.number, `${selectedPaymentMethod.method} number`)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shrink-0 ml-2"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shrink-0 ml-2 shadow cursor-pointer transition active:scale-95"
                     >
                       <Copy className="w-3 h-3" />
                       Copy
@@ -3713,83 +3799,126 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Method Selector */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Select Withdrawal Method
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {['bKash', 'Nagad', 'Rocket', 'USDT (TRC20)', 'Bank Transfer'].map((m) => (
+              {/* Dynamic Account Verification & Method Selector */}
+              {(() => {
+                const wa = currentUser?.withdrawalAccounts || {};
+                const activeMethods = [];
+                if (wa.bkash?.trim()) activeMethods.push({ name: 'bKash', number: wa.bkash.trim() });
+                if (wa.nagad?.trim()) activeMethods.push({ name: 'Nagad', number: wa.nagad.trim() });
+                if (wa.rocket?.trim()) activeMethods.push({ name: 'Rocket', number: wa.rocket.trim() });
+                if (wa.trc20?.trim()) activeMethods.push({ name: 'USDT (TRC20)', number: wa.trc20.trim() });
+                if (wa.bankAccount?.trim()) activeMethods.push({ name: 'Bank Transfer', number: `${wa.bankName ? wa.bankName + ' - ' : ''}${wa.bankAccount.trim()}`, raw: wa.bankAccount.trim() });
+
+                const minWthLimit = typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0
+                  ? settings.minWithdrawal
+                  : (parseFloat(settings?.minWithdrawal) || 10.0);
+
+                if (activeMethods.length === 0) {
+                  return (
+                    <div className="py-6 px-4 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-500">
+                        <CreditCard className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-slate-800">No Withdrawal Account Added</h4>
+                        <p className="text-[11px] text-slate-500 max-w-[230px] mx-auto">
+                          Please add your bKash, Nagad, Rocket, or USDT account to proceed with withdrawals.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowWithdrawModal(false);
+                          handleOpenWithdrawAccounts();
+                        }}
+                        className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer"
+                      >
+                        <span>+ Add withdrawal accounts (Manage Accounts)</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <>
+                    {/* Method Selector */}
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block text-xs font-bold text-slate-700">
+                          Select Withdrawal Method
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowWithdrawModal(false);
+                            handleOpenWithdrawAccounts();
+                          }}
+                          className="text-[10px] text-indigo-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Manage Accounts &gt;
+                        </button>
+                      </div>
+                      <div className={`grid ${activeMethods.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
+                        {activeMethods.map((m) => (
+                          <button
+                            type="button"
+                            key={m.name}
+                            onClick={() => {
+                              setWithdrawMethod(m.name);
+                              setWithdrawAccountInput(m.raw || m.number);
+                            }}
+                            className={`p-2.5 text-xs font-bold rounded-xl border text-left transition cursor-pointer flex flex-col justify-center ${
+                              withdrawMethod === m.name
+                                ? 'bg-[#05132d] text-white border-[#05132d] shadow-sm'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span className="font-extrabold">{m.name}</span>
+                            <span className="text-[10px] opacity-75 font-mono truncate mt-0.5">{m.number}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Account Input / Display */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        {withdrawMethod} Account / Number
+                      </label>
+                      <input
+                        type="text"
+                        value={withdrawAccountInput}
+                        onChange={(e) => setWithdrawAccountInput(e.target.value)}
+                        placeholder={`Enter your ${withdrawMethod} number or address`}
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+
+                    {/* Amount Input */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Withdrawal Amount (USDT)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        placeholder={`Enter amount (Min ${minWthLimit} USDT)`}
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+
                     <button
                       type="button"
-                      key={m}
-                      onClick={() => {
-                        setWithdrawMethod(m);
-                        const saved = currentUser?.withdrawalAccounts?.[m.toLowerCase()] ||
-                                      (m === 'Bank Transfer' ? currentUser?.withdrawalAccounts?.bankAccount : '') ||
-                                      (m === 'USDT (TRC20)' ? currentUser?.withdrawalAccounts?.trc20 : '');
-                        setWithdrawAccountInput(saved || '');
-                      }}
-                      className={`py-2 px-1 text-[11px] font-bold rounded-xl border text-center transition cursor-pointer ${
-                        withdrawMethod === m
-                          ? 'bg-[#05132d] text-white border-[#05132d] shadow-sm'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
+                      onClick={handleWithdrawSubmit}
+                      className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
                     >
-                      {m}
+                      Confirm Withdrawal
                     </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Account Input / Display */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-bold text-slate-700">
-                    {withdrawMethod} Account / Number
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowWithdrawModal(false);
-                      handleOpenProfileModal('withdraw');
-                    }}
-                    className="text-[10px] text-indigo-600 hover:underline font-bold"
-                  >
-                    Manage Accounts &gt;
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={withdrawAccountInput}
-                  onChange={(e) => setWithdrawAccountInput(e.target.value)}
-                  placeholder={`Enter your ${withdrawMethod} number or address`}
-                  className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                />
-              </div>
-
-              {/* Amount Input */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Withdrawal Amount (USDT)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Enter amount (Min 10 USDT)"
-                  className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500 focus:bg-white transition"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleWithdrawSubmit}
-                className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
-              >
-                Confirm Withdrawal
-              </button>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -3961,184 +4090,186 @@ export default function App() {
           );
         })()}
 
-        {/* ================= USER PROFILE & WITHDRAWAL ACCOUNTS MODAL ================= */}
-        {showProfileModal && (
+        {/* ================= MODAL: PERSONAL PROFILE (SEPARATE PAGE) ================= */}
+        {showPersonalProfileModal && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl w-full max-w-[370px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[90%] flex flex-col">
+            <div className="bg-white rounded-3xl w-full max-w-[360px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[90%] flex flex-col">
               <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
                 <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                   <User className="w-5 h-5 text-indigo-600" />
-                  User Profile & Accounts
+                  Personal Profile
                 </h3>
                 <button
                   type="button"
-                  onClick={() => setShowProfileModal(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1"
+                  onClick={() => setShowPersonalProfileModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Tabs */}
-              <div className="flex bg-[#eef3fb] p-1 rounded-2xl text-xs font-bold text-slate-600 shrink-0">
+              <form onSubmit={handleSavePersonalProfile} className="flex-1 overflow-y-auto no-scrollbar space-y-3.5 pr-1 text-xs">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Phone Number</label>
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="e.g. 01712345678"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Date of Birth (DOB)</label>
+                  <input
+                    type="date"
+                    value={profileDob}
+                    onChange={(e) => setProfileDob(e.target.value)}
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>User ID:</span>
+                    <span className="font-mono font-bold text-slate-800">{currentUser?.id || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Email:</span>
+                    <span className="font-medium text-slate-800">{currentUser?.email || '-'}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Current VIP:</span>
+                    <span className="font-bold text-amber-600">{userVip}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Invitation Code:</span>
+                    <span className="font-mono font-bold text-cyan-600">{userInviteCode}</span>
+                  </div>
+                </div>
+
                 <button
-                  type="button"
-                  onClick={() => setProfileTab('personal')}
-                  className={`flex-1 py-2 rounded-xl transition cursor-pointer ${profileTab === 'personal' ? 'bg-white text-indigo-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                  type="submit"
+                  className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer shrink-0 mt-3"
                 >
-                  Personal Info
+                  Save Profile
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setProfileTab('withdraw')}
-                  className={`flex-1 py-2 rounded-xl transition cursor-pointer ${profileTab === 'withdraw' ? 'bg-white text-indigo-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
-                >
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL: WITHDRAWAL ACCOUNTS (SEPARATE PAGE) ================= */}
+        {showWithdrawAccountsModal && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[370px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[90%] flex flex-col">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-cyan-600" />
                   Withdrawal Accounts
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowWithdrawAccountsModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                >
+                  ✕
                 </button>
               </div>
 
-              {/* Tab Content */}
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1 text-xs">
-                {profileTab === 'personal' ? (
-                  <>
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">Full Name</label>
-                      <input
-                        type="text"
-                        value={profileName}
-                        onChange={(e) => setProfileName(e.target.value)}
-                        placeholder="Enter your name"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                    </div>
+              <p className="text-[11px] text-slate-500 leading-tight">
+                Add or manage your withdrawal accounts. These saved accounts will appear on your withdrawal screen for 1-click payouts.
+              </p>
 
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">Phone Number</label>
-                      <input
-                        type="tel"
-                        value={profilePhone}
-                        onChange={(e) => setProfilePhone(e.target.value)}
-                        placeholder="e.g. 01712345678"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                    </div>
+              <form onSubmit={handleSaveWithdrawAccounts} className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1 text-xs">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">bKash Account Number</label>
+                  <input
+                    type="tel"
+                    value={profileBkash}
+                    onChange={(e) => setProfileBkash(e.target.value)}
+                    placeholder="e.g. 01712345678"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
 
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">Date of Birth (DOB)</label>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={profileDob}
-                          onChange={(e) => setProfileDob(e.target.value)}
-                          className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                        />
-                      </div>
-                    </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Nagad Account Number</label>
+                  <input
+                    type="tel"
+                    value={profileNagad}
+                    onChange={(e) => setProfileNagad(e.target.value)}
+                    placeholder="e.g. 01812345678"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
 
-                    <div className="pt-2 border-t border-slate-100 space-y-2">
-                      <div className="flex justify-between items-center text-slate-500">
-                        <span>User ID:</span>
-                        <span className="font-mono font-bold text-slate-800">{currentUser?.id || '-'}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-slate-500">
-                        <span>Email:</span>
-                        <span className="font-medium text-slate-800">{currentUser?.email || '-'}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-slate-500">
-                        <span>Current VIP:</span>
-                        <span className="font-bold text-amber-600">{userVip}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-slate-500">
-                        <span>Invitation Code:</span>
-                        <span className="font-mono font-bold text-cyan-600">{userInviteCode}</span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[11px] text-slate-500 leading-tight">
-                      Add your withdrawal accounts to receive fast, verified payouts directly.
-                    </p>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">Rocket Account Number</label>
+                  <input
+                    type="tel"
+                    value={profileRocket}
+                    onChange={(e) => setProfileRocket(e.target.value)}
+                    placeholder="e.g. 01912345678"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
 
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">bKash Account Number</label>
-                      <input
-                        type="tel"
-                        value={profileBkash}
-                        onChange={(e) => setProfileBkash(e.target.value)}
-                        placeholder="e.g. 01712345678"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                    </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">USDT (TRC20) Wallet Address</label>
+                  <input
+                    type="text"
+                    value={profileTrc20}
+                    onChange={(e) => setProfileTrc20(e.target.value)}
+                    placeholder="Paste TRC20 address (Starts with T)"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
 
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">Nagad Account Number</label>
-                      <input
-                        type="tel"
-                        value={profileNagad}
-                        onChange={(e) => setProfileNagad(e.target.value)}
-                        placeholder="e.g. 01812345678"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                    </div>
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="font-bold text-slate-800">Bank Account Details (Optional)</div>
+                  <input
+                    type="text"
+                    value={profileBankName}
+                    onChange={(e) => setProfileBankName(e.target.value)}
+                    placeholder="Bank Name (e.g. Islami Bank)"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                  <input
+                    type="text"
+                    value={profileBankHolder}
+                    onChange={(e) => setProfileBankHolder(e.target.value)}
+                    placeholder="Account Holder Name"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                  <input
+                    type="text"
+                    value={profileBankAccount}
+                    onChange={(e) => setProfileBankAccount(e.target.value)}
+                    placeholder="Account Number"
+                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                  />
+                </div>
 
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">Rocket Account Number</label>
-                      <input
-                        type="tel"
-                        value={profileRocket}
-                        onChange={(e) => setProfileRocket(e.target.value)}
-                        placeholder="e.g. 01912345678"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-slate-700 font-bold mb-1">USDT (TRC20) Wallet Address</label>
-                      <input
-                        type="text"
-                        value={profileTrc20}
-                        onChange={(e) => setProfileTrc20(e.target.value)}
-                        placeholder="Paste TRC20 address (Starts with T)"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 space-y-2">
-                      <div className="font-bold text-slate-800">Bank Account Details (Optional)</div>
-                      <input
-                        type="text"
-                        value={profileBankName}
-                        onChange={(e) => setProfileBankName(e.target.value)}
-                        placeholder="Bank Name (e.g. Islami Bank)"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                      <input
-                        type="text"
-                        value={profileBankHolder}
-                        onChange={(e) => setProfileBankHolder(e.target.value)}
-                        placeholder="Account Holder Name"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                      <input
-                        type="text"
-                        value={profileBankAccount}
-                        onChange={(e) => setProfileBankAccount(e.target.value)}
-                        placeholder="Account Number"
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleSaveProfile}
-                className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer shrink-0"
-              >
-                Save Changes
-              </button>
+                <button
+                  type="submit"
+                  className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer shrink-0 mt-3"
+                >
+                  Save Withdrawal Accounts
+                </button>
+              </form>
             </div>
           </div>
         )}

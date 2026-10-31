@@ -53,11 +53,23 @@ export const DEFAULT_SETTINGS = {
   telegramSupport: '@NextTask_Support',
 };
 
+export const getPaymentLogo = (pm) => {
+  if (pm?.logo && String(pm.logo).trim()) return pm.logo;
+  const name = String(pm?.method || '').toLowerCase();
+  if (name.includes('bkash')) return '/logos/bkash.svg';
+  if (name.includes('nagad')) return '/logos/nagad.svg';
+  if (name.includes('rocket')) return '/logos/rocket.svg';
+  if (name.includes('usdt') || name.includes('trc20') || name.includes('crypto')) return '/logos/usdt.svg';
+  if (name.includes('upay')) return '/logos/upay.svg';
+  if (name.includes('bank')) return '/logos/bank.svg';
+  return '/logos/usdt.svg';
+};
+
 export const DEFAULT_PAYMENT_METHODS = [
-  { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 125, active: true, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 125, active: true, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 125, active: true, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 1, active: true, instructions: 'Transfer USDT via TRC20 network and submit TxID below' }
+  { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 125, logo: '/logos/bkash.svg', active: true, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 125, logo: '/logos/nagad.svg', active: true, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 125, logo: '/logos/rocket.svg', active: true, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 1, logo: '/logos/usdt.svg', active: true, instructions: 'Transfer USDT via TRC20 network and submit TxID below' }
 ];
 
 export const DEFAULT_SLIDES = [

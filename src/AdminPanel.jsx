@@ -35,7 +35,8 @@ import {
   LogOut,
   Eye,
   EyeOff,
-  Mail
+  Mail,
+  Upload
 } from 'lucide-react';
 import {
   getStoredData,
@@ -46,7 +47,8 @@ import {
   DEFAULT_WITHDRAWALS,
   DEFAULT_SETTINGS,
   DEFAULT_SLIDES,
-  DEFAULT_PAYMENT_METHODS
+  DEFAULT_PAYMENT_METHODS,
+  getPaymentLogo
 } from './store';
 
 export default function AdminPanel({ onNavigateToApp }) {
@@ -102,7 +104,9 @@ export default function AdminPanel({ onNavigateToApp }) {
     setRecharges(getStoredData('recharges', DEFAULT_RECHARGES));
     setWithdrawals(getStoredData('withdrawals', DEFAULT_WITHDRAWALS));
     setUsers(getStoredData('users', DEFAULT_USERS));
-    setSettings(getStoredData('settings', DEFAULT_SETTINGS));
+    if (currentTab !== 'settings') {
+      setSettings(getStoredData('settings', DEFAULT_SETTINGS));
+    }
     setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
     setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
     setSlides(getStoredData('slides', DEFAULT_SLIDES));
@@ -407,6 +411,7 @@ export default function AdminPanel({ onNavigateToApp }) {
     type: 'Personal',
     number: '',
     rate: 125,
+    logo: '/logos/bkash.svg',
     active: true,
     instructions: 'Please Send Money and enter TrxID below'
   });
@@ -480,6 +485,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       type: 'Personal',
       number: '',
       rate: 125,
+      logo: '/logos/bkash.svg',
       active: true,
       instructions: 'Please Send Money and enter TrxID below'
     });
@@ -488,7 +494,10 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   const handleOpenEditPayment = (pm) => {
     setEditingPayment(pm);
-    setPaymentForm({ ...pm });
+    setPaymentForm({
+      ...pm,
+      logo: pm.logo || getPaymentLogo(pm)
+    });
     setShowPaymentModal(true);
   };
 
@@ -1298,19 +1307,19 @@ export default function AdminPanel({ onNavigateToApp }) {
                     const isRocket = pm.method.toLowerCase().includes('rocket');
                     return (
                       <tr key={pm.id} className="hover:bg-slate-900/50 transition">
-                        <td className="py-3 px-4 font-bold text-white flex items-center gap-2">
-                          <span
-                            className={`w-2.5 h-2.5 rounded-full ${
-                              isBkash
-                                ? 'bg-pink-500'
-                                : isNagad
-                                ? 'bg-orange-500'
-                                : isRocket
-                                ? 'bg-purple-500'
-                                : 'bg-emerald-500'
-                            }`}
-                          />
-                          {pm.method}
+                        <td className="py-3 px-4 font-bold text-white">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={getPaymentLogo(pm)}
+                              alt={pm.method}
+                              className="w-7 h-7 rounded-lg object-contain bg-slate-900 border border-slate-700/80 p-0.5 shadow-sm shrink-0"
+                              onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                            />
+                            <div>
+                              <div className="font-extrabold text-white text-xs">{pm.method}</div>
+                              <div className="text-[10px] text-slate-500 font-normal">{pm.type}</div>
+                            </div>
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           <span className="bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded-md text-[10px]">
@@ -1810,10 +1819,13 @@ export default function AdminPanel({ onNavigateToApp }) {
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">$</span>
                       <input
                         type="number"
-                        min="1"
-                        step="0.1"
-                        value={settings.minDeposit}
-                        onChange={(e) => setSettings({ ...settings, minDeposit: parseFloat(e.target.value) || 0 })}
+                        min="0.1"
+                        step="any"
+                        value={settings.minDeposit ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSettings((prev) => ({ ...prev, minDeposit: val === '' ? '' : parseFloat(val) }));
+                        }}
                         className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition shadow-inner"
                       />
                     </div>
@@ -1829,10 +1841,13 @@ export default function AdminPanel({ onNavigateToApp }) {
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">$</span>
                       <input
                         type="number"
-                        min="1"
-                        step="0.1"
-                        value={settings.minWithdrawal}
-                        onChange={(e) => setSettings({ ...settings, minWithdrawal: parseFloat(e.target.value) || 0 })}
+                        min="0.1"
+                        step="any"
+                        value={settings.minWithdrawal ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSettings((prev) => ({ ...prev, minWithdrawal: val === '' ? '' : parseFloat(val) }));
+                        }}
                         className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition shadow-inner"
                       />
                     </div>
@@ -1857,8 +1872,14 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <div className="pt-2 flex items-center gap-3">
                   <button
                     onClick={() => {
-                      updateSettings(settings);
-                      showToast('Financial settings updated & synced live with User Panel!');
+                      const payload = {
+                        ...settings,
+                        minDeposit: typeof settings.minDeposit === 'number' ? settings.minDeposit : (parseFloat(settings.minDeposit) || 0),
+                        minWithdrawal: typeof settings.minWithdrawal === 'number' ? settings.minWithdrawal : (parseFloat(settings.minWithdrawal) || 0)
+                      };
+                      setSettings(payload);
+                      updateSettings(payload);
+                      showToast(`Settings saved! Min Deposit: $${payload.minDeposit}, Min Withdrawal: $${payload.minWithdrawal}`);
                     }}
                     className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs py-3 px-7 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.98] transition cursor-pointer flex items-center gap-2"
                   >
@@ -2053,13 +2074,21 @@ export default function AdminPanel({ onNavigateToApp }) {
               <button onClick={() => setShowPaymentModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
-            <form onSubmit={handleSavePayment} className="space-y-3">
+            <form onSubmit={handleSavePayment} className="space-y-3.5">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 mb-1">Gateway Name</label>
                   <select
                     value={paymentForm.method}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                    onChange={(e) => {
+                      const method = e.target.value;
+                      const defaultLogo = getPaymentLogo({ method });
+                      setPaymentForm({
+                        ...paymentForm,
+                        method,
+                        logo: defaultLogo
+                      });
+                    }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
                   >
                     <option value="bKash">bKash</option>
@@ -2083,6 +2112,65 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <option value="Merchant">Merchant</option>
                     <option value="Crypto">Crypto</option>
                   </select>
+                </div>
+              </div>
+
+              {/* LOGO UPLOAD & PREVIEW */}
+              <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+                <label className="block text-slate-300 font-bold">Payment Gateway Logo</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700 p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+                    <img
+                      src={paymentForm.logo || getPaymentLogo(paymentForm)}
+                      alt="Logo preview"
+                      className="w-full h-full object-contain"
+                      onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] transition inline-flex items-center gap-1.5 shadow">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Logo Image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (file.size > 2 * 1024 * 1024) {
+                                showToast('Logo file size must be under 2MB');
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                setPaymentForm({ ...paymentForm, logo: ev.target.result });
+                                showToast('Logo uploaded!');
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                      {paymentForm.logo && (
+                        <button
+                          type="button"
+                          onClick={() => setPaymentForm({ ...paymentForm, logo: getPaymentLogo(paymentForm) })}
+                          className="text-[10px] text-slate-400 hover:text-slate-200 underline cursor-pointer"
+                        >
+                          Reset to Default
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={paymentForm.logo || ''}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, logo: e.target.value })}
+                      placeholder="Or paste image URL (e.g. /logos/bkash.svg)"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500 font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 

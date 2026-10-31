@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="usdtGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#26A17B"/>
+      <stop offset="100%" stop-color="#1B785B"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#usdtGrad)"/>
+  <g fill="#FFFFFF" transform="translate(18, 18) scale(0.7)">
+    <path d="M60 12 C33.5 12, 12 33.5, 12 60 C12 86.5, 33.5 108, 60 108 C86.5 108, 108 86.5, 108 60 C108 33.5, 86.5 12, 60 12 Z M60 20 C82.1 20, 100 37.9, 100 60 C100 82.1, 82.1 100, 60 100 C37.9 100, 20 82.1, 20 60 C20 37.9, 37.9 20, 60 20 Z"/>
+    <path d="M36 38 L84 38 L84 48 L66 48 L66 54 C80 55, 90 58.5, 90 62.5 C90 66.5, 80 70, 66 71 L66 84 L54 84 L54 71 C40 70, 30 66.5, 30 62.5 C30 58.5, 40 55, 54 54 L54 48 L36 48 Z M60 58 C47 58, 38 60.5, 38 62.5 C38 64.5, 47 67, 60 67 C73 67, 82 64.5, 82 62.5 C82 60.5, 73 58, 60 58 Z"/>
+  </g>
+</svg>

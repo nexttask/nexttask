@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="nagadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF512F"/>
+      <stop offset="100%" stop-color="#DD2476"/>
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFDD00"/>
+      <stop offset="50%" stop-color="#FF5E3A"/>
+      <stop offset="100%" stop-color="#E51A1A"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="26" fill="url(#nagadGrad)"/>
+  <circle cx="60" cy="60" r="42" fill="#FFFFFF"/>
+  <!-- Nagad stylized swirl flame -->
+  <path d="M60 26 C75 35, 84 50, 78 68 C74 79, 62 86, 50 82 C37 78, 32 63, 39 51 C43 43, 52 40, 56 46 C59 50, 56 57, 51 57 C47 57, 46 52, 49 49 C43 55, 45 66, 53 69 C62 72, 70 66, 72 57 C75 45, 68 34, 57 30 Z" fill="url(#flameGrad)"/>
+</svg>
