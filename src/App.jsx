@@ -674,29 +674,66 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Tabs */}
-              <div className="flex justify-center gap-8 mt-4 text-sm font-semibold text-white/70">
+              {/* Main Auth Mode Tabs: Sign In vs Create Account */}
+              <div className="flex justify-center mx-6 mt-3 p-1 bg-white/10 rounded-2xl backdrop-blur">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login');
+                    setAuthError('');
+                    setAuthSuccess('');
+                  }}
+                  className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer ${
+                    authMode === 'login'
+                      ? 'bg-white text-slate-900 shadow-md'
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  Sign In (লগইন)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('register');
+                    setAuthError('');
+                    setAuthSuccess('');
+                  }}
+                  className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer ${
+                    authMode === 'register'
+                      ? 'bg-white text-slate-900 shadow-md'
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  Create Account (নতুন অ্যাকাউন্ট)
+                </button>
+              </div>
+
+              {/* Sub-tabs: Email vs Phone */}
+              <div className="flex justify-center gap-6 mt-3 text-xs font-semibold text-white/70">
                 <button
                   type="button"
                   onClick={() => setLoginMethod('email')}
-                  className={`pb-2 relative transition-colors ${loginMethod === 'email' ? 'text-white' : 'hover:text-white/90'}`}
+                  className={`pb-1.5 relative transition cursor-pointer ${loginMethod === 'email' ? 'text-white font-bold' : 'hover:text-white/90'}`}
                 >
-                  {authMode === 'register' ? t('registerByEmail') : authMode === 'forgot' ? 'Reset by Email' : t('emailLogin')}
-                  {loginMethod === 'email' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
+                  {loginMethod === 'email' ? '● Email' : 'Email'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoginMethod('phone')}
-                  className={`pb-2 relative transition-colors ${loginMethod === 'phone' ? 'text-white' : 'hover:text-white/90'}`}
+                  className={`pb-1.5 relative transition cursor-pointer ${loginMethod === 'phone' ? 'text-white font-bold' : 'hover:text-white/90'}`}
                 >
-                  {authMode === 'register' ? t('registerByPhone') : authMode === 'forgot' ? 'Reset by Phone' : t('phoneLogin')}
-                  {loginMethod === 'phone' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-white rounded-full"></span>}
+                  {loginMethod === 'phone' ? '● Phone' : 'Phone'}
                 </button>
               </div>
 
               {/* Form Card */}
               <form
-                onSubmit={authMode === 'register' ? handleRegister : authMode === 'forgot' ? handleResetPassword : handleLogin}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (authMode === 'register') handleRegister(e);
+                  else if (authMode === 'forgot') handleResetPassword(e);
+                  else handleLogin(e);
+                }}
                 className="mx-4 mt-4 bg-white rounded-2xl p-6 shadow-xl space-y-4"
               >
                 {/* Form Heading */}
@@ -825,10 +862,11 @@ export default function App() {
                   {authMode === 'register' ? (
                     <>
                       <button
-                        type="submit"
-                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer"
+                        type="button"
+                        onClick={handleRegister}
+                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                       >
-                        {t('signUp')}
+                        Create Account & Sign In (রেজিস্ট্রেশন করুন)
                       </button>
                       <button
                         type="button"
@@ -837,16 +875,17 @@ export default function App() {
                           setAuthError('');
                           setAuthSuccess('');
                         }}
-                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
+                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3 rounded-full active:scale-[0.99] transition cursor-pointer text-xs"
                       >
-                        {t('alreadyAccount')}
+                        Already have an account? Sign In (আগের অ্যাকাউন্টে লগইন)
                       </button>
                     </>
                   ) : authMode === 'forgot' ? (
                     <>
                       <button
-                        type="submit"
-                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer"
+                        type="button"
+                        onClick={handleResetPassword}
+                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                       >
                         Reset Password
                       </button>
@@ -870,10 +909,11 @@ export default function App() {
                   ) : (
                     <>
                       <button
-                        type="submit"
-                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer"
+                        type="button"
+                        onClick={handleLogin}
+                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
                       >
-                        {t('signIn')}
+                        Sign In Now (লগইন করুন)
                       </button>
                       <button
                         type="button"
@@ -882,9 +922,9 @@ export default function App() {
                           setAuthError('');
                           setAuthSuccess('');
                         }}
-                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
+                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3 rounded-full active:scale-[0.99] transition cursor-pointer text-xs"
                       >
-                        {t('signUp')}
+                        Don't have an account? Create One (নতুন অ্যাকাউন্ট খুলুন)
                       </button>
                     </>
                   )}
