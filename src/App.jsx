@@ -27,6 +27,7 @@ import {
   Award,
   Wallet,
   Bell,
+  Megaphone,
   Crown,
   Download,
   Building2,
@@ -431,14 +432,14 @@ export default function App() {
       showToast(err);
       return;
     }
-    if (password.length < 8) {
-      const err = 'Password must be at least 8 characters long';
+    if (password.trim().length < 6) {
+      const err = 'Password must be at least 6 characters long';
       setAuthError(err);
       setAuthModalMsg(err);
       showToast(err);
       return;
     }
-    if (reenterPassword && password !== reenterPassword) {
+    if (reenterPassword && password.trim() !== reenterPassword.trim()) {
       const err = 'Passwords do not match';
       setAuthError(err);
       setAuthModalMsg(err);
@@ -1167,8 +1168,9 @@ export default function App() {
                 {/* Marquee ticker on Home tab */}
                 {activeTab === 'home' && (
                   <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-300 bg-white/5 py-1.5 px-3 rounded-full overflow-hidden">
-                    <span className="font-bold text-white flex items-center gap-0.5 shrink-0">
-                      <span className="text-cyan-400">N</span> »
+                    <span className="font-bold text-white flex items-center gap-1 shrink-0">
+                      <Megaphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                      <span className="text-cyan-400">»</span>
                     </span>
                     <marquee className="truncate font-light text-slate-200" behavior="scroll" direction="left" scrollamount="4">
                       The true value of blockchain technology has never been tied to short-term price fluctuations, but to returning to entities, serving the public, and building an open, transparent collaborative relationship.
@@ -1195,7 +1197,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">
                           Hi, {(() => {
-                            const id = userEmail || userPhone || 'User';
+                            const id = currentUser?.name || userEmail || userPhone || 'User';
                             return id.length > 16 ? id.slice(0, 15) + '...' : id;
                           })()}
                         </span>
