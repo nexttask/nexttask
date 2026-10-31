@@ -410,6 +410,7 @@ export default function App() {
   const [recordsTab, setRecordsTab] = useState('deposit'); // 'deposit' | 'withdraw'
 
   // Withdraw Modal State
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMethod, setWithdrawMethod] = useState('bKash');
   const [withdrawAccountInput, setWithdrawAccountInput] = useState('');
@@ -630,7 +631,6 @@ export default function App() {
   // Modals & Popups
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showUpgradeLogModal, setShowUpgradeLogModal] = useState(false);
