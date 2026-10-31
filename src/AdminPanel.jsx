@@ -690,6 +690,25 @@ export default function AdminPanel({ onNavigateToApp }) {
     setBalanceAmount('');
   };
 
+  // Notification Helper for User Mailbox
+  const addNotification = (userKey, title, message, type) => {
+    try {
+      const allNotifs = getStoredData('notifications', []);
+      const newNotif = {
+        id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        userId: String(userKey || 'all'),
+        title,
+        message,
+        time: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        read: false,
+        type
+      };
+      setStoredData('notifications', [newNotif, ...allNotifs]);
+    } catch (e) {
+      console.warn('Notification save error:', e);
+    }
+  };
+
   // --- RECHARGE APPROVALS ---
   const handleApproveRecharge = (rec) => {
     // 1. Mark recharge as approved
@@ -730,12 +749,14 @@ export default function AdminPanel({ onNavigateToApp }) {
       return u;
     });
     updateUsers(updatedUsers);
-    showToast(`Recharge of $${rec.amount} approved for ${rec.user}!`);
+    addNotification(rec.userId || rec.user, 'Recharge Approved', `Your recharge of ${rec.amount} USDT has been approved and credited to your balance.`, 'recharge');
+    showToast(`Recharge of ${rec.amount} approved for ${rec.user}!`);
   };
 
   const handleRejectRecharge = (id) => {
     const updatedRecs = recharges.map((r) => (r.id === id ? { ...r, status: 'rejected' } : r));
     updateRecharges(updatedRecs);
+    addNotification(id, 'Recharge Rejected', `Your recharge request of ${id} was rejected. Please verify transaction ID or contact support.`, 'recharge');
     showToast(`Recharge ${id} rejected`);
   };
 
@@ -743,7 +764,8 @@ export default function AdminPanel({ onNavigateToApp }) {
   const handleApproveWithdrawal = (id, user, amount) => {
     const updatedWth = withdrawals.map((w) => (w.id === id ? { ...w, status: 'approved' } : w));
     updateWithdrawals(updatedWth);
-    showToast(`Withdrawal of $${amount} approved for ${user}`);
+    addNotification(user, 'Withdrawal Completed', `Your withdrawal request of ${amount} USDT has been approved and processed.`, 'withdraw');
+    showToast(`Withdrawal of ${amount} approved for ${user}`);
   };
 
   const handleRejectWithdrawal = (wth) => {
@@ -1351,6 +1373,16 @@ export default function AdminPanel({ onNavigateToApp }) {
               {slides.map((slide) => (
                 <div key={slide.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-xl">
                   {/* Live Visual Card Preview */}
+                  {slide.image ? (
+                    <div className="rounded-2xl overflow-hidden relative min-h-[120px] max-h-[140px] border border-slate-700">
+                      <img src={slide.image} alt="Banner" className="w-full h-full object-cover" />
+                      {slide.subtitle && (
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-3">
+                          <span className="text-white text-xs font-bold">{slide.subtitle}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <div className={`rounded-2xl p-4 text-white bg-gradient-to-r ${slide.gradient || 'from-amber-500 via-orange-500 to-yellow-400'} shadow-md relative overflow-hidden min-h-[120px]`}>
                     {slide.badge && (
                       <span className="inline-block bg-white text-orange-600 font-black text-xs px-2 py-0.5 rounded shadow-sm mb-1 uppercase">
@@ -1369,6 +1401,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       </div>
                     )}
                   </div>
+                  )}
 
                   <div className="flex justify-between items-center pt-2 border-t border-slate-800/80">
                     <span className="text-[10px] font-mono text-slate-400">ID: {slide.id}</span>
@@ -1817,7 +1850,6 @@ export default function AdminPanel({ onNavigateToApp }) {
                     onChange={(e) => setVipForm({ ...vipForm, deposit: e.target.value })}
                     placeholder="50,000.00"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
-                    required
                   />
                 </div>
                 <div>
@@ -2080,6 +2112,43 @@ export default function AdminPanel({ onNavigateToApp }) {
             </div>
 
             <form onSubmit={handleSaveSlide} className="space-y-3">
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">
+                  Upload Photo Slide / Banner (Optional)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (re) => {
+                          setSlideForm((prev) => ({ ...prev, image: re.target?.result }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer bg-slate-950 p-2 rounded-xl border border-slate-800"
+                  />
+                  {slideForm.image && (
+                    <button
+                      type="button"
+                      onClick={() => setSlideForm((prev) => ({ ...prev, image: '' }))}
+                      className="px-2.5 py-2 text-rose-400 hover:text-rose-300 text-xs border border-rose-800 rounded-xl shrink-0"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {slideForm.image && (
+                  <div className="mt-2 relative rounded-xl overflow-hidden border border-slate-700 max-h-28">
+                    <img src={slideForm.image} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-400 mb-1">Top Badge Tag</label>
@@ -2099,7 +2168,6 @@ export default function AdminPanel({ onNavigateToApp }) {
                     onChange={(e) => setSlideForm({ ...slideForm, amount: e.target.value })}
                     placeholder="$3,200 or 16% BONUS"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 font-bold"
-                    required
                   />
                 </div>
               </div>

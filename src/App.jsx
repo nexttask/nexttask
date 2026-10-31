@@ -474,6 +474,72 @@ export default function App() {
   const [senderAccount, setSenderAccount] = useState('');
   const [transactionId, setTransactionId] = useState('');
 
+  // Notifications & User Mailbox State
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notifications, setNotifications] = useState(() => getStoredData('notifications', []));
+
+  // Load and filter notifications for current user
+  const getUserNotifications = () => {
+    if (!currentUser) return [];
+    const allNotifs = getStoredData('notifications', []);
+    const uid = String(currentUser.id || '');
+    const email = String(currentUser.email || '').toLowerCase();
+    const phone = String(currentUser.phone || '');
+    const myCode = String(currentUser.myInviteCode || currentUser.inviteCode || '');
+
+    const userSpecific = allNotifs.filter((n) => {
+      if (!n) return false;
+      const target = String(n.userId || '').toLowerCase();
+      if (target === 'all') return true;
+      if (uid && target === uid.toLowerCase()) return true;
+      if (email && target === email) return true;
+      if (phone && target === phone.toLowerCase()) return true;
+      if (myCode && target === myCode.toLowerCase()) return true;
+      return false;
+    });
+
+    if (userSpecific.length === 0) {
+      return [
+        {
+          id: 'welcome_1',
+          userId: uid || 'all',
+          title: 'Welcome to NextTask!',
+          message: 'Welcome to NextTask! Complete daily tasks, upgrade VIP tiers, and grow your team to earn daily profits.',
+          time: 'Today',
+          read: false,
+          type: 'system'
+        }
+      ];
+    }
+    return userSpecific;
+  };
+
+  const userNotifications = getUserNotifications();
+  const unreadCount = userNotifications.filter((n) => !n.read).length;
+
+  const handleMarkAsRead = (notifId) => {
+    const allNotifs = getStoredData('notifications', []);
+    const updated = allNotifs.map((n) => (n.id === notifId ? { ...n, read: true } : n));
+    setStoredData('notifications', updated);
+    setNotifications(updated);
+  };
+
+  const handleMarkAllAsRead = () => {
+    const allNotifs = getStoredData('notifications', []);
+    const uid = String(currentUser?.id || '');
+    const email = String(currentUser?.email || '').toLowerCase();
+    const phone = String(currentUser?.phone || '');
+
+    const updated = allNotifs.map((n) => {
+      const target = String(n.userId || '').toLowerCase();
+      const isMine = target === 'all' || target === uid.toLowerCase() || target === email || target === phone.toLowerCase();
+      return isMine ? { ...n, read: true } : n;
+    });
+    setStoredData('notifications', updated);
+    setNotifications(updated);
+    showToast('All notifications marked as read');
+  };
+
   // Modals & Popups
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
@@ -1547,6 +1613,121 @@ export default function App() {
           </div>
         )}
 
+        {/* ================= USER NOTIFICATION CENTER / MAILBOX MODAL ================= */}
+        {showNotificationModal && (
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[340px] overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[85vh]">
+              {/* Header */}
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#05132d] text-white flex items-center justify-center shadow-sm">
+                    <Mail className="w-4 h-4 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Notification Center</h3>
+                    <p className="text-[10px] text-slate-500">{userNotifications.length} message(s)</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationModal(false)}
+                  className="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-xs font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Actions toolbar */}
+              <div className="px-4 py-2 bg-slate-100/60 flex items-center justify-between text-xs border-b border-slate-100">
+                <span className="text-[11px] font-semibold text-slate-600">
+                  {unreadCount > 0 ? `${unreadCount} unread message(s)` : 'All caught up!'}
+                </span>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllAsRead}
+                    className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 underline cursor-pointer"
+                  >
+                    Mark All as Read
+                  </button>
+                )}
+              </div>
+
+              {/* Notifications List */}
+              <div className="p-3 overflow-y-auto space-y-2.5 flex-1 divide-y divide-slate-50 max-h-[50vh]">
+                {userNotifications.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 space-y-2">
+                    <Mail className="w-8 h-8 mx-auto text-slate-300" />
+                    <p className="text-xs font-medium">No messages in mailbox.</p>
+                  </div>
+                ) : (
+                  userNotifications.map((notif) => (
+                    <div
+                      key={notif.id}
+                      onClick={() => !notif.read && handleMarkAsRead(notif.id)}
+                      className={`p-3 rounded-2xl transition cursor-pointer flex items-start gap-3 ${
+                        notif.read ? 'bg-slate-50 hover:bg-slate-100/80' : 'bg-blue-50/70 border border-blue-100 hover:bg-blue-50'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                        notif.type === 'recharge'
+                          ? 'bg-emerald-100 text-emerald-600'
+                          : notif.type === 'withdraw'
+                          ? 'bg-amber-100 text-amber-600'
+                          : notif.type === 'commission'
+                          ? 'bg-purple-100 text-purple-600'
+                          : notif.type === 'vip'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-indigo-100 text-indigo-600'
+                      }`}>
+                        {notif.type === 'recharge' ? (
+                          <Coins className="w-4 h-4" />
+                        ) : notif.type === 'withdraw' ? (
+                          <ArrowUpRight className="w-4 h-4" />
+                        ) : notif.type === 'commission' ? (
+                          <Sparkles className="w-4 h-4" />
+                        ) : notif.type === 'vip' ? (
+                          <Crown className="w-4 h-4" />
+                        ) : (
+                          <Bell className="w-4 h-4" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <h4 className={`text-xs truncate ${notif.read ? 'font-semibold text-slate-800' : 'font-extrabold text-blue-950'}`}>
+                            {notif.title}
+                          </h4>
+                          {!notif.read && (
+                            <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                          {notif.message}
+                        </p>
+                        <div className="text-[9px] text-slate-400 mt-1.5 font-medium">
+                          {notif.time || 'Just now'}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-3 bg-slate-50 border-t border-slate-100 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationModal(false)}
+                  className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-semibold py-2.5 rounded-full text-xs transition active:scale-[0.99] shadow-md cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ================= ANNOUNCEMENT POPUP MODAL ================= */}
         {showAnnouncement && isLoggedIn && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -1895,8 +2076,17 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setShowAnnouncement(true)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
+                    <button
+                      onClick={() => setShowNotificationModal(true)}
+                      className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition relative cursor-pointer"
+                      title="Mail / Notifications"
+                    >
                       <Mail className="w-4 h-4 text-slate-200" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 shadow-md border-2 border-[#05132d] animate-pulse">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
                     </button>
                     <button
                       onClick={() => setShowLangModal(true)}
@@ -2052,6 +2242,45 @@ export default function App() {
                     <div className="mx-4 relative">
                       {(() => {
                         const activeSlide = slides[currentSlideIdx % slides.length] || slides[0];
+                        if (activeSlide.image) {
+                          return (
+                            <div className="rounded-3xl overflow-hidden shadow-md relative min-h-[145px] max-h-[165px] flex items-center justify-center transition-all duration-500 bg-slate-900 border border-slate-100/10">
+                              <img
+                                src={activeSlide.image}
+                                alt={activeSlide.subtitle || 'Banner Slide'}
+                                className="w-full h-full object-cover rounded-3xl"
+                              />
+                              {(activeSlide.subtitle || activeSlide.badge) && (
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 z-10">
+                                  {activeSlide.badge && (
+                                    <span className="inline-block bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full w-fit mb-1 shadow-sm uppercase">
+                                      {activeSlide.badge}
+                                    </span>
+                                  )}
+                                  {activeSlide.subtitle && (
+                                    <span className="text-white text-xs font-bold drop-shadow">
+                                      {activeSlide.subtitle}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {/* Carousel indicator dots */}
+                              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
+                                {slides.map((_, i) => (
+                                  <button
+                                    key={i}
+                                    onClick={() => setCurrentSlideIdx(i)}
+                                    className={`h-1.5 rounded-full transition-all ${
+                                      (currentSlideIdx % slides.length) === i
+                                        ? 'w-5 bg-white'
+                                        : 'w-2 bg-white/50 hover:bg-white'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
                         return (
                           <div className={`rounded-3xl overflow-hidden shadow-md bg-gradient-to-r ${activeSlide.gradient || 'from-amber-500 via-orange-500 to-yellow-400'} p-5 text-white relative min-h-[140px] flex items-center transition-all duration-500`}>
                             <div className="relative z-10 max-w-[210px]">
