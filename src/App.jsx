@@ -627,6 +627,48 @@ export default function App() {
     setTimeout(() => setToastMessage(''), 2500);
   };
 
+  const handleShareSocial = (platform, inviteCode) => {
+    const code = inviteCode || userInviteCode;
+    const shareUrl = `https://nexttask.online/#/register?i=${code}`;
+    const shareText = `Join NextTask to earn daily USDT profits! Use my referral invitation code: ${code}`;
+    const encUrl = encodeURIComponent(shareUrl);
+    const encText = encodeURIComponent(shareText);
+
+    switch (platform) {
+      case 'x':
+        window.open(`https://twitter.com/intent/tweet?text=${encText}&url=${encUrl}`, '_blank');
+        break;
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encUrl}&quote=${encText}`, '_blank');
+        break;
+      case 'telegram':
+        window.open(`https://t.me/share/url?url=${encUrl}&text=${encText}`, '_blank');
+        break;
+      case 'linkedin':
+        window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encUrl}`, '_blank');
+        break;
+      case 'whatsapp':
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
+        break;
+      case 'instagram':
+        copyToClipboard(shareUrl, 'Referral link');
+        window.open('https://www.instagram.com/', '_blank');
+        break;
+      case 'tiktok':
+        copyToClipboard(shareUrl, 'Referral link');
+        window.open('https://www.tiktok.com/', '_blank');
+        break;
+      case 'kwai':
+      default:
+        if (navigator.share) {
+          navigator.share({ title: 'NextTask', text: shareText, url: shareUrl }).catch(() => {});
+        } else {
+          copyToClipboard(shareUrl, 'Referral link');
+        }
+        break;
+    }
+  };
+
   const copyToClipboard = (text, label) => {
     navigator.clipboard?.writeText(text);
     showToast(`${label} copied!`);
@@ -2764,6 +2806,105 @@ export default function App() {
                               className="bg-white/10 hover:bg-white/20 text-white text-[10px] px-2.5 py-1 rounded-lg transition cursor-pointer"
                             >
                               Copy
+                            </button>
+                          </div>
+
+                          {/* Social Sharing Icons Row (Matching User Screenshot) */}
+                          <div className="mt-3.5 bg-white rounded-2xl py-2 px-2.5 flex items-center justify-between gap-1 shadow-md border border-slate-100 max-w-full">
+                            {/* 1. X */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('x', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-black hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share on X"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                              </svg>
+                            </button>
+
+                            {/* 2. Facebook */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('facebook', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-blue-600 hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share on Facebook"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                              </svg>
+                            </button>
+
+                            {/* 3. Telegram */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('telegram', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-sky-500 hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share on Telegram"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z" />
+                              </svg>
+                            </button>
+
+                            {/* 4. LinkedIn */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('linkedin', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-blue-700 hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share on LinkedIn"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                              </svg>
+                            </button>
+
+                            {/* 5. WhatsApp */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('whatsapp', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-emerald-600 hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share on WhatsApp"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.585 1.961.896 2.796.896h.005c3.18 0 5.767-2.587 5.769-5.766.001-1.543-.599-2.994-1.69-4.086s-2.544-1.697-4.085-1.697zm6.757 11.233c-.328.924-1.637 1.748-2.677 1.838-.72.062-1.658.093-4.739-1.182-3.939-1.629-6.474-5.642-6.671-5.906-.197-.265-1.597-2.128-1.597-4.06 0-1.932 1.009-2.883 1.37-3.275.361-.392.788-.49 1.05-.49.262 0 .524.003.754.015.244.012.569-.092.89.678.328.786 1.117 2.73 1.216 2.927.098.197.164.428.033.689-.131.262-.197.426-.393.655-.197.23-.414.512-.591.688-.197.197-.403.41-.173.804.23.393 1.022 1.686 2.193 2.731 1.508 1.344 2.778 1.761 3.171 1.958.393.197.623.164.852-.098.23-.262.984-1.147 1.246-1.54.262-.393.524-.328.885-.197.361.131 2.296 1.082 2.689 1.279.393.197.655.295.754.459.099.164.099.951-.229 1.875z" />
+                              </svg>
+                            </button>
+
+                            {/* 6. Instagram */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('instagram', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-pink-600 hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share on Instagram"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                              </svg>
+                            </button>
+
+                            {/* 7. TikTok */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('tiktok', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-black hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share on TikTok"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 2.89 3.5 2.77 1.81-.02 3.29-1.52 3.32-3.33.02-3.95.01-7.89.01-11.84.01-2.22.01-4.44.01-6.66z" />
+                              </svg>
+                            </button>
+
+                            {/* 8. Video / Camera / Kwai */}
+                            <button
+                              type="button"
+                              onClick={() => handleShareSocial('kwai', userInviteCode)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-slate-900 hover:text-amber-600 hover:bg-slate-100 transition active:scale-90 cursor-pointer shrink-0"
+                              title="Share via Video / More Apps"
+                            >
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M4 4h10a2 2 0 012 2v1l4-2.5v11L16 13v1a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm3 4a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6 0a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" />
+                              </svg>
                             </button>
                           </div>
                         </div>
