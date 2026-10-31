@@ -25,7 +25,12 @@ import {
   Check,
   ToggleLeft,
   ToggleRight,
-  KeyRound
+  KeyRound,
+  Lock,
+  LogOut,
+  Eye,
+  EyeOff,
+  Mail
 } from 'lucide-react';
 import {
   getStoredData,
@@ -40,6 +45,38 @@ import {
 } from './store';
 
 export default function AdminPanel({ onNavigateToApp }) {
+  // Master Admin Authentication State
+  const [isAdminAuth, setIsAdminAuth] = useState(() => {
+    return localStorage.getItem('nt_admin_auth') === 'true';
+  });
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
+    setLoginError('');
+    const trimEmail = adminEmail.trim().toLowerCase();
+    const trimPass = adminPassword.trim();
+
+    if (trimEmail === 'admin@nexttask.online' && trimPass === 'Admin@NextTask') {
+      localStorage.setItem('nt_admin_auth', 'true');
+      setIsAdminAuth(true);
+      showToast('Master Admin Authenticated Successfully');
+    } else {
+      setLoginError('Invalid Administrator credentials! Please check your email and password.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    localStorage.removeItem('nt_admin_auth');
+    setIsAdminAuth(false);
+    setAdminEmail('');
+    setAdminPassword('');
+    showToast('Admin session logged out');
+  };
+
   const [currentTab, setCurrentTab] = useState('dashboard'); // 'dashboard' | 'vips' | 'slides' | 'payments' | 'users' | 'recharges' | 'withdrawals' | 'settings'
   
   // Data State persisted via store
@@ -436,6 +473,107 @@ export default function AdminPanel({ onNavigateToApp }) {
   const pendingRecharges = recharges.filter((r) => r.status === 'pending');
   const pendingWithdrawals = withdrawals.filter((w) => w.status === 'pending');
 
+  // If not authenticated as Master Admin, show Admin Login Portal
+  if (!isAdminAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-[#061226] to-slate-900 flex items-center justify-center p-4 font-sans text-slate-100">
+        {toast && (
+          <div className="fixed top-6 right-6 z-50 bg-emerald-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-sm animate-fade-in">
+            <CheckCircle className="w-4 h-4" />
+            <span>{toast}</span>
+          </div>
+        )}
+
+        <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-indigo-950/50">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 mx-auto flex items-center justify-center shadow-lg shadow-blue-500/20 mb-4 border border-blue-400/30">
+              <ShieldCheck className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight text-white">NextTask Master Portal</h1>
+            <p className="text-xs text-slate-400 mt-1.5">
+              Authorized personnel only. Enter Master Administrator credentials.
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {loginError && (
+            <div className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2.5 text-xs text-rose-300">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{loginError}</span>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleAdminLogin} className="space-y-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Admin Email Address
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="admin@nexttask.online"
+                  className="w-full bg-slate-950/80 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition pl-11"
+                />
+                <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Security Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showAdminPassword ? 'text' : 'password'}
+                  required
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="Enter admin password"
+                  className="w-full bg-slate-950/80 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition pl-11 pr-11"
+                />
+                <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword(!showAdminPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition"
+                >
+                  {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.99] transition text-sm cursor-pointer"
+            >
+              Authenticate & Access Control Panel
+            </button>
+          </form>
+
+          {/* Footer Navigation */}
+          <div className="mt-8 pt-6 border-t border-slate-800/80 text-center flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={onNavigateToApp}
+              className="text-xs text-slate-400 hover:text-white flex items-center justify-center gap-1.5 transition cursor-pointer"
+            >
+              <span>Return to User Website</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[10px] text-slate-500 font-mono">
+              NextTask Security Protocol • v2.6 Enterprise
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans">
       {/* Toast Notification */}
@@ -501,11 +639,18 @@ export default function AdminPanel({ onNavigateToApp }) {
           </nav>
         </div>
 
-        {/* Bottom Shortcut to User App */}
-        <div className="pt-6 border-t border-slate-800">
+        {/* Bottom Shortcuts: Admin Logout & Open User App */}
+        <div className="pt-6 border-t border-slate-800 space-y-2">
+          <button
+            onClick={handleAdminLogout}
+            className="w-full bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 border border-rose-800/40 transition cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Admin Logout</span>
+          </button>
           <button
             onClick={onNavigateToApp}
-            className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition"
+            className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer"
           >
             <span>Open User App</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -537,13 +682,24 @@ export default function AdminPanel({ onNavigateToApp }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">Server: <strong className="text-emerald-400">Online</strong></span>
+            <div className="hidden sm:flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-slate-300 font-mono">admin@nexttask.online</span>
+            </div>
             <button
               onClick={() => showToast('Data refreshed')}
               className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 transition"
               title="Refresh"
             >
               <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleAdminLogout}
+              className="flex items-center gap-1.5 px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold rounded-xl border border-rose-800/40 transition cursor-pointer"
+              title="Logout from Admin Panel"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
