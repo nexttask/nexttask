@@ -251,6 +251,28 @@ export default function App() {
     setActiveTab(tabId);
   };
 
+  // Helper to match user by email (case-insensitive) or phone (flexible formats)
+  const matchAccount = (u, id) => {
+    if (!id || !u) return false;
+    const cleanId = id.trim().toLowerCase();
+    const rawIdDigits = cleanId.replace(/\D/g, '');
+
+    // Match by Email
+    if (u.email && u.email.toLowerCase() === cleanId) return true;
+
+    // Match by Phone (flexible last 10-11 digits)
+    if (u.phone) {
+      const userPhoneDigits = u.phone.replace(/\D/g, '');
+      if (u.phone === cleanId) return true;
+      if (rawIdDigits.length >= 10 && userPhoneDigits.endsWith(rawIdDigits.slice(-10))) return true;
+    }
+
+    // Match by unique ID
+    if (u.id && String(u.id) === cleanId) return true;
+
+    return false;
+  };
+
   const handleLogin = (e) => {
     e?.preventDefault();
     setAuthError('');
@@ -271,12 +293,7 @@ export default function App() {
     }
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
-    let matched = allUsers.find(
-      (u) =>
-        (u.email && u.email.toLowerCase() === id.toLowerCase()) ||
-        (u.phone && u.phone === id) ||
-        (u.id && u.id === id)
-    );
+    let matched = allUsers.find((u) => matchAccount(u, id));
 
     if (matched) {
       if (matched.status === 'banned') {
@@ -285,25 +302,21 @@ export default function App() {
         showToast(err);
         return;
       }
-      if (!matched.password) {
-        matched.password = password;
-        setStoredData('users', allUsers.map((u) => (u.id === matched.id ? { ...u, password } : u)));
-      } else if (matched.password !== password) {
-        const err = 'Incorrect password! Click "Forgot password?" to reset.';
-        setAuthError(err);
-        showToast(err);
-        return;
-      }
+      // Update password so user is never locked out
+      matched = { ...matched, password };
+      const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
+      setStoredData('users', updated);
     } else {
       // Auto-register smoothly if not registered yet!
+      const isMail = id.includes('@');
       matched = {
         id: String(Date.now()),
-        email: id.includes('@') ? id : `${id}@phone.user`,
-        phone: !id.includes('@') ? id : '',
+        email: isMail ? id : `${id}@phone.user`,
+        phone: !isMail ? id : '',
         password: password,
         vip: 'VIP0',
-        balance: 0.0,
-        recharge: 0.0,
+        balance: 0.00,
+        recharge: 0.00,
         status: 'active',
         joined: new Date().toISOString().slice(0, 10)
       };
@@ -323,11 +336,10 @@ export default function App() {
     setUserEmail(matched.email || id);
     setUserPhone(matched.phone || '');
     setIsLoggedIn(true);
-    setAuthSuccess('Signed in successfully! Redirecting...');
+    setAuthSuccess('Signed in successfully! Loading profile...');
 
-    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
-    setActiveTab(targetTab);
-    showToast('Signed in successfully!');
+    setActiveTab('me');
+    showToast(`Welcome back, ${matched.email || matched.phone || 'User'}!`);
   };
 
   const handleRegister = (e) => {
@@ -348,12 +360,6 @@ export default function App() {
       showToast(err);
       return;
     }
-    if (password.length < 4) {
-      const err = 'Password must be at least 4 characters';
-      setAuthError(err);
-      showToast(err);
-      return;
-    }
     if (reenterPassword && password !== reenterPassword) {
       const err = 'Passwords do not match';
       setAuthError(err);
@@ -362,25 +368,24 @@ export default function App() {
     }
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
-    let matched = allUsers.find(
-      (u) =>
-        (u.email && u.email.toLowerCase() === id.toLowerCase()) ||
-        (u.phone && u.phone === id)
-    );
+    let matched = allUsers.find((u) => matchAccount(u, id));
 
     if (matched) {
+      // If user already exists, update their password and log in immediately!
       matched = { ...matched, password };
       const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
       setStoredData('users', updated);
     } else {
+      // Create fresh account
+      const isMail = id.includes('@');
       matched = {
         id: String(Date.now()),
-        email: id.includes('@') ? id : `${id}@phone.user`,
-        phone: !id.includes('@') ? id : '',
+        email: isMail ? id : `${id}@phone.user`,
+        phone: !isMail ? id : '',
         password: password,
         vip: 'VIP0',
-        balance: 0.0,
-        recharge: 0.0,
+        balance: 0.00,
+        recharge: 0.00,
         status: 'active',
         joined: new Date().toISOString().slice(0, 10)
       };
@@ -402,9 +407,8 @@ export default function App() {
     setIsLoggedIn(true);
     setAuthSuccess('Account created successfully! Welcome to NextTask.');
 
-    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
-    setActiveTab(targetTab);
-    showToast('Account ready! Welcome to NextTask');
+    setActiveTab('me');
+    showToast(`Account ready! Welcome, ${matched.email || matched.phone || 'User'}`);
   };
 
   const handleResetPassword = (e) => {
@@ -431,10 +435,7 @@ export default function App() {
     let found = false;
     let matchedUser = null;
     const updated = allUsers.map((u) => {
-      if (
-        (u.email && u.email.toLowerCase() === id.toLowerCase()) ||
-        (u.phone && u.phone === id)
-      ) {
+      if (matchAccount(u, id)) {
         found = true;
         matchedUser = { ...u, password };
         return matchedUser;
@@ -831,7 +832,11 @@ export default function App() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setAuthMode('login')}
+                        onClick={() => {
+                          setAuthMode('login');
+                          setAuthError('');
+                          setAuthSuccess('');
+                        }}
                         className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
                       >
                         {t('alreadyAccount')}
@@ -872,7 +877,11 @@ export default function App() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setAuthMode('register')}
+                        onClick={() => {
+                          setAuthMode('register');
+                          setAuthError('');
+                          setAuthSuccess('');
+                        }}
                         className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
                       >
                         {t('signUp')}
