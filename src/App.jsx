@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Home,
   CheckSquare,
@@ -223,6 +223,8 @@ export default function App() {
   // Task Tab State
   const [taskTab, setTaskTab] = useState('running'); // 'running' | 'completed'
   const [taskProcessingIdx, setTaskProcessingIdx] = useState(null);
+  const [taskCountdown, setTaskCountdown] = useState(0);
+  const taskTimerRef = useRef(null);
   const todayDateStr = new Date().toISOString().slice(0, 10);
   const todayTasksKey = `nt_completed_tasks_${currentUser?.id || 'guest'}_${todayDateStr}`;
   const [completedTaskIndices, setCompletedTaskIndices] = useState(() => {
@@ -233,6 +235,12 @@ export default function App() {
       return [];
     }
   });
+
+  useEffect(() => {
+    return () => {
+      if (taskTimerRef.current) clearInterval(taskTimerRef.current);
+    };
+  }, []);
 
   // Change Password Modal State
   const [oldPasswordInput, setOldPasswordInput] = useState('');
@@ -398,9 +406,9 @@ export default function App() {
       showToast('Insufficient balance!');
       return;
     }
-    const minWth = settings?.minWithdrawal || 1.0;
+    const minWth = Math.max(10.0, parseFloat(settings?.minWithdrawal) || 10.0);
     if (num < minWth) {
-      showToast(`Minimum withdrawal is ${minWth} USDT`);
+      showToast(`Minimum withdrawal is ${minWth.toFixed(2)} USDT`);
       return;
     }
 
@@ -469,39 +477,58 @@ export default function App() {
     showToast(`Withdrawal of $${num.toFixed(2)} submitted successfully!`);
   };
 
-  // Complete Task Handler
+  // Complete Task Handler (Runs one task at a time with verification countdown)
   const handleCompleteTask = (taskIndex, reward) => {
     if (!requireAuth('task', 'complete task')) return;
+    if (taskProcessingIdx !== null) return;
     if (completedTaskIndices.includes(taskIndex)) return;
 
     setTaskProcessingIdx(taskIndex);
-    setTimeout(() => {
-      const nextCompleted = [...completedTaskIndices, taskIndex];
-      setCompletedTaskIndices(nextCompleted);
-      try {
-        localStorage.setItem(todayTasksKey, JSON.stringify(nextCompleted));
-      } catch (e) {
-        console.error(e);
-      }
+    const durationSec = 5;
+    setTaskCountdown(durationSec);
 
-      // Add balance
-      const newBal = parseFloat((balance + reward).toFixed(2));
-      setBalance(newBal);
-      if (currentUser) {
-        const updated = { ...currentUser, balance: newBal };
-        setCurrentUser(updated);
-        try {
-          localStorage.setItem('nt_currentUser', JSON.stringify(updated));
-        } catch (e) {
-          console.error(e);
-        }
-        const allUsers = getStoredData('users', DEFAULT_USERS);
-        setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
-      }
+    let remaining = durationSec;
+    if (taskTimerRef.current) clearInterval(taskTimerRef.current);
+    taskTimerRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        setTaskCountdown(remaining);
+      } else {
+        clearInterval(taskTimerRef.current);
+        taskTimerRef.current = null;
+        setTaskCountdown(0);
 
-      setTaskProcessingIdx(null);
-      showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
-    }, 700);
+        setCompletedTaskIndices((prev) => {
+          const nextCompleted = prev.includes(taskIndex) ? prev : [...prev, taskIndex];
+          try {
+            localStorage.setItem(todayTasksKey, JSON.stringify(nextCompleted));
+          } catch (e) {
+            console.error(e);
+          }
+          return nextCompleted;
+        });
+
+        // Add balance
+        setBalance((prevBal) => {
+          const newBal = parseFloat((prevBal + reward).toFixed(2));
+          if (currentUser) {
+            const updated = { ...currentUser, balance: newBal };
+            setCurrentUser(updated);
+            try {
+              localStorage.setItem('nt_currentUser', JSON.stringify(updated));
+            } catch (e) {
+              console.error(e);
+            }
+            const allUsers = getStoredData('users', DEFAULT_USERS);
+            setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
+          }
+          return newBal;
+        });
+
+        setTaskProcessingIdx(null);
+        showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
+      }
+    }, 1000);
   };
 
   const handleChangePasswordSubmit = (e) => {
@@ -1484,9 +1511,8 @@ export default function App() {
                 {/* Marquee ticker on Home tab */}
                 {activeTab === 'home' && (
                   <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-300 bg-white/5 py-1.5 px-3 rounded-full overflow-hidden">
-                    <span className="font-bold text-white flex items-center gap-1 shrink-0">
+                    <span className="font-bold text-white flex items-center shrink-0">
                       <Megaphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                      <span className="text-cyan-400">»</span>
                     </span>
                     <marquee className="truncate font-light text-slate-200" behavior="scroll" direction="left" scrollamount="4">
                       The true value of blockchain technology has never been tied to short-term price fluctuations, but to returning to entities, serving the public, and building an open, transparent collaborative relationship.
@@ -1527,7 +1553,7 @@ export default function App() {
                         className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full flex items-center gap-1.5 transition cursor-pointer text-slate-200 shadow-sm"
                       >
                         <Bell className="w-3.5 h-3.5 text-amber-300" />
-                        <span>Announcement &gt;</span>
+                        <span>Announcement</span>
                       </button>
                     </div>
 
@@ -2084,14 +2110,14 @@ export default function App() {
 
                               <button
                                 type="button"
-                                disabled={taskProcessingIdx === taskIdx}
+                                disabled={taskProcessingIdx !== null}
                                 onClick={() => handleCompleteTask(taskIdx, rewardPerTask)}
-                                className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                                className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {taskProcessingIdx === taskIdx ? (
                                   <>
                                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                    <span>Verifying...</span>
+                                    <span>Verifying ({taskCountdown}s)...</span>
                                   </>
                                 ) : (
                                   <span>Complete</span>
@@ -2580,7 +2606,7 @@ export default function App() {
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-slate-400 font-medium">Min Withdrawal</div>
-                  <div className="text-xs font-bold text-indigo-600">{settings?.minWithdrawal || 1.0} USDT</div>
+                  <div className="text-xs font-bold text-indigo-600">{Math.max(10.0, parseFloat(settings?.minWithdrawal) || 10.0).toFixed(2)} USDT</div>
                 </div>
               </div>
 
@@ -2649,7 +2675,7 @@ export default function App() {
                   step="0.01"
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Enter amount (e.g. 10)"
+                  placeholder="Enter amount (Min 10 USDT)"
                   className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500 focus:bg-white transition"
                 />
               </div>

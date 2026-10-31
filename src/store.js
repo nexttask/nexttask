@@ -48,7 +48,7 @@ export const DEFAULT_WITHDRAWALS = [];
 export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
-  minWithdrawal: 1.0,
+  minWithdrawal: 10.0,
   minDeposit: 10.0,
   telegramSupport: '@NextTask_Support',
 };
@@ -139,6 +139,14 @@ export const getStoredData = (key, fallback) => {
         }
         return p;
       });
+    }
+
+    // Ensure minWithdrawal is at least 10 USDT
+    if (key === 'settings' && parsed && typeof parsed === 'object') {
+      return {
+        ...parsed,
+        minWithdrawal: Math.max(10.0, parseFloat(parsed.minWithdrawal) || 10.0)
+      };
     }
 
     return parsed;
