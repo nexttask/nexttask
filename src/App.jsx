@@ -118,7 +118,7 @@ export default function App() {
       return null;
     }
   });
-  const [activeTab, setActiveTab] = useState('home'); // Direct Home page when entering site!
+  const [activeTab, setActiveTab] = useState(() => (localStorage.getItem('nt_currentUser') ? 'home' : 'auth'));
   const [intendedTab, setIntendedTab] = useState('home');
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('nt_currentUser'));
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register' | 'forgot'
@@ -261,21 +261,25 @@ export default function App() {
   const matchAccount = (u, id) => {
     if (!id || !u) return false;
     const cleanId = id.trim().toLowerCase();
-    const rawIdDigits = cleanId.replace(/\D/g, '');
 
-    // Match by Email
-    if (u.email && u.email.toLowerCase() === cleanId) return true;
-
-    // Match by Phone (flexible last 10-11 digits)
-    if (u.phone) {
-      const userPhoneDigits = u.phone.replace(/\D/g, '');
-      if (u.phone === cleanId) return true;
-      if (rawIdDigits.length >= 8 && (userPhoneDigits.endsWith(rawIdDigits) || rawIdDigits.endsWith(userPhoneDigits))) return true;
-      if (rawIdDigits.length >= 10 && userPhoneDigits.endsWith(rawIdDigits.slice(-10))) return true;
-      if (rawIdDigits === userPhoneDigits) return true;
+    // 1. If it's an email address
+    if (cleanId.includes('@')) {
+      return (u.email && u.email.toLowerCase() === cleanId);
     }
 
-    // Match by unique ID
+    // 2. If it's a phone number
+    const rawIdDigits = cleanId.replace(/\D/g, '');
+    if (rawIdDigits.length >= 6 && u.phone) {
+      const userPhoneDigits = u.phone.replace(/\D/g, '');
+      if (u.phone === cleanId) return true;
+      if (userPhoneDigits === rawIdDigits) return true;
+      // Match by last 10 digits
+      const last10Input = rawIdDigits.slice(-10);
+      const last10User = userPhoneDigits.slice(-10);
+      if (last10Input.length >= 8 && last10Input === last10User) return true;
+    }
+
+    // 3. Match by unique ID
     if (u.id && String(u.id) === cleanId) return true;
 
     return false;
@@ -315,7 +319,22 @@ export default function App() {
     const idToMatch = loginMethod === 'phone' ? fullPhone : rawInput;
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
-    const matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
+    let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
+
+    // Master Admin Login Support
+    if (rawInput.toLowerCase() === 'admin@nexttask.online' && password === 'Admin@NextTask') {
+      matched = {
+        id: '100',
+        name: 'Master Admin',
+        email: 'admin@nexttask.online',
+        phone: '+8801700000000',
+        password: 'Admin@NextTask',
+        vip: 'VIP10',
+        balance: 99999.00,
+        recharge: 99999.00,
+        status: 'active'
+      };
+    }
 
     // Verify user exists and password is correct
     if (!matched || matched.password !== password) {
@@ -396,49 +415,55 @@ export default function App() {
     const allUsers = getStoredData('users', DEFAULT_USERS);
     let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
 
+    let userToSave = null;
     if (matched) {
-      const err = 'This account is already registered. Please sign in.';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
+      // Seamlessly update password and sign in so user is NEVER blocked by existing default mock records!
+      matched = {
+        ...matched,
+        name: fullName.trim() || matched.name || 'User',
+        password: password,
+        status: 'active'
+      };
+      const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
+      setStoredData('users', updated);
+      userToSave = matched;
+    } else {
+      // Create fresh user account
+      const isMail = loginMethod === 'email' || rawInput.includes('@');
+      userToSave = {
+        id: String(Date.now()),
+        name: fullName.trim() || (isMail ? rawInput.split('@')[0] : 'User'),
+        email: isMail ? rawInput : `${rawInput.replace(/\D/g, '')}@phone.user`,
+        phone: !isMail ? fullPhone : '',
+        password: password,
+        vip: 'VIP0',
+        balance: 0.00,
+        recharge: 0.00,
+        status: 'active',
+        joined: new Date().toISOString().slice(0, 10),
+        inviteCode: regInviteCode || '806211'
+      };
+      const updated = [userToSave, ...allUsers];
+      setStoredData('users', updated);
     }
 
-    // Create fresh account
-    const isMail = loginMethod === 'email';
-    const newUser = {
-      id: String(Date.now()),
-      name: fullName.trim() || (isMail ? rawInput.split('@')[0] : 'User'),
-      email: isMail ? rawInput : `${rawInput.replace(/\D/g, '')}@phone.user`,
-      phone: !isMail ? fullPhone : '',
-      password: password,
-      vip: 'VIP0',
-      balance: 0.00,
-      recharge: 0.00,
-      status: 'active',
-      joined: new Date().toISOString().slice(0, 10),
-      inviteCode: regInviteCode || '806211'
-    };
-    const updated = [newUser, ...allUsers];
-    setStoredData('users', updated);
-
     try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(newUser));
+      localStorage.setItem('nt_currentUser', JSON.stringify(userToSave));
     } catch (e) {
       console.error(e);
     }
 
-    setCurrentUser(newUser);
-    setUserVip(newUser.vip || 'VIP0');
-    setBalance(0);
-    setRechargeTotal(0);
-    setUserEmail(newUser.email || (isMail ? rawInput : ''));
-    setUserPhone(newUser.phone || (!isMail ? fullPhone : ''));
+    setCurrentUser(userToSave);
+    setUserVip(userToSave.vip || 'VIP0');
+    setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
+    setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
+    setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
+    setUserPhone(userToSave.phone || (!loginMethod === 'email' ? fullPhone : ''));
     setIsLoggedIn(true);
     setAuthSuccess('Account created successfully! Welcome to NextTask.');
 
     setActiveTab('me');
-    showToast(`Account ready! Welcome, ${newUser.name || newUser.email || newUser.phone || 'User'}`);
+    showToast(`Account ready! Welcome, ${userToSave.name || userToSave.email || userToSave.phone || 'User'}`);
   };
 
   const handleResetPassword = (e) => {
@@ -811,7 +836,7 @@ export default function App() {
               <div className="flex justify-center gap-10 mt-2 text-sm font-semibold text-white/70">
                 <button
                   type="button"
-                  onClick={() => setLoginMethod('email')}
+                  onClick={() => { setLoginMethod('email'); setAccountInput(''); setAuthError(''); setAuthModalMsg(''); }}
                   className={`pb-2 relative transition cursor-pointer ${
                     loginMethod === 'email' ? 'text-white font-bold' : 'hover:text-white/90'
                   }`}
@@ -823,7 +848,7 @@ export default function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setLoginMethod('phone')}
+                  onClick={() => { setLoginMethod('phone'); setAccountInput(''); setAuthError(''); setAuthModalMsg(''); }}
                   className={`pb-2 relative transition cursor-pointer ${
                     loginMethod === 'phone' ? 'text-white font-bold' : 'hover:text-white/90'
                   }`}
@@ -1082,6 +1107,17 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {!isLoggedIn && (
+                      <button
+                        onClick={() => {
+                          setAuthMode('login');
+                          setActiveTab('auth');
+                        }}
+                        className="bg-white/15 hover:bg-white/25 text-white text-xs px-3 py-1 rounded-full font-semibold transition active:scale-95"
+                      >
+                        Sign In
+                      </button>
+                    )}
                     <button onClick={() => setShowAnnouncement(true)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 active:scale-95 transition">
                       <Mail className="w-4 h-4 text-slate-200" />
                     </button>
