@@ -42,6 +42,7 @@ import AdminPanel from './AdminPanel';
 import {
   getStoredData,
   setStoredData,
+  DEFAULT_USERS,
   DEFAULT_VIP_TIERS,
   DEFAULT_SETTINGS,
   DEFAULT_SLIDES,
@@ -289,127 +290,133 @@ export default function App() {
     setAuthError('');
     setAuthSuccess('');
 
-    const rawInput = (accountInput || userEmail || userPhone || '').trim();
-    if (!rawInput) {
-      const err = loginMethod === 'email' ? 'Please enter your email' : 'Please enter your phone number';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (!password) {
-      const err = 'Please enter password';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-
-    // Master Admin Login Support
-    if (rawInput.toLowerCase() === 'admin@nexttask.online') {
-      if (password === 'Admin@NextTask') {
-        const adminUser = {
-          id: '100',
-          name: 'Master Admin',
-          email: 'admin@nexttask.online',
-          phone: '',
-          password: 'Admin@NextTask',
-          vip: 'VIP10',
-          balance: 99999.00,
-          recharge: 99999.00,
-          status: 'active'
-        };
-        try {
-          localStorage.setItem('nt_currentUser', JSON.stringify(adminUser));
-        } catch (e) {
-          console.error(e);
-        }
-        setCurrentUser(adminUser);
-        setUserVip('VIP10');
-        setBalance(99999.00);
-        setRechargeTotal(99999.00);
-        setUserEmail('admin@nexttask.online');
-        setUserPhone('');
-        setIsLoggedIn(true);
-        setActiveTab('me');
-        setIntendedTab('me');
-        showToast('Welcome back, Master Admin!');
+    try {
+      const rawInput = (accountInput || userEmail || userPhone || '').trim();
+      if (!rawInput) {
+        const err = loginMethod === 'email' ? 'Please enter your email' : 'Please enter your phone number';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
         return;
-      } else {
+      }
+      if (!password) {
+        const err = 'Please enter password';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      // Master Admin Login Support
+      if (rawInput.toLowerCase() === 'admin@nexttask.online') {
+        if (password === 'Admin@NextTask') {
+          const adminUser = {
+            id: '100',
+            name: 'Master Admin',
+            email: 'admin@nexttask.online',
+            phone: '',
+            password: 'Admin@NextTask',
+            vip: 'VIP10',
+            balance: 99999.00,
+            recharge: 99999.00,
+            status: 'active'
+          };
+          try {
+            localStorage.setItem('nt_currentUser', JSON.stringify(adminUser));
+          } catch (e) {
+            console.error(e);
+          }
+          setCurrentUser(adminUser);
+          setUserVip('VIP10');
+          setBalance(99999.00);
+          setRechargeTotal(99999.00);
+          setUserEmail('admin@nexttask.online');
+          setUserPhone('');
+          setIsLoggedIn(true);
+          setActiveTab('me');
+          setIntendedTab('me');
+          showToast('Welcome back, Master Admin!');
+          return;
+        } else {
+          const err = 'Wrong user name or password';
+          setAuthError(err);
+          setAuthModalMsg(err);
+          showToast(err);
+          return;
+        }
+      }
+
+      const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
+      const fullPhone = (loginMethod === 'phone' || isPhonePattern)
+        ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
+        : '';
+      const idToMatch = fullPhone || rawInput;
+
+      const allUsers = getStoredData('users', DEFAULT_USERS);
+      let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
+
+      // Verify password if account exists
+      if (matched && matched.password && matched.password !== password) {
         const err = 'Wrong user name or password';
         setAuthError(err);
         setAuthModalMsg(err);
         showToast(err);
         return;
       }
+
+      // Auto-create user seamlessly if not registered yet so user/tester is never blocked on login!
+      if (!matched) {
+        const isMail = rawInput.includes('@') || loginMethod === 'email';
+        matched = {
+          id: String(Date.now()),
+          name: isMail ? rawInput.split('@')[0] : 'User',
+          email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
+          phone: !isMail ? fullPhone : '',
+          password: password,
+          vip: 'VIP0',
+          balance: 0.00,
+          recharge: 0.00,
+          status: 'active',
+          joined: new Date().toISOString().slice(0, 10),
+          inviteCode: '806211'
+        };
+        const updated = [matched, ...allUsers];
+        setStoredData('users', updated);
+      }
+
+      if (matched.status === 'banned') {
+        const err = 'This account has been suspended. Please contact support.';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      try {
+        localStorage.setItem('nt_currentUser', JSON.stringify(matched));
+      } catch (e) {
+        console.error(e);
+      }
+
+      setCurrentUser(matched);
+      setUserVip(matched.vip || 'VIP0');
+      setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
+      setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
+      setUserEmail(matched.email || (loginMethod === 'email' ? rawInput : ''));
+      setUserPhone(matched.phone || (loginMethod === 'phone' ? fullPhone : ''));
+      setIsLoggedIn(true);
+      setAuthSuccess('Signed in successfully! Loading profile...');
+      setAuthError('');
+      setAuthModalMsg('');
+
+      const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
+      setActiveTab(targetTab);
+      setIntendedTab(targetTab);
+      showToast(`Welcome back, ${matched.name || matched.email || matched.phone || 'User'}!`);
+    } catch (err) {
+      console.error('Login error:', err);
+      showToast('Login error: ' + (err?.message || err));
     }
-
-    const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
-    const fullPhone = (loginMethod === 'phone' || isPhonePattern)
-      ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry.dial}${rawInput.replace(/^0+/, '')}`)
-      : '';
-    const idToMatch = fullPhone || rawInput;
-
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
-
-    // Verify password if account exists
-    if (matched && matched.password && matched.password !== password) {
-      const err = 'Wrong user name or password';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-
-    // Auto-create user seamlessly if not registered yet so user/tester is never blocked on login!
-    if (!matched) {
-      const isMail = rawInput.includes('@') || loginMethod === 'email';
-      matched = {
-        id: String(Date.now()),
-        name: isMail ? rawInput.split('@')[0] : 'User',
-        email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
-        phone: !isMail ? fullPhone : '',
-        password: password,
-        vip: 'VIP0',
-        balance: 0.00,
-        recharge: 0.00,
-        status: 'active',
-        joined: new Date().toISOString().slice(0, 10),
-        inviteCode: '806211'
-      };
-      const updated = [matched, ...allUsers];
-      setStoredData('users', updated);
-    }
-
-    if (matched.status === 'banned') {
-      const err = 'This account has been suspended. Please contact support.';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-
-    try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(matched));
-    } catch (e) {
-      console.error(e);
-    }
-
-    setCurrentUser(matched);
-    setUserVip(matched.vip || 'VIP0');
-    setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
-    setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
-    setUserEmail(matched.email || (loginMethod === 'email' ? rawInput : ''));
-    setUserPhone(matched.phone || (loginMethod === 'phone' ? fullPhone : ''));
-    setIsLoggedIn(true);
-    setAuthSuccess('Signed in successfully! Loading profile...');
-    setAuthError('');
-    setAuthModalMsg('');
-
-    setActiveTab('me');
-    setIntendedTab('me');
-    showToast(`Welcome back, ${matched.name || matched.email || matched.phone || 'User'}!`);
   };
 
   const handleRegister = (e) => {
@@ -417,97 +424,103 @@ export default function App() {
     setAuthError('');
     setAuthSuccess('');
 
-    const rawInput = (accountInput || userEmail || userPhone || '').trim();
-    if (!rawInput) {
-      const err = loginMethod === 'email' ? 'Please enter email' : 'Please enter phone number';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (!password) {
-      const err = 'Please enter password';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (password.trim().length < 6) {
-      const err = 'Password must be at least 6 characters long';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (reenterPassword && password.trim() !== reenterPassword.trim()) {
-      const err = 'Passwords do not match';
-      setAuthError(err);
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-
-    const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
-    const fullPhone = (loginMethod === 'phone' || isPhonePattern)
-      ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
-      : '';
-    const idToMatch = fullPhone || rawInput;
-
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
-
-    let userToSave = null;
-    if (matched) {
-      // Seamlessly update password and sign in so user is NEVER blocked by existing default mock records!
-      matched = {
-        ...matched,
-        name: (fullName || '').trim() || matched.name || 'User',
-        password: password,
-        status: 'active'
-      };
-      const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
-      setStoredData('users', updated);
-      userToSave = matched;
-    } else {
-      // Create fresh user account
-      const isMail = rawInput.includes('@') || loginMethod === 'email';
-      userToSave = {
-        id: String(Date.now()),
-        name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
-        email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
-        phone: !isMail ? fullPhone : '',
-        password: password,
-        vip: 'VIP0',
-        balance: 0.00,
-        recharge: 0.00,
-        status: 'active',
-        joined: new Date().toISOString().slice(0, 10),
-        inviteCode: regInviteCode || '806211'
-      };
-      const updated = [userToSave, ...allUsers];
-      setStoredData('users', updated);
-    }
-
     try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(userToSave));
-    } catch (e) {
-      console.error(e);
+      const rawInput = (accountInput || userEmail || userPhone || '').trim();
+      if (!rawInput) {
+        const err = loginMethod === 'email' ? 'Please enter email' : 'Please enter phone number';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+      if (!password) {
+        const err = 'Please enter password';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+      if (password.trim().length < 6) {
+        const err = 'Password must be at least 6 characters long';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+      if (reenterPassword && password.trim() !== reenterPassword.trim()) {
+        const err = 'Passwords do not match';
+        setAuthError(err);
+        setAuthModalMsg(err);
+        showToast(err);
+        return;
+      }
+
+      const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
+      const fullPhone = (loginMethod === 'phone' || isPhonePattern)
+        ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)
+        : '';
+      const idToMatch = fullPhone || rawInput;
+
+      const allUsers = getStoredData('users', DEFAULT_USERS);
+      let matched = allUsers.find((u) => matchAccount(u, idToMatch) || matchAccount(u, rawInput));
+
+      let userToSave = null;
+      if (matched) {
+        // Seamlessly update password and sign in so user is NEVER blocked by existing default mock records!
+        matched = {
+          ...matched,
+          name: (fullName || '').trim() || matched.name || 'User',
+          password: password,
+          status: 'active'
+        };
+        const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
+        setStoredData('users', updated);
+        userToSave = matched;
+      } else {
+        // Create fresh user account
+        const isMail = rawInput.includes('@') || loginMethod === 'email';
+        userToSave = {
+          id: String(Date.now()),
+          name: (fullName || '').trim() || (isMail ? rawInput.split('@')[0] : 'User'),
+          email: isMail ? rawInput.toLowerCase() : `${rawInput.replace(/\D/g, '')}@phone.user`,
+          phone: !isMail ? fullPhone : '',
+          password: password,
+          vip: 'VIP0',
+          balance: 0.00,
+          recharge: 0.00,
+          status: 'active',
+          joined: new Date().toISOString().slice(0, 10),
+          inviteCode: regInviteCode || '806211'
+        };
+        const updated = [userToSave, ...allUsers];
+        setStoredData('users', updated);
+      }
+
+      try {
+        localStorage.setItem('nt_currentUser', JSON.stringify(userToSave));
+      } catch (e) {
+        console.error(e);
+      }
+
+      setCurrentUser(userToSave);
+      setUserVip(userToSave.vip || 'VIP0');
+      setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
+      setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
+      setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
+      setUserPhone(userToSave.phone || fullPhone || '');
+      setIsLoggedIn(true);
+      setAuthSuccess('Account created successfully! Welcome to NextTask.');
+      setAuthError('');
+      setAuthModalMsg('');
+
+      const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
+      setActiveTab(targetTab);
+      setIntendedTab(targetTab);
+      showToast(`Account ready! Welcome, ${userToSave.name || userToSave.email || userToSave.phone || 'User'}`);
+    } catch (err) {
+      console.error('Register error:', err);
+      showToast('Register error: ' + (err?.message || err));
     }
-
-    setCurrentUser(userToSave);
-    setUserVip(userToSave.vip || 'VIP0');
-    setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
-    setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
-    setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
-    setUserPhone(userToSave.phone || fullPhone || '');
-    setIsLoggedIn(true);
-    setAuthSuccess('Account created successfully! Welcome to NextTask.');
-    setAuthError('');
-    setAuthModalMsg('');
-
-    setActiveTab('me');
-    setIntendedTab('me');
-    showToast(`Account ready! Welcome, ${userToSave.name || userToSave.email || userToSave.phone || 'User'}`);
   };
 
   const handleResetPassword = (e) => {
