@@ -148,6 +148,8 @@ export default function App() {
     }
   });
   const [loginMethod, setLoginMethod] = useState('email'); // 'email' | 'phone'
+  const [fullName, setFullName] = useState('');
+  const [authModalMsg, setAuthModalMsg] = useState('');
   const [password, setPassword] = useState('');
   const [reenterPassword, setReenterPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -282,45 +284,43 @@ export default function App() {
     if (!id) {
       const err = 'Please enter your email or phone number';
       setAuthError(err);
+      setAuthModalMsg(err);
       showToast(err);
       return;
     }
     if (!password) {
-      const err = 'Please enter password';
+      const err = 'Wrong user name or password';
       setAuthError(err);
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
+    }
+    if (password.length < 8) {
+      const err = 'Wrong user name or password';
+      setAuthError(err);
+      setAuthModalMsg(err);
       showToast(err);
       return;
     }
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
-    let matched = allUsers.find((u) => matchAccount(u, id));
+    const matched = allUsers.find((u) => matchAccount(u, id));
 
-    if (matched) {
-      if (matched.status === 'banned') {
-        const err = 'This account has been suspended. Please contact support.';
-        setAuthError(err);
-        showToast(err);
-        return;
-      }
-      // Update password so user is never locked out
-      matched = { ...matched, password };
-      const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
-      setStoredData('users', updated);
-    } else {
-      // Auto-register smoothly if not registered yet!
-      const isMail = id.includes('@');
-      matched = {
-        id: String(Date.now()),
-        email: isMail ? id : `${id}@phone.user`,
-        phone: !isMail ? id : '',
-        password: password,
-        vip: 'VIP0',
-        balance: 0.00,
-        recharge: 0.00,
-        status: 'active',
-        joined: new Date().toISOString().slice(0, 10)
-      };
-      setStoredData('users', [matched, ...allUsers]);
+    // Verify user exists and password is correct
+    if (!matched || matched.password !== password) {
+      const err = 'Wrong user name or password';
+      setAuthError(err);
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
+    }
+
+    if (matched.status === 'banned') {
+      const err = 'This account has been suspended. Please contact support.';
+      setAuthError(err);
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
     }
 
     try {
@@ -339,7 +339,7 @@ export default function App() {
     setAuthSuccess('Signed in successfully! Loading profile...');
 
     setActiveTab('me');
-    showToast(`Welcome back, ${matched.email || matched.phone || 'User'}!`);
+    showToast(`Welcome back, ${matched.name || matched.email || matched.phone || 'User'}!`);
   };
 
   const handleRegister = (e) => {
@@ -349,20 +349,30 @@ export default function App() {
 
     const id = (accountInput || userEmail || userPhone || '').trim();
     if (!id) {
-      const err = 'Please enter email or phone number';
+      const err = loginMethod === 'email' ? 'Please enter email' : 'Please enter phone number';
       setAuthError(err);
+      setAuthModalMsg(err);
       showToast(err);
       return;
     }
     if (!password) {
       const err = 'Please enter password';
       setAuthError(err);
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
+    }
+    if (password.length < 8) {
+      const err = 'Password must be at least 8 characters long';
+      setAuthError(err);
+      setAuthModalMsg(err);
       showToast(err);
       return;
     }
     if (reenterPassword && password !== reenterPassword) {
       const err = 'Passwords do not match';
       setAuthError(err);
+      setAuthModalMsg(err);
       showToast(err);
       return;
     }
@@ -371,63 +381,75 @@ export default function App() {
     let matched = allUsers.find((u) => matchAccount(u, id));
 
     if (matched) {
-      // If user already exists, update their password and log in immediately!
-      matched = { ...matched, password };
-      const updated = allUsers.map((u) => (u.id === matched.id ? matched : u));
-      setStoredData('users', updated);
-    } else {
-      // Create fresh account
-      const isMail = id.includes('@');
-      matched = {
-        id: String(Date.now()),
-        email: isMail ? id : `${id}@phone.user`,
-        phone: !isMail ? id : '',
-        password: password,
-        vip: 'VIP0',
-        balance: 0.00,
-        recharge: 0.00,
-        status: 'active',
-        joined: new Date().toISOString().slice(0, 10)
-      };
-      setStoredData('users', [matched, ...allUsers]);
+      const err = 'This account is already registered. Please sign in.';
+      setAuthError(err);
+      setAuthModalMsg(err);
+      showToast(err);
+      return;
     }
 
+    // Create fresh account
+    const isMail = id.includes('@');
+    const newUser = {
+      id: String(Date.now()),
+      name: fullName.trim() || (isMail ? id.split('@')[0] : 'User'),
+      email: isMail ? id : `${id}@phone.user`,
+      phone: !isMail ? id : '',
+      password: password,
+      vip: 'VIP0',
+      balance: 0.00,
+      recharge: 0.00,
+      status: 'active',
+      joined: new Date().toISOString().slice(0, 10),
+      inviteCode: regInviteCode || '806211'
+    };
+    const updated = [newUser, ...allUsers];
+    setStoredData('users', updated);
+
     try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(matched));
+      localStorage.setItem('nt_currentUser', JSON.stringify(newUser));
     } catch (e) {
       console.error(e);
     }
 
-    setCurrentUser(matched);
-    setUserVip(matched.vip || 'VIP0');
-    setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
-    setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
-    setUserEmail(matched.email || id);
-    setUserPhone(matched.phone || '');
+    setCurrentUser(newUser);
+    setUserVip(newUser.vip || 'VIP0');
+    setBalance(0);
+    setRechargeTotal(0);
+    setUserEmail(newUser.email || id);
+    setUserPhone(newUser.phone || '');
     setIsLoggedIn(true);
     setAuthSuccess('Account created successfully! Welcome to NextTask.');
 
     setActiveTab('me');
-    showToast(`Account ready! Welcome, ${matched.email || matched.phone || 'User'}`);
+    showToast(`Account ready! Welcome, ${newUser.name || newUser.email || 'User'}`);
   };
 
   const handleResetPassword = (e) => {
     e?.preventDefault();
     const id = (accountInput || userEmail || userPhone || '').trim();
     if (!id) {
-      showToast('Please enter your registered email or phone');
+      const err = 'Please enter your registered email or phone';
+      setAuthModalMsg(err);
+      showToast(err);
       return;
     }
     if (!password) {
-      showToast('Please enter new password');
+      const err = 'Please enter new password';
+      setAuthModalMsg(err);
+      showToast(err);
       return;
     }
-    if (password.length < 4) {
-      showToast('Password must be at least 4 characters');
+    if (password.length < 8) {
+      const err = 'Password must be at least 8 characters long';
+      setAuthModalMsg(err);
+      showToast(err);
       return;
     }
     if (reenterPassword && password !== reenterPassword) {
-      showToast('Passwords do not match');
+      const err = 'Passwords do not match';
+      setAuthModalMsg(err);
+      showToast(err);
       return;
     }
 
@@ -475,8 +497,7 @@ export default function App() {
     setIsLoggedIn(true);
 
     showToast('Password updated! Signed in successfully.');
-    const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'home';
-    setActiveTab(targetTab);
+    setActiveTab('me');
   };
 
   const handleLogout = () => {
@@ -492,9 +513,11 @@ export default function App() {
     setAccountInput('');
     setUserEmail('');
     setUserPhone('');
+    setFullName('');
     setPassword('');
     setReenterPassword('');
     setRegInviteCode('');
+    setAuthModalMsg('');
     setUserVip('VIP0');
     setBalance(0);
     setRechargeTotal(0);
@@ -612,6 +635,30 @@ export default function App() {
           </div>
         )}
 
+        {/* Prompt / Error Popup Modal */}
+        {authModalMsg && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[290px] overflow-hidden shadow-2xl p-6 text-center space-y-4 border border-slate-100">
+              <div className="w-12 h-12 mx-auto rounded-full bg-rose-50 flex items-center justify-center text-rose-500">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Prompt</h3>
+                <p className="text-xs text-slate-600 mt-2 font-medium leading-relaxed">{authModalMsg}</p>
+              </div>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setAuthModalMsg('')}
+                  className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-semibold py-2.5 rounded-full text-xs shadow-md active:scale-95 transition cursor-pointer"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ================= ANNOUNCEMENT POPUP MODAL ================= */}
         {showAnnouncement && isLoggedIn && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -674,75 +721,36 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Main Auth Mode Tabs: Sign In vs Sign Up */}
-              <div className="flex justify-center mx-6 mt-3 p-1 bg-white/10 rounded-2xl backdrop-blur">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('login');
-                    setAuthError('');
-                    setAuthSuccess('');
-                  }}
-                  className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer ${
-                    authMode === 'login'
-                      ? 'bg-white text-slate-900 shadow-md'
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  {t('signIn')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('register');
-                    setAuthError('');
-                    setAuthSuccess('');
-                  }}
-                  className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition cursor-pointer ${
-                    authMode === 'register'
-                      ? 'bg-white text-slate-900 shadow-md'
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  {t('signUp')}
-                </button>
-              </div>
-
-              {/* Sub-tabs: Email vs Phone */}
-              <div className="flex justify-center gap-6 mt-3 text-xs font-semibold text-white/70">
+              {/* Method Tabs: Email vs Phone (Matching Original UI) */}
+              <div className="flex justify-center gap-10 mt-2 text-sm font-semibold text-white/70">
                 <button
                   type="button"
                   onClick={() => setLoginMethod('email')}
-                  className={`pb-1.5 relative transition cursor-pointer ${loginMethod === 'email' ? 'text-white font-bold' : 'hover:text-white/90'}`}
+                  className={`pb-2 relative transition cursor-pointer ${
+                    loginMethod === 'email' ? 'text-white font-bold' : 'hover:text-white/90'
+                  }`}
                 >
-                  {t('email')}
+                  {authMode === 'register' ? 'Register by Email' : 'Email Login'}
+                  {loginMethod === 'email' && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white rounded-full"></span>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoginMethod('phone')}
-                  className={`pb-1.5 relative transition cursor-pointer ${loginMethod === 'phone' ? 'text-white font-bold' : 'hover:text-white/90'}`}
+                  className={`pb-2 relative transition cursor-pointer ${
+                    loginMethod === 'phone' ? 'text-white font-bold' : 'hover:text-white/90'
+                  }`}
                 >
-                  {t('phone')}
+                  {authMode === 'register' ? 'Register by phone' : 'Phone Login'}
+                  {loginMethod === 'phone' && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white rounded-full"></span>
+                  )}
                 </button>
               </div>
 
-              {/* Form Card */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (authMode === 'register') handleRegister(e);
-                  else if (authMode === 'forgot') handleResetPassword(e);
-                  else handleLogin(e);
-                }}
-                className="mx-4 mt-4 bg-white rounded-2xl p-6 shadow-xl space-y-4"
-              >
-                {/* Form Heading */}
-                <div className="text-center pb-1">
-                  <h2 className="text-lg font-bold text-slate-900">
-                    {authMode === 'register' ? t('signUp') : authMode === 'forgot' ? 'Reset Password' : t('signIn')}
-                  </h2>
-                </div>
-
+              {/* White Form Card (Only Inputs) */}
+              <div className="mx-4 mt-4 bg-white rounded-3xl p-5 shadow-xl space-y-3.5">
                 {authError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 animate-fade-in">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -756,38 +764,50 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Name field (Sign Up only, above Email as requested) */}
+                {authMode === 'register' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Name</label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Name"
+                      className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
+                    />
+                  </div>
+                )}
+
                 {/* Email / Phone Field */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {loginMethod === 'email' ? t('email') : t('phone')}
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {loginMethod === 'email' ? 'E-mail' : 'Phone'}
                   </label>
                   <input
                     type="text"
-                    required
                     value={accountInput}
                     onChange={(e) => {
                       setAccountInput(e.target.value);
                       if (loginMethod === 'email') setUserEmail(e.target.value);
                       else setUserPhone(e.target.value);
                     }}
-                    placeholder={loginMethod === 'email' ? 'Enter email (e.g. name@example.com)' : 'Enter phone number (e.g. 017XXXXXXXX)'}
-                    className="w-full bg-[#f3f6fc] text-slate-800 text-sm px-4 py-3 rounded-xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
+                    placeholder={loginMethod === 'email' ? 'E-mail' : 'Phone'}
+                    className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
                   />
                 </div>
 
                 {/* Password Field */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    {authMode === 'forgot' ? 'New Password' : t('password')}
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {authMode === 'forgot' ? 'New Password' : 'Password'}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder={authMode === 'forgot' ? 'Enter new password (min 4 chars)' : t('password')}
-                      className="w-full bg-[#f3f6fc] text-slate-800 text-sm px-4 py-3 rounded-xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
+                      placeholder={authMode === 'forgot' ? 'New Password (min 8 chars)' : 'Password'}
+                      className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
                     />
                     <button
                       type="button"
@@ -799,19 +819,19 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Reenter password (In Register & Forgot Password mode) */}
+                {/* Reenter password (Register & Forgot modes) */}
                 {(authMode === 'register' || authMode === 'forgot') && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                      {authMode === 'forgot' ? 'Confirm New Password' : t('reenterPassword')}
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Reenter password
                     </label>
                     <div className="relative">
                       <input
                         type={showReenterPassword ? 'text' : 'password'}
                         value={reenterPassword}
                         onChange={(e) => setReenterPassword(e.target.value)}
-                        placeholder={authMode === 'forgot' ? 'Reenter new password' : t('reenterPassword')}
-                        className="w-full bg-[#f3f6fc] text-slate-800 text-sm px-4 py-3 rounded-xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
+                        placeholder="Reenter password"
+                        className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
                       />
                       <button
                         type="button"
@@ -824,109 +844,110 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Invitation code (Only in Register mode) */}
+                {/* Invitation code (Register mode) */}
                 {authMode === 'register' && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">{t('invitationCode')} (Optional)</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Invitation code</label>
                     <input
                       type="text"
                       value={regInviteCode}
                       onChange={(e) => setRegInviteCode(e.target.value)}
-                      placeholder="e.g. 806211"
-                      className="w-full bg-[#f3f6fc] text-slate-800 text-sm px-4 py-3 rounded-xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
+                      placeholder="Invitation code"
+                      className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
                     />
                   </div>
                 )}
 
                 {authMode === 'login' && (
-                  <div className="text-right">
+                  <div className="text-right pt-1">
                     <button
                       type="button"
                       onClick={() => {
                         setAuthMode('forgot');
                         setPassword('');
                         setReenterPassword('');
+                        setAuthError('');
+                        setAuthModalMsg('');
                       }}
                       className="text-xs text-indigo-600 hover:underline font-semibold"
                     >
-                      {t('forgotPassword')}?
+                      Forgot Password?
                     </button>
                   </div>
                 )}
+              </div>
 
-                {/* Submit and Switch Buttons */}
-                <div className="pt-2 space-y-3">
-                  {authMode === 'register' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleRegister}
-                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
-                      >
-                        {t('signUp')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode('login');
-                          setAuthError('');
-                          setAuthSuccess('');
-                        }}
-                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3 rounded-full active:scale-[0.99] transition cursor-pointer text-xs"
-                      >
-                        {t('alreadyAccount')}
-                      </button>
-                    </>
-                  ) : authMode === 'forgot' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleResetPassword}
-                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
-                      >
-                        Reset Password
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode('login');
-                          setPassword('');
-                          setReenterPassword('');
-                        }}
-                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer"
-                      >
-                        Back to Sign In
-                      </button>
-                      <div className="text-center pt-1">
-                        <span className="text-[11px] text-slate-500">
-                          Need help? Telegram: <strong className="text-indigo-600">{settings.telegramSupport}</strong>
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleLogin}
-                        className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
-                      >
-                        {t('signIn')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthMode('register');
-                          setAuthError('');
-                          setAuthSuccess('');
-                        }}
-                        className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3 rounded-full active:scale-[0.99] transition cursor-pointer text-xs"
-                      >
-                        {t('dontHaveAccount')}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </form>
+              {/* Action Buttons OUTSIDE the card (Exact Match to Screenshot) */}
+              <div className="px-4 py-4 space-y-3 mt-1">
+                {authMode === 'register' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleRegister}
+                      className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
+                    >
+                      Sign Up
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('login');
+                        setAuthError('');
+                        setAuthSuccess('');
+                        setAuthModalMsg('');
+                      }}
+                      className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer text-sm"
+                    >
+                      Sign In
+                    </button>
+                  </>
+                ) : authMode === 'forgot' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleResetPassword}
+                      className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
+                    >
+                      Reset Password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('login');
+                        setPassword('');
+                        setReenterPassword('');
+                        setAuthError('');
+                        setAuthModalMsg('');
+                      }}
+                      className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer text-sm"
+                    >
+                      Back to Sign In
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleLogin}
+                      className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('register');
+                        setAuthError('');
+                        setAuthSuccess('');
+                        setAuthModalMsg('');
+                      }}
+                      className="w-full bg-[#e9f0fc] hover:bg-[#dfe9fa] text-[#0d2146] font-medium py-3.5 rounded-full active:scale-[0.99] transition cursor-pointer text-sm"
+                    >
+                      Sign Up
+                    </button>
+                  </>
+                )}
+              </div>
 
               <div className="mt-auto py-6 text-center text-xs text-slate-400">
                 NextTask Official Safe & Encrypted Platform
