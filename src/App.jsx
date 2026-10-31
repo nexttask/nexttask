@@ -429,16 +429,18 @@ export default function App() {
       if (active.length > 0) {
         const match = active.find((a) => a.name === withdrawMethod);
         if (match) {
-          setWithdrawAccountInput(match.val);
+          if (withdrawAccountInput !== match.val) {
+            setWithdrawAccountInput(match.val);
+          }
         } else {
           setWithdrawMethod(active[0].name);
           setWithdrawAccountInput(active[0].val);
         }
-      } else {
+      } else if (withdrawAccountInput !== '') {
         setWithdrawAccountInput('');
       }
     }
-  }, [showWithdrawModal, currentUser]);
+  }, [showWithdrawModal, currentUser?.id, withdrawMethod]);
 
   // Team Tab State
   const [teamLevelTab, setTeamLevelTab] = useState(1);

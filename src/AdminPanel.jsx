@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   LogIn,
   FileDown,
-  Calendar,
   Gem,
   Users,
   ArrowDownLeft,
@@ -16,20 +15,14 @@ import {
   Trash2,
   Edit3,
   CheckCircle,
-  XCircle,
   Ban,
   DollarSign,
   Search,
   ExternalLink,
-  ChevronRight,
   RefreshCw,
   AlertTriangle,
   Image as ImageIcon,
   Smartphone,
-  Copy,
-  Check,
-  ToggleLeft,
-  ToggleRight,
   KeyRound,
   Lock,
   LogOut,
@@ -1302,9 +1295,6 @@ export default function AdminPanel({ onNavigateToApp }) {
                 </thead>
                 <tbody className="divide-y divide-slate-800">
                   {paymentMethods.map((pm) => {
-                    const isBkash = pm.method.toLowerCase().includes('bkash');
-                    const isNagad = pm.method.toLowerCase().includes('nagad');
-                    const isRocket = pm.method.toLowerCase().includes('rocket');
                     return (
                       <tr key={pm.id} className="hover:bg-slate-900/50 transition">
                         <td className="py-3 px-4 font-bold text-white">

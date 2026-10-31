@@ -59,13 +59,13 @@ function sanitizeUsers(users, isAdmin) {
   return users.map((u) => {
     if (!u) return u;
     if (isAdmin) return u; // Admin gets full details to manage accounts
-    const { password, ...safeUser } = u;
+    const { password: _password, ...safeUser } = u;
     return safeUser;
   });
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env, _ctx) {
     const url = new URL(request.url);
     const clientIp = request.headers.get('cf-connecting-ip') || 'unknown';
 
