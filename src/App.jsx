@@ -171,8 +171,9 @@ export default function App() {
             } catch (e) {}
             setBalance(typeof freshUser.balance === 'number' ? freshUser.balance : (parseFloat(freshUser.balance) || 0));
             setRechargeTotal(typeof freshUser.recharge === 'number' ? freshUser.recharge : (parseFloat(freshUser.recharge) || 0));
-            setUserVip(freshUser.vip || 'VIP0');
-            return freshUser;
+            const sanitizedVip = (freshUser.email !== 'admin@nexttask.online' && (!freshUser.recharge || freshUser.recharge === 0) && freshUser.vip === 'VIP1') ? 'VIP0' : (freshUser.vip || 'VIP0');
+            setUserVip(sanitizedVip);
+            return { ...freshUser, vip: sanitizedVip };
           }
           return prev;
         });
@@ -377,6 +378,9 @@ export default function App() {
   const [userVip, setUserVip] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('nt_currentUser'));
+      if (u && u.email !== 'admin@nexttask.online' && (!u.recharge || u.recharge === 0) && u.vip === 'VIP1') {
+        return 'VIP0';
+      }
       return u?.vip || 'VIP0';
     } catch {
       return 'VIP0';
@@ -686,7 +690,7 @@ export default function App() {
     navigateToTab(tabId);
   };
 
-  // Dynamic referral & VIP Level synchronization
+  // User referral sync (VIP tiers are only unlocked by purchasing packages)
   useEffect(() => {
     if (!currentUser) return;
     const allUsers = getStoredData('users', DEFAULT_USERS);
@@ -694,19 +698,15 @@ export default function App() {
     const myId = String(currentUser.id || '');
     if (!myCode && !myId) return;
 
-    const directRefs = allUsers.filter(u => isReferredByUser(u, currentUser));
-    const earnedVip = getVipLevelFromReferrals(directRefs.length, currentUser.vip || 'VIP0');
-
-    if (earnedVip !== userVip) {
-      setUserVip(earnedVip);
-      const updatedUser = { ...currentUser, vip: earnedVip };
-      setCurrentUser(updatedUser);
+    // Reset any non-admin user who got corrupted with VIP1 without purchase to VIP0
+    if (currentUser.email !== 'admin@nexttask.online' && (!currentUser.recharge || currentUser.recharge === 0) && currentUser.vip === 'VIP1') {
+      const fixed = { ...currentUser, vip: 'VIP0' };
+      setCurrentUser(fixed);
+      setUserVip('VIP0');
       try {
-        localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
-      } catch (e) {
-        console.error(e);
-      }
-      const updatedList = allUsers.map(u => u.id === currentUser.id ? { ...u, vip: earnedVip } : u);
+        localStorage.setItem('nt_currentUser', JSON.stringify(fixed));
+      } catch (e) {}
+      const updatedList = allUsers.map(u => u.id === currentUser.id ? { ...u, vip: 'VIP0' } : u);
       setStoredData('users', updatedList);
     }
   }, [activeTab, currentUser]);
@@ -1683,7 +1683,7 @@ export default function App() {
                     <Mail className="w-4 h-4 text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Notification Center</h3>
+                    <h3 className="text-sm font-bold text-slate-900">{t('notificationCenter')}</h3>
                     <p className="text-[10px] text-slate-500">{userNotifications.length} message(s)</p>
                   </div>
                 </div>
@@ -1699,7 +1699,7 @@ export default function App() {
               {/* Actions toolbar */}
               <div className="px-4 py-2 bg-slate-100/60 flex items-center justify-between text-xs border-b border-slate-100">
                 <span className="text-[11px] font-semibold text-slate-600">
-                  {unreadCount > 0 ? `${unreadCount} unread message(s)` : 'All caught up!'}
+                  {unreadCount > 0 ? `${unreadCount} ${t('unreadMessages')}` : t('allCaughtUp')}
                 </span>
                 {unreadCount > 0 && (
                   <button
@@ -1707,7 +1707,7 @@ export default function App() {
                     onClick={handleMarkAllAsRead}
                     className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 underline cursor-pointer"
                   >
-                    Mark All as Read
+                    {t('markAllAsRead')}
                   </button>
                 )}
               </div>
@@ -1717,7 +1717,7 @@ export default function App() {
                 {userNotifications.length === 0 ? (
                   <div className="text-center py-8 text-slate-400 space-y-2">
                     <Mail className="w-8 h-8 mx-auto text-slate-300" />
-                    <p className="text-xs font-medium">No messages in mailbox.</p>
+                    <p className="text-xs font-medium">{t('noMessages')}</p>
                   </div>
                 ) : (
                   userNotifications.map((notif) => (
@@ -1769,7 +1769,7 @@ export default function App() {
                             {notif.time || 'Just now'}
                           </span>
                           <span className="text-[10px] text-indigo-600 font-semibold hover:underline">
-                            View details →
+                            {t('viewDetails')}
                           </span>
                         </div>
                       </div>
@@ -1785,7 +1785,7 @@ export default function App() {
                   onClick={() => setShowNotificationModal(false)}
                   className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-semibold py-2.5 rounded-full text-xs transition active:scale-[0.99] shadow-md cursor-pointer"
                 >
-                  Close
+                  {t('close')}
                 </button>
               </div>
             </div>
@@ -1876,7 +1876,7 @@ export default function App() {
                 onClick={() => setSelectedNotificationDetail(null)}
                 className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-2.5 rounded-full text-xs shadow-md transition active:scale-95 cursor-pointer"
               >
-                Got it
+                {t('gotIt')}
               </button>
             </div>
           </div>
@@ -2304,17 +2304,17 @@ export default function App() {
                         className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full flex items-center gap-1.5 transition cursor-pointer text-slate-200 shadow-sm"
                       >
                         <Bell className="w-3.5 h-3.5 text-amber-300" />
-                        <span>Announcement</span>
+                        <span>{t('announcement')}</span>
                       </button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-center">
                       <div>
-                        <div className="text-[11px] text-slate-400 mb-1">Total balance (USDT)</div>
+                        <div className="text-[11px] text-slate-400 mb-1">{t('totalBalance')}</div>
                         <div className="text-2xl font-bold tracking-tight">{balance.toFixed(2)}</div>
                       </div>
                       <div>
-                        <div className="text-[11px] text-slate-400 mb-1">Recharge amount (USDT)</div>
+                        <div className="text-[11px] text-slate-400 mb-1">{t('rechargeAmount')}</div>
                         <div className="text-2xl font-bold tracking-tight">{rechargeTotal.toFixed(2)}</div>
                       </div>
                     </div>
@@ -2339,7 +2339,7 @@ export default function App() {
                         <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
                           <Coins className="w-5 h-5 text-cyan-300" />
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-700">Recharge</span>
+                        <span className="text-[11px] font-semibold text-slate-700">{t('recharge')}</span>
                       </button>
 
                       {/* Withdraw */}
@@ -2353,7 +2353,7 @@ export default function App() {
                         <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
                           <LogOut className="w-5 h-5 text-amber-300 rotate-180" />
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-700">Withdraw</span>
+                        <span className="text-[11px] font-semibold text-slate-700">{t('withdraw')}</span>
                       </button>
 
                       {/* App (Direct APK Download) */}
@@ -2365,7 +2365,7 @@ export default function App() {
                         <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
                           <Download className="w-5 h-5 text-emerald-300" />
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-700">App</span>
+                        <span className="text-[11px] font-semibold text-slate-700">{t('app')}</span>
                       </button>
 
                       {/* Company Profile */}
@@ -2376,7 +2376,7 @@ export default function App() {
                         <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
                           <Building2 className="w-5 h-5 text-indigo-300" />
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-700 leading-tight">Company Profile</span>
+                        <span className="text-[11px] font-semibold text-slate-700 leading-tight">{t('companyProfile')}</span>
                       </button>
                     </div>
 
@@ -2491,7 +2491,7 @@ export default function App() {
 
                   {/* ================= TASK HALL SECTION ================= */}
                   <div className="px-4 space-y-3">
-                    <h3 className="font-extrabold text-base text-slate-900 tracking-tight">Task Hall</h3>
+                    <h3 className="font-extrabold text-base text-slate-900 tracking-tight">{t('taskHall')}</h3>
 
                     <div className="space-y-3">
                       {vipTiers.map((vip) => (
@@ -2511,7 +2511,7 @@ export default function App() {
 
                           {/* Right: Unlock Amount & Level */}
                           <div className="flex-1">
-                            <div className="text-xs text-slate-400 font-medium">Unlock amount:</div>
+                            <div className="text-xs text-slate-400 font-medium">{t('unlockAmount')}</div>
                             <div className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
                               ${vip.deposit}
                             </div>
@@ -2591,7 +2591,7 @@ export default function App() {
                           {isCurrentUnlocked ? (
                             <div className="absolute -top-3 left-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white text-xs font-black px-3.5 py-1 rounded-full flex items-center gap-1.5 shadow-md">
                               <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                              <span>{vip.level} • Unlocked</span>
+                              <span>{vip.level} • {t('unlocked')}</span>
                             </div>
                           ) : isPastUnlocked ? (
                             <div className="absolute -top-3 left-4 bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
@@ -2642,19 +2642,19 @@ export default function App() {
                                 : "bg-[#ebf0f8]/80"
                             }`}>
                               <div className="flex justify-between items-center text-slate-600">
-                                <span>Daily tasks</span>
+                                <span>{t('dailyTasks')}</span>
                                 <span className="font-semibold text-slate-800">{vip.tasks}</span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
-                                <span>Simple interest</span>
+                                <span>{t('simpleInterest')}</span>
                                 <span className="font-bold text-[#00c282]">{vip.interest}</span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
-                                <span>Daily profit</span>
+                                <span>{t('dailyProfit')}</span>
                                 <span className="font-semibold text-slate-800">{vip.daily} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
-                                <span>The total profit</span>
+                                <span>{t('totalProfit')}</span>
                                 <span className="font-semibold text-slate-800">{vip.total} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
                               </div>
                             </div>
@@ -2665,7 +2665,7 @@ export default function App() {
                             {isCurrentUnlocked ? (
                               <div className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-md">
                                 <CheckCircle2 className="w-4 h-4 text-white" />
-                                <span>Unlocked</span>
+                                <span>{t('unlocked')}</span>
                               </div>
                             ) : isPastUnlocked ? (
                               <div className="bg-slate-200 text-slate-600 text-xs font-semibold px-4 py-2 rounded-full flex items-center gap-1.5">
@@ -2679,7 +2679,7 @@ export default function App() {
                               >
                                 <span>{vip.deposit} USDT</span>
                                 <span className="font-semibold text-cyan-300 border-l border-white/20 pl-2">
-                                  Upgrade to {vip.level}
+                                  {t('upgradeTo')} {vip.level}
                                 </span>
                               </button>
                             ) : (
@@ -2688,7 +2688,7 @@ export default function App() {
                                 className="bg-[#05132d] hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-3 shadow-md active:scale-95 transition cursor-pointer"
                               >
                                 <span>{vip.deposit} USDT</span>
-                                <span className="font-normal text-slate-300 border-l border-white/20 pl-2">Unlock now</span>
+                                <span className="font-normal text-slate-300 border-l border-white/20 pl-2">{t('unlockNow')}</span>
                               </button>
                             )}
                           </div>
@@ -2741,7 +2741,7 @@ export default function App() {
                     <div className="bg-gradient-to-r from-blue-900/80 via-indigo-900/80 to-[#0c1f44] border border-cyan-500/30 rounded-3xl p-5 relative overflow-hidden backdrop-blur shadow-xl">
                       <div className="flex justify-between items-start">
                         <div className="flex-1 pr-2">
-                          <div className="text-[11px] font-semibold text-cyan-300 uppercase tracking-wider">Your Invitation Code</div>
+                          <div className="text-[11px] font-semibold text-cyan-300 uppercase tracking-wider">{t('invitationCode')}</div>
                           <div className="flex items-center gap-3 mt-1.5">
                             <span className="text-2xl font-black tracking-widest text-white drop-shadow">{userInviteCode}</span>
                             <button
@@ -2753,7 +2753,7 @@ export default function App() {
                             </button>
                           </div>
 
-                          <div className="text-[11px] text-slate-300 mt-3 font-medium">Share referral link & grow team</div>
+                          <div className="text-[11px] text-slate-300 mt-3 font-medium">{t('shareReferral')}</div>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-cyan-300/90 truncate max-w-[190px] font-mono bg-white/5 px-2 py-1 rounded-lg">
                               https://nexttask.online/#/register?i={userInviteCode}
@@ -2780,12 +2780,12 @@ export default function App() {
                             {userVip} ACTIVE
                           </span>
                           <span className="text-slate-300 text-[11px]">
-                            Direct Referrals: <b className="text-white font-bold">{level1Members.length}</b>
+                            {t('directReferrals')} <b className="text-white font-bold ml-1">{level1Members.length}</b>
                           </span>
                         </div>
                         {nextVip && (
                           <div className="text-[10px] text-cyan-300 font-medium">
-                            {Math.max(0, nextTarget - level1Members.length)} more to <span className="font-bold text-white">{nextVip}</span>
+                            {Math.max(0, nextTarget - level1Members.length)} {t('moreTo')} <span className="font-bold text-white ml-1">{nextVip}</span>
                           </div>
                         )}
                       </div>
@@ -2909,16 +2909,16 @@ export default function App() {
                             <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-full shadow-sm">
                               {userVip}
                             </span>
-                            <span className="text-xs font-bold text-cyan-300">Daily Mission Center</span>
+                            <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
                           </div>
                           <h2 className="text-base font-black text-white mt-1.5 tracking-tight">AI & Blockchain Node Tasks</h2>
                           <p className="text-[11px] text-slate-300 mt-0.5">
-                            Reward per mission: <b className="text-amber-400 font-bold">+{rewardPerTask.toFixed(2)} USDT</b>
+                            {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+{rewardPerTask.toFixed(2)} USDT</b>
                           </p>
                         </div>
 
                         <div className="text-right">
-                          <div className="text-[10px] text-slate-300 uppercase font-bold">Today's Progress</div>
+                          <div className="text-[10px] text-slate-300 uppercase font-bold">{t('todaysProgress')}</div>
                           <div className="text-xl font-black text-white mt-0.5">
                             {completedTaskIndices.length} <span className="text-xs text-slate-400 font-medium">/ {maxTasks}</span>
                           </div>
@@ -3169,11 +3169,11 @@ export default function App() {
         {/* ================= FIXED BOTTOM NAVIGATION BAR (ALWAYS VISIBLE) ================= */}
         <div className="h-16 bg-white border-t border-slate-200 grid grid-cols-5 items-center px-1 shrink-0 z-40 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
           {[
-            { id: 'home', label: 'Home', icon: Home },
-            { id: 'task', label: 'Task', icon: CheckSquare },
-            { id: 'team', label: 'Team', icon: Users },
-            { id: 'vip', label: 'VIP', icon: Gem },
-            { id: 'me', label: 'Me', icon: User },
+            { id: 'home', label: t('home'), icon: Home },
+            { id: 'task', label: t('task'), icon: CheckSquare },
+            { id: 'team', label: t('team'), icon: Users },
+            { id: 'vip', label: t('vip'), icon: Gem },
+            { id: 'me', label: t('me'), icon: User },
           ].map((tab) => {
             const Icon = tab.icon;
             const active = (activeTab === tab.id) || (activeTab === 'auth' && intendedTab === tab.id);
@@ -3281,13 +3281,13 @@ export default function App() {
               className="bg-white rounded-3xl w-full max-w-[320px] p-6 shadow-2xl space-y-6 text-center animate-scale-up border border-slate-100 cursor-default"
             >
               <p className="text-slate-800 text-sm leading-relaxed font-normal pt-2 px-1">
-                The recharge balance is automatically unlocked Need to recharge ${selectedVipForUnlock.deposit}
+                ${t('confirmUnlockPrompt')} ${selectedVipForUnlock.deposit}
               </p>
               <button
                 onClick={handleConfirmUnlock}
                 className="w-full bg-[#ff3b30] hover:bg-red-600 text-white font-bold py-3.5 px-6 rounded-full shadow-lg active:scale-95 transition text-sm tracking-wide cursor-pointer"
               >
-                Confirm
+                {t('confirm')}
               </button>
             </div>
           </div>
