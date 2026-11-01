@@ -71,7 +71,7 @@ export const DEFAULT_COMPANY_PROFILE = {
   regNumber: 'UK-CRN #14892051 / INT-GLOBAL-TASK-2026',
   tagline: 'Leading Decentralized E-Commerce Task & Digital Marketing Network',
   about: 'NextTask is an internationally accredited task acceleration and digital media marketing network founded in 2026. We collaborate with Fortune 500 digital brands, app marketplaces, and top-tier global retailers to generate verified data interactions, high-engagement user reviews, and algorithmic ranking boosts.',
-  whatWeDo: 'Our platform coordinates daily micro-missions between global enterprise merchants and verified community members. By fulfilling daily sponsored tasks (app reviews, rating orders, content auditing), users earn guaranteed daily USDT dividend returns with immediate daily liquidity and automated cloud payouts.',
+  whatWeDo: 'Our platform coordinates daily micro-missions between global enterprise merchants and verified community members. By fulfilling daily sponsored tasks (app reviews, rating orders, content auditing), users earn guaranteed daily BDT dividend returns with immediate daily liquidity and automated cloud payouts.',
   mission: 'To empower everyday internet users worldwide with transparent, accessible, and high-yield digital employment opportunities supported by automated cloud settlement and multi-tiered referral benefits.',
   vision: 'To become the world’s most trusted and decentralized micro-task ecosystem, bridging global business intelligence with verifiable crowd participation.',
   licenseTitle: 'Official Certificate of Incorporation & Global Operating License',
@@ -79,96 +79,7 @@ export const DEFAULT_COMPANY_PROFILE = {
   licenseImage: '/license_certificate.svg'
 };
 
-export const DEFAULT_UPGRADE_LOGS = [
-  {
-    id: 'UPG-984210',
-    userId: 'usr_8421',
-    userIdentifier: '017******49',
-    fromVip: 'VIP1',
-    toVip: 'VIP2',
-    amount: 70.00,
-    date: '2026-11-01 16:15',
-    type: 'Upgrade',
-    timestamp: Date.now() - 15 * 60 * 1000
-  },
-  {
-    id: 'UPG-983190',
-    userId: 'usr_3190',
-    userIdentifier: '880******82',
-    fromVip: 'VIP0',
-    toVip: 'VIP1',
-    amount: 10.00,
-    date: '2026-11-01 15:42',
-    type: 'Unlock',
-    timestamp: Date.now() - 48 * 60 * 1000
-  },
-  {
-    id: 'UPG-981045',
-    userId: 'usr_1045',
-    userIdentifier: '018******11',
-    fromVip: 'VIP2',
-    toVip: 'VIP3',
-    amount: 170.00,
-    date: '2026-11-01 14:10',
-    type: 'Upgrade',
-    timestamp: Date.now() - 140 * 60 * 1000
-  },
-  {
-    id: 'UPG-979822',
-    userId: 'usr_9822',
-    userIdentifier: '019******63',
-    fromVip: 'VIP0',
-    toVip: 'VIP1',
-    amount: 10.00,
-    date: '2026-11-01 12:35',
-    type: 'Unlock',
-    timestamp: Date.now() - 250 * 60 * 1000
-  },
-  {
-    id: 'UPG-975411',
-    userId: 'usr_5411',
-    userIdentifier: '016******95',
-    fromVip: 'VIP3',
-    toVip: 'VIP4',
-    amount: 370.00,
-    date: '2026-11-01 10:18',
-    type: 'Upgrade',
-    timestamp: Date.now() - 380 * 60 * 1000
-  },
-  {
-    id: 'UPG-971203',
-    userId: 'usr_1203',
-    userIdentifier: '880******34',
-    fromVip: 'VIP0',
-    toVip: 'VIP1',
-    amount: 10.00,
-    date: '2026-10-31 22:50',
-    type: 'Unlock',
-    timestamp: Date.now() - 800 * 60 * 1000
-  },
-  {
-    id: 'UPG-968921',
-    userId: 'usr_8921',
-    userIdentifier: '013******77',
-    fromVip: 'VIP1',
-    toVip: 'VIP2',
-    amount: 70.00,
-    date: '2026-10-31 20:15',
-    type: 'Upgrade',
-    timestamp: Date.now() - 950 * 60 * 1000
-  },
-  {
-    id: 'UPG-965402',
-    userId: 'usr_5402',
-    userIdentifier: '017******18',
-    fromVip: 'VIP4',
-    toVip: 'VIP5',
-    amount: 770.00,
-    date: '2026-10-31 18:04',
-    type: 'Upgrade',
-    timestamp: Date.now() - 1100 * 60 * 1000
-  }
-];
+export const DEFAULT_UPGRADE_LOGS = [];
 
 export const recordUpgradeLog = ({ userId, user, userIdentifier, fromVip, toVip, amount, type }) => {
   try {
@@ -259,29 +170,52 @@ export const DEFAULT_PAYMENT_METHODS = [
 export const DEFAULT_SLIDES = [
   {
     id: 's1',
-    badge: 'EARNED',
-    amount: '৳50,000',
-    subtitle: 'IN 48 HOURS!',
-    gradient: 'from-amber-500 via-orange-500 to-yellow-400',
-    description: 'Top earning member payout milestone achieved this week',
-    active: true
-  },
-  {
-    id: 's2',
-    badge: 'OFFICIAL',
-    amount: '10% COMMISSION',
-    subtitle: 'DIRECT REWARDS',
-    gradient: 'from-blue-600 via-indigo-600 to-purple-600',
+    badge: '10% REWARD',
+    amount: 'REFERRAL BONUS',
+    subtitle: 'REFER & EARN 10% COMMISSION',
+    image: '/banners/banner_referral.png',
+    gradient: 'default',
     description: 'Invite new partners and earn instant direct recharge commissions',
     active: true
   },
   {
-    id: 's3',
+    id: 's2',
     badge: 'DAILY BONUS',
-    amount: '৳250,000 BDT',
-    subtitle: 'VIP-10 TOP TIER',
-    gradient: 'from-emerald-600 via-teal-600 to-cyan-600',
-    description: 'Unlock highest contribution levels for automated BDT payout',
+    amount: 'AUTOMATED DIVIDENDS',
+    subtitle: 'DAILY MISSIONS & TASK EARNINGS',
+    image: '/banners/banner_daily_bonus.png',
+    gradient: 'default',
+    description: 'Complete 10 sponsored micro-tasks daily and withdraw earnings instantly',
+    active: true
+  },
+  {
+    id: 's3',
+    badge: '100% FREE',
+    amount: '৳50 / DAY FREE',
+    subtitle: 'FREE STARTER PACKAGE',
+    image: '/banners/banner_starter_free.png',
+    gradient: 'default',
+    description: 'Zero recharge required! Unlock free missions and earn ৳50.00 every day',
+    active: true
+  },
+  {
+    id: 's4',
+    badge: 'HIGH YIELD',
+    amount: '80% RETURN',
+    subtitle: 'VIP PACKAGES UP TO 80% RETURN',
+    image: '/banners/banner_vip_packages.png',
+    gradient: 'default',
+    description: 'Guaranteed daily income with 100% capital auto-release at cycle end',
+    active: true
+  },
+  {
+    id: 's5',
+    badge: 'INSTANT PAYOUT',
+    amount: 'FAST CASH',
+    subtitle: 'INSTANT WITHDRAWAL TO bKash & Nagad',
+    image: '/banners/banner_fast_withdraw.png',
+    gradient: 'default',
+    description: 'Automated settlement to bKash, Nagad, Rocket & Bank accounts in minutes',
     active: true
   }
 ];

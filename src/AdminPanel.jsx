@@ -1369,10 +1369,10 @@ export default function AdminPanel({ onNavigateToApp }) {
     { id: 'recharges', label: 'Recharge Requests', shortLabel: 'Recharges', icon: ArrowDownLeft, badge: pendingRecharges.length },
     { id: 'withdrawals', label: 'Withdrawal Requests', shortLabel: 'Withdrawals', icon: ArrowUpRight, badge: pendingWithdrawals.length },
     { id: 'users', label: 'Users Management', shortLabel: 'Users', icon: Users },
-    { id: 'payments', label: 'Payment Numbers', shortLabel: 'Payments', icon: Smartphone },
+    { id: 'payments', label: 'Payment Methods', shortLabel: 'Payments', icon: Smartphone },
     { id: 'vips', label: 'VIP Packages', shortLabel: 'VIPs', icon: Gem },
-    { id: 'slides', label: 'Home Slides / Banners', shortLabel: 'Banners', icon: ImageIcon },
-    { id: 'company', label: 'Company Profile & License', shortLabel: 'Company', icon: Building2 },
+    { id: 'slides', label: 'Home Page Banners', shortLabel: 'Banners', icon: ImageIcon },
+    { id: 'company', label: 'Company Profile', shortLabel: 'Company', icon: Building2 },
     { id: 'settings', label: 'System Settings', shortLabel: 'Settings', icon: Settings },
   ];
 
@@ -1647,16 +1647,22 @@ export default function AdminPanel({ onNavigateToApp }) {
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-white capitalize tracking-tight">
               {currentTab === 'vips'
-                ? 'VIP Packages Management'
+                ? 'VIP Packages'
                 : currentTab === 'users'
-                ? 'User Accounts Management'
+                ? 'Users Management'
                 : currentTab === 'recharges'
-                ? 'Recharge & Deposit Approvals'
+                ? 'Recharge Requests'
                 : currentTab === 'withdrawals'
                 ? 'Withdrawal Requests'
+                : currentTab === 'payments'
+                ? 'Payment Methods'
+                : currentTab === 'slides'
+                ? 'Home Page Banners'
+                : currentTab === 'company'
+                ? 'Company Profile'
                 : currentTab === 'settings'
-                ? 'System & Platform Settings'
-                : 'Platform Overview & Analytics'}
+                ? 'System Settings'
+                : 'Dashboard Overview'}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
               Master control panel for NextTask tasks, users, and financials
@@ -1765,7 +1771,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                           <div className="text-[10px] text-slate-400 font-mono truncate">{rec.network} • {rec.date}</div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-bold text-emerald-400 text-xs sm:text-sm">+${rec.amount}</span>
+                          <span className="font-bold text-emerald-400 text-xs sm:text-sm">+৳{rec.amount}</span>
                           <button
                             onClick={() => handleApproveRecharge(rec)}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"
@@ -1798,7 +1804,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                           <div className="text-[10px] text-slate-400 font-mono truncate">{wth.method || 'USDT'} • {wth.account || wth.address || 'N/A'}</div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-bold text-amber-400 text-xs sm:text-sm">${wth.amount}</span>
+                          <span className="font-bold text-amber-400 text-xs sm:text-sm">৳{wth.amount}</span>
                           <button
                             onClick={() => handleApproveWithdrawal(wth.id, wth.user, wth.amount)}
                             className="bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"
@@ -1846,7 +1852,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] text-slate-400 uppercase font-semibold">Required Deposit</div>
-                      <div className="text-sm font-black text-amber-400">${vip.deposit}</div>
+                      <div className="text-sm font-black text-amber-400">৳{vip.deposit}</div>
                     </div>
                   </div>
 
@@ -1857,11 +1863,11 @@ export default function AdminPanel({ onNavigateToApp }) {
                     </div>
                     <div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold">Daily Profit</div>
-                      <div className="text-xs font-black text-cyan-300 mt-0.5">+${vip.daily}</div>
+                      <div className="text-xs font-black text-cyan-300 mt-0.5">+৳{vip.daily}</div>
                     </div>
                     <div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold">Total Return</div>
-                      <div className="text-xs font-black text-emerald-400 mt-0.5">${vip.total}</div>
+                      <div className="text-xs font-black text-emerald-400 mt-0.5">৳{vip.total}</div>
                     </div>
                     <div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold">Daily Tasks</div>
@@ -1872,7 +1878,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <div className="flex items-center justify-between pt-1">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-slate-400">
-                        Task Reward: <strong className="text-emerald-400 font-bold">${vip.interest}</strong>
+                        Task Reward: <strong className="text-emerald-400 font-bold">৳{vip.interest}</strong>
                       </span>
                       <span className="text-[9px] bg-emerald-500/10 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/20">
                         Auto Capital Release
@@ -1905,7 +1911,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                   <tr>
                     <th className="py-3 px-4">Level</th>
-                    <th className="py-3 px-4">Deposit (USDT)</th>
+                    <th className="py-3 px-4">Deposit (BDT)</th>
                     <th className="py-3 px-4">Validity</th>
                     <th className="py-3 px-4">Daily Tasks</th>
                     <th className="py-3 px-4">Task Reward</th>
@@ -1929,10 +1935,10 @@ export default function AdminPanel({ onNavigateToApp }) {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-slate-400">{vip.tasks}</td>
-                      <td className="py-3 px-4 text-emerald-400 font-bold">${vip.interest}</td>
-                      <td className="py-3 px-4 text-cyan-300 font-bold">+${vip.daily}</td>
+                      <td className="py-3 px-4 text-emerald-400 font-bold">৳{vip.interest}</td>
+                      <td className="py-3 px-4 text-cyan-300 font-bold">+৳{vip.daily}</td>
                       <td className="py-3 px-4">
-                        <span className="text-slate-200 font-semibold">${vip.total}</span>
+                        <span className="text-slate-200 font-semibold">৳{vip.total}</span>
                         <span className="text-[10px] text-emerald-400 font-bold ml-1">({vip.profitPercent || 80}%)</span>
                       </td>
                       <td className="py-3 px-4">
@@ -2304,11 +2310,11 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <div className="grid grid-cols-2 gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 text-xs">
                       <div>
                         <div className="text-[10px] text-slate-400 uppercase font-semibold">Balance</div>
-                        <div className="text-sm font-black text-emerald-400 mt-0.5">${u.balance.toFixed(2)}</div>
+                        <div className="text-sm font-black text-emerald-400 mt-0.5">৳{u.balance.toFixed(2)}</div>
                       </div>
                       <div>
                         <div className="text-[10px] text-slate-400 uppercase font-semibold">Total Recharge</div>
-                        <div className="text-sm font-bold text-slate-200 mt-0.5">${u.recharge.toFixed(2)}</div>
+                        <div className="text-sm font-bold text-slate-200 mt-0.5">৳{u.recharge.toFixed(2)}</div>
                       </div>
                       <div>
                         <div className="text-[10px] text-slate-400 uppercase font-semibold">Phone</div>
@@ -2476,8 +2482,8 @@ export default function AdminPanel({ onNavigateToApp }) {
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-black text-emerald-400">${u.balance.toFixed(2)}</td>
-                      <td className="py-3 px-4 text-slate-300 font-semibold">${u.recharge.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-black text-emerald-400">৳{u.balance.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-slate-300 font-semibold">৳{u.recharge.toFixed(2)}</td>
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
@@ -2606,7 +2612,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <div className="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
                       <div>
                         <div className="text-[9px] text-slate-400 uppercase font-bold">Deposit Amount</div>
-                        <div className="text-base font-black text-emerald-400 mt-0.5">+${r.amount.toFixed(2)} USDT</div>
+                        <div className="text-base font-black text-emerald-400 mt-0.5">+৳{r.amount.toFixed(2)} BDT</div>
                       </div>
                       <div className="text-right">
                         <div className="text-[9px] text-slate-400 uppercase font-bold">Network / Gateway</div>
@@ -2705,7 +2711,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                             <div className="text-[10px] text-cyan-400 font-mono">From: {r.senderNumber}</div>
                           )}
                         </td>
-                        <td className="py-3 px-4 font-black text-emerald-400">${r.amount.toFixed(2)}</td>
+                        <td className="py-3 px-4 font-black text-emerald-400">৳{r.amount.toFixed(2)}</td>
                         <td className="py-3 px-4 text-slate-300 font-bold">{r.network}</td>
                         <td className="py-3 px-4 font-mono text-amber-300 text-[11px] font-bold select-all">{r.txid}</td>
                         <td className="py-3 px-4 text-slate-500 text-[10px]">{r.date}</td>
@@ -2799,7 +2805,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <div className="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
                       <div>
                         <div className="text-[9px] text-slate-400 uppercase font-bold">Requested Payout</div>
-                        <div className="text-base font-black text-amber-400 mt-0.5">${w.amount.toFixed(2)} USDT</div>
+                        <div className="text-base font-black text-amber-400 mt-0.5">৳{w.amount.toFixed(2)} BDT</div>
                       </div>
                       <div className="text-right">
                         <div className="text-[9px] text-slate-400 uppercase font-bold">Payout Method</div>
@@ -2887,7 +2893,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       <tr key={w.id} className="hover:bg-slate-900/50 transition">
                         <td className="py-3 px-4 font-mono text-slate-400">{w.id}</td>
                         <td className="py-3 px-4 font-bold text-white">{w.user}</td>
-                        <td className="py-3 px-4 font-black text-amber-400">${w.amount.toFixed(2)}</td>
+                        <td className="py-3 px-4 font-black text-amber-400">৳{w.amount.toFixed(2)}</td>
                         <td className="py-3 px-4 text-slate-300">
                           <span className="font-bold text-white">{w.method || 'USDT'}</span>
                           <div className="font-mono text-cyan-400 text-[11px] font-bold select-all">{w.account || w.address || 'N/A'}</div>
@@ -4104,7 +4110,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
             <div className="bg-slate-950 p-3 rounded-xl space-y-1">
               <div className="text-slate-400">User: <strong className="text-white">{selectedUserForBalance.email}</strong></div>
-              <div className="text-slate-400">Current Balance: <strong className="text-emerald-400">${selectedUserForBalance.balance.toFixed(2)} USDT</strong></div>
+              <div className="text-slate-400">Current Balance: <strong className="text-emerald-400">৳{selectedUserForBalance.balance.toFixed(2)} BDT</strong></div>
             </div>
 
             <form onSubmit={handleAdjustBalance} className="space-y-3">

@@ -196,7 +196,7 @@ export default function App() {
               id: `notif_${Date.now()}`,
               userId: String(freshUser.id || freshUser.email),
               title: '🎉 Package Validity Completed & Capital Released!',
-              message: `Your ${freshUser.vip} package validity period has successfully completed. Your principal recharge capital of ${freshUser.recharge} USDT is now unlocked and fully released to your withdrawable balance!`,
+              message: `Your ${freshUser.vip} package validity period has successfully completed. Your principal recharge capital of ৳${freshUser.recharge} BDT is now unlocked and fully released to your withdrawable balance!`,
               time: new Date().toISOString().replace('T', ' ').slice(0, 16),
               read: false,
               type: 'vip'
@@ -1480,7 +1480,7 @@ export default function App() {
         }
 
         setTaskProcessingIdx(null);
-        showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
+        showToast(`🎉 Mission #${taskIndex + 1} completed! +৳${reward.toFixed(2)} added.`);
       }
     }, 1000);
   };
@@ -2076,8 +2076,8 @@ export default function App() {
       const senderDigits = senderAccount.replace(/\D/g, '');
       if (senderDigits.length !== 11) {
         setRechargeErrorPopup({
-          title: 'ভুল প্রেরক নাম্বার (Invalid Sender Number)',
-          message: `বিকাশ/নগদ/রকেটে রিচার্জের জন্য প্রেরক নাম্বার অবশ্যই ১১ ডিজিট (যেমন: 017XXXXXXXX) হতে হবে। আপনি ${senderDigits.length} ডিজিট দিয়েছেন। অনুগ্রহ করে সঠিক ১১ ডিজিটের নাম্বার দিন।`
+          title: 'Invalid Sender Number',
+          message: `Sender phone number must be exactly 11 digits (e.g. 017XXXXXXXX). You entered ${senderDigits.length} digits. Please check and provide a valid 11-digit mobile banking number.`
         });
         return;
       }
@@ -2085,8 +2085,8 @@ export default function App() {
       const cleanTrx = transactionId.trim();
       if (cleanTrx.length < 10) {
         setRechargeErrorPopup({
-          title: 'ভুল ট্রানজেকশন আইডি (Invalid TrxID)',
-          message: `ট্রানজেকশন আইডি (TrxID) কমপক্ষে ১০ ডিজিট/অক্ষর (যেমন: 9ABC1234XY) হতে হবে। আপনি ${cleanTrx.length} অক্ষর দিয়েছেন। অনুগ্রহ করে আপনার বিকাশ/নগদ স্টেটমেন্ট থেকে সঠিক ১০ ডিজিটের TrxID দিন।`
+          title: 'Invalid Transaction ID (TrxID)',
+          message: `Transaction ID (TrxID) must be at least 10 characters (e.g. 9ABC1234XY). You entered ${cleanTrx.length} characters. Please check your bKash/Nagad statement and enter the correct TrxID.`
         });
         return;
       }
@@ -2204,7 +2204,7 @@ export default function App() {
               </div>
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 tracking-tight">
-                  {typeof rechargeErrorPopup === 'string' ? 'রিচার্জে ভুল তথ্য' : rechargeErrorPopup.title}
+                  {typeof rechargeErrorPopup === 'string' ? 'Invalid Information' : rechargeErrorPopup.title}
                 </h3>
                 <p className="text-xs text-slate-600 leading-relaxed mt-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 font-medium text-left">
                   {typeof rechargeErrorPopup === 'string' ? rechargeErrorPopup : rechargeErrorPopup.message}
@@ -2215,7 +2215,7 @@ export default function App() {
                 onClick={() => setRechargeErrorPopup('')}
                 className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-3 rounded-2xl text-xs shadow-md transition active:scale-95 cursor-pointer"
               >
-                সঠিক তথ্য দিন (Enter Correct Info)
+                Enter Correct Information
               </button>
             </div>
           </div>
@@ -3383,10 +3383,17 @@ export default function App() {
 
                           {/* Action Button Bottom Bar */}
                           <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100">
-                            <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                              <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                              <span>Capital auto-released in {vip.days || 20}d</span>
-                            </span>
+                            {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || vip.level?.toLowerCase().includes('starter') ? (
+                              <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                <span>100% Free • No Recharge Needed</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                                <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                <span>Capital auto-released in {vip.days || 20}d</span>
+                              </span>
+                            )}
 
                             {isCurrentUnlocked ? (
                               <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
@@ -4263,7 +4270,7 @@ export default function App() {
                     </div>
 
                     <p className="text-slate-700 text-xs leading-relaxed font-medium">
-                      {profile.whatWeDo || 'Our platform coordinates daily micro-missions between global enterprise merchants and verified community members. By fulfilling daily sponsored tasks, users earn guaranteed daily USDT dividend returns with immediate daily liquidity and automated cloud payouts.'}
+                      {profile.whatWeDo || 'Our platform coordinates daily micro-missions between global enterprise merchants and verified community members. By fulfilling daily sponsored tasks, users earn guaranteed daily BDT dividend returns with immediate daily liquidity and automated cloud payouts.'}
                     </p>
 
                     <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
@@ -4273,7 +4280,7 @@ export default function App() {
                       </div>
                       <div className="bg-white/80 border border-blue-100 rounded-xl p-2 space-y-0.5 shadow-2xs">
                         <span className="font-bold text-emerald-900 block">💰 Daily Dividends</span>
-                        <span className="text-slate-500">Instant USDT yield settled every 24 hours</span>
+                        <span className="text-slate-500">Instant BDT yield settled every 24 hours</span>
                       </div>
                     </div>
                   </div>
@@ -4628,7 +4635,7 @@ export default function App() {
 
                             <div className="text-right shrink-0">
                               <span className="font-mono text-xs font-black text-emerald-600">
-                                {log.amount > 0 ? `+$${parseFloat(log.amount).toFixed(2)}` : 'Active'}
+                                {log.amount > 0 ? `+৳${parseFloat(log.amount).toFixed(2)}` : 'Active'}
                               </span>
                             </div>
                           </div>
@@ -4654,27 +4661,78 @@ export default function App() {
         })()}
 
         {/* ================= VIP UNLOCK CONFIRMATION POPUP (MATCHING USER SCREENSHOT) ================= */}
-        {showUnlockConfirmModal && selectedVipForUnlock && (
-          <div
-            onClick={() => setShowUnlockConfirmModal(false)}
-            className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-6 animate-fade-in cursor-pointer"
-          >
+        {showUnlockConfirmModal && selectedVipForUnlock && (() => {
+          const reqDep = parseFloat(String(selectedVipForUnlock.deposit || 0).replace(/,/g, '')) || 0;
+          const isFree = reqDep === 0 || String(selectedVipForUnlock.level || '').toLowerCase().includes('starter');
+          const hasSufficient = balance >= reqDep;
+
+          return (
             <div
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl w-full max-w-[320px] p-6 shadow-2xl space-y-6 text-center animate-scale-up border border-slate-100 cursor-default"
+              onClick={() => setShowUnlockConfirmModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-6 animate-fade-in cursor-pointer"
             >
-              <p className="text-slate-800 text-sm leading-relaxed font-normal pt-2 px-1">
-                ${t('confirmUnlockPrompt')} ${selectedVipForUnlock.deposit}
-              </p>
-              <button
-                onClick={handleConfirmUnlock}
-                className="w-full bg-[#ff3b30] hover:bg-red-600 text-white font-bold py-3.5 px-6 rounded-full shadow-lg active:scale-95 transition text-sm tracking-wide cursor-pointer"
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-3xl w-full max-w-[320px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 cursor-default"
               >
-                {t('confirm')}
-              </button>
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-amber-500/20 to-cyan-500/20 border border-amber-400/30 flex items-center justify-center p-1.5 shadow-sm">
+                  <img
+                    src={getPackageLogo(selectedVipForUnlock)}
+                    alt={selectedVipForUnlock.level}
+                    className="w-10 h-10 object-contain drop-shadow"
+                  />
+                </div>
+
+                <div>
+                  <h4 className="text-base font-extrabold text-slate-900 tracking-tight">
+                    {selectedVipForUnlock.level}
+                  </h4>
+                  <p className="text-slate-600 text-xs leading-relaxed mt-2 px-1">
+                    {isFree ? (
+                      <span>
+                        Starter Package is <b>100% Free</b> for all members! Unlock now to receive <b>10 daily tasks</b> and earn <b>৳50.00 BDT</b> daily.
+                      </span>
+                    ) : hasSufficient ? (
+                      <span>
+                        Unlock <b>{selectedVipForUnlock.level}</b> using your current balance? <b>৳{selectedVipForUnlock.deposit} BDT</b> will be activated for this package.
+                      </span>
+                    ) : (
+                      <span>
+                        Unlocking <b>{selectedVipForUnlock.level}</b> requires a deposit of <b>৳{selectedVipForUnlock.deposit} BDT</b>. Please recharge your account to activate.
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <button
+                    onClick={handleConfirmUnlock}
+                    className={`w-full text-white font-bold py-3 px-5 rounded-full shadow-lg active:scale-95 transition text-xs tracking-wide cursor-pointer ${
+                      isFree
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 shadow-emerald-500/25'
+                        : hasSufficient
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 shadow-blue-500/25'
+                        : 'bg-[#ff3b30] hover:bg-red-600 shadow-red-500/25'
+                    }`}
+                  >
+                    {isFree
+                      ? 'Unlock for Free (৳0.00)'
+                      : hasSufficient
+                      ? `Confirm Unlock (৳${selectedVipForUnlock.deposit})`
+                      : `Proceed to Recharge (৳${selectedVipForUnlock.deposit})`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowUnlockConfirmModal(false)}
+                    className="w-full text-slate-400 hover:text-slate-600 font-semibold py-1.5 text-xs transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ================= RECHARGE / DEPOSIT MODAL (bKash / Nagad / Rocket / USDT) ================= */}
         {showRechargeModal && (
@@ -4715,7 +4773,7 @@ export default function App() {
                     <span>Current Balance:</span>
                   </div>
                   <span className="font-extrabold text-cyan-300 tracking-wide font-mono">
-                    ${(currentUser?.balance || 0).toFixed(2)} USDT
+                    ৳{(currentUser?.balance || 0).toFixed(2)} BDT
                   </span>
                 </div>
               </div>
@@ -4728,30 +4786,30 @@ export default function App() {
                   <div className="flex justify-between items-center mb-1.5">
                     <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
                       <Coins className="w-3.5 h-3.5 text-blue-600" />
-                      Recharge Amount (USDT)
+                      Recharge Amount (BDT)
                     </label>
                     <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      Min: {typeof settings?.minDeposit === 'number' && settings.minDeposit > 0 ? settings.minDeposit : (parseFloat(settings?.minDeposit) || 10.0)} USDT
+                      Min: ৳{typeof settings?.minDeposit === 'number' && settings.minDeposit > 0 ? settings.minDeposit : (parseFloat(settings?.minDeposit) || 500)} BDT
                     </span>
                   </div>
 
                   <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-base">$</span>
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-base">৳</span>
                     <input
                       type="text"
                       value={rechargeAmount}
                       onChange={(e) => setRechargeAmount(e.target.value)}
-                      placeholder="10.00"
+                      placeholder="1,000.00"
                       className="w-full bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-cyan-600 rounded-2xl pl-8 pr-16 py-2.5 text-base font-black text-slate-900 outline-none transition shadow-inner font-mono"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      USDT
+                      BDT
                     </span>
                   </div>
 
                   {/* Quick Amount Selectors */}
                   <div className="grid grid-cols-4 gap-1.5 mt-2">
-                    {['10.00', '70.00', '170.00', '370.00', '770.00', '1,570.00', '3,570.00', '7,770.00'].map((amt) => {
+                    {['1,000.00', '5,000.00', '15,000.00', '35,000.00', '75,000.00', '150,000.00', '350,000.00', '750,000.00'].map((amt) => {
                       const isActive = rechargeAmount === amt;
                       return (
                         <button
@@ -4764,7 +4822,7 @@ export default function App() {
                               : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                           }`}
                         >
-                          ${amt.split('.')[0]}
+                          ৳{amt.split('.')[0]}
                         </button>
                       );
                     })}
@@ -5255,7 +5313,7 @@ export default function App() {
                       <span>Tasks</span>
                     </div>
                     <div className="text-sm font-black text-blue-700 mt-1 truncate">
-                      +${totalTaskIncome.toFixed(2)}
+                      +৳{totalTaskIncome.toFixed(2)}
                     </div>
                     <div className="text-[9px] text-blue-600/90 font-semibold mt-0.5 truncate">
                       {userTaskRecords.length} Tasks
@@ -5269,7 +5327,7 @@ export default function App() {
                       <span>Recharged</span>
                     </div>
                     <div className="text-sm font-black text-emerald-700 mt-1 truncate">
-                      ${totalDeposited.toFixed(2)}
+                      ৳{totalDeposited.toFixed(2)}
                     </div>
                     <div className="text-[9px] text-emerald-600/90 font-semibold mt-0.5 truncate">
                       {userRecharges.length} Recharges
@@ -5283,7 +5341,7 @@ export default function App() {
                       <span>Withdrawn</span>
                     </div>
                     <div className="text-sm font-black text-amber-700 mt-1 truncate">
-                      ${totalWithdrawn.toFixed(2)}
+                      ৳{totalWithdrawn.toFixed(2)}
                     </div>
                     <div className="text-[9px] text-amber-600/90 font-semibold mt-0.5 truncate">
                       {userWithdrawals.length} Payouts
@@ -5345,9 +5403,9 @@ export default function App() {
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-black text-emerald-600">
-                              +${parseFloat(t.amount).toFixed(2)}
+                              +৳{parseFloat(t.amount).toFixed(2)}
                             </div>
-                            <div className="text-[10px] text-slate-400 font-bold uppercase">USDT</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">BDT</div>
                           </div>
                         </div>
                       ))
@@ -5379,9 +5437,9 @@ export default function App() {
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-black text-emerald-600">
-                              +${parseFloat(r.amount).toFixed(2)}
+                              +৳{parseFloat(r.amount).toFixed(2)}
                             </div>
-                            <div className="text-[10px] text-slate-400">USDT</div>
+                            <div className="text-[10px] text-slate-400">BDT</div>
                           </div>
                         </div>
                       ))
@@ -5413,9 +5471,9 @@ export default function App() {
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-black text-amber-600">
-                              -${parseFloat(w.amount).toFixed(2)}
+                              -৳{parseFloat(w.amount).toFixed(2)}
                             </div>
-                            <div className="text-[10px] text-slate-400">USDT</div>
+                            <div className="text-[10px] text-slate-400">BDT</div>
                           </div>
                         </div>
                       ))
