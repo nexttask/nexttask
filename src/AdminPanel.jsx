@@ -29,7 +29,11 @@ import {
   Eye,
   EyeOff,
   Mail,
-  Upload
+  Upload,
+  Menu,
+  X,
+  ChevronRight,
+  Copy
 } from 'lucide-react';
 import {
   getStoredData,
@@ -82,6 +86,7 @@ export default function AdminPanel({ onNavigateToApp }) {
   };
 
   const [currentTab, setCurrentTab] = useState('dashboard'); // 'dashboard' | 'vips' | 'slides' | 'payments' | 'users' | 'recharges' | 'withdrawals' | 'settings'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Data State persisted via store
   const [vipTiers, setVipTiers] = useState(() => getStoredData('vips', DEFAULT_VIP_TIERS));
@@ -936,18 +941,218 @@ export default function AdminPanel({ onNavigateToApp }) {
     );
   }
 
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: LayoutDashboard },
+    { id: 'recharges', label: 'Recharge Requests', shortLabel: 'Recharges', icon: ArrowDownLeft, badge: pendingRecharges.length },
+    { id: 'withdrawals', label: 'Withdrawal Requests', shortLabel: 'Withdrawals', icon: ArrowUpRight, badge: pendingWithdrawals.length },
+    { id: 'users', label: 'Users Management', shortLabel: 'Users', icon: Users },
+    { id: 'payments', label: 'Payment Numbers', shortLabel: 'Payments', icon: Smartphone },
+    { id: 'vips', label: 'VIP Packages', shortLabel: 'VIPs', icon: Gem },
+    { id: 'slides', label: 'Home Slides / Banners', shortLabel: 'Banners', icon: ImageIcon },
+    { id: 'settings', label: 'System Settings', shortLabel: 'Settings', icon: Settings },
+  ];
+
+  const totalPending = pendingRecharges.length + pendingWithdrawals.length;
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-6 right-6 z-50 bg-emerald-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-sm animate-fade-in">
-          <CheckCircle className="w-4 h-4" />
-          <span>{toast}</span>
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 bg-emerald-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm animate-fade-in max-w-[90vw]">
+          <CheckCircle className="w-4 h-4 shrink-0" />
+          <span className="truncate">{toast}</span>
         </div>
       )}
 
-      {/* ================= SIDEBAR ================= */}
-      <aside className="w-full md:w-64 bg-slate-950 border-r border-slate-800 p-5 flex flex-col justify-between shrink-0">
+      {/* ================= MOBILE STICKY TOPBAR (VISIBLE ON PHONES) ================= */}
+      <header className="md:hidden sticky top-0 z-40 bg-slate-950/95 backdrop-blur-md border-b border-slate-800 shrink-0">
+        <div className="px-3.5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-800 relative transition cursor-pointer"
+              title="Open Admin Menu"
+            >
+              <Menu className="w-5 h-5" />
+              {totalPending > 0 && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-slate-950 animate-pulse" />
+              )}
+            </button>
+
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-400 via-blue-600 to-indigo-700 flex items-center justify-center font-black text-white text-sm shadow-md shadow-indigo-600/30">
+                N
+              </div>
+              <div>
+                <h1 className="font-bold text-sm tracking-wide text-white leading-tight">NextTask</h1>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-400">
+                  Master Admin
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowReportModal(true)}
+              className="p-2 bg-slate-900 hover:bg-blue-600/40 text-blue-400 rounded-xl border border-slate-800 transition cursor-pointer"
+              title="Export PDF Report"
+            >
+              <FileDown className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                syncData();
+                showToast('Data refreshed');
+              }}
+              className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl border border-slate-800 transition cursor-pointer"
+              title="Refresh Data"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleAdminLogout}
+              className="p-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 rounded-xl border border-rose-800/40 transition cursor-pointer"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Horizontal Quick-Tab Bar */}
+        <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar border-t border-slate-900/80 bg-slate-950">
+          {navItems.map((item) => {
+            const active = currentTab === item.id;
+            const Icon = item.icon;
+            return (
+              <button
+                type="button"
+                key={item.id}
+                onClick={() => setCurrentTab(item.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
+                  active
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800/80'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{item.shortLabel}</span>
+                {item.badge > 0 && (
+                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                    active ? 'bg-white text-blue-700' : 'bg-amber-500 text-slate-950'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </header>
+
+      {/* ================= MOBILE SLIDE-OVER DRAWER MENU ================= */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Drawer container */}
+          <div className="relative w-72 max-w-[82vw] h-full bg-slate-950 border-r border-slate-800 p-5 flex flex-col justify-between shadow-2xl z-10 animate-slide-right overflow-y-auto">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between pb-5 border-b border-slate-800/80 mb-5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-400 via-blue-600 to-indigo-700 flex items-center justify-center font-black text-white text-base shadow-lg shadow-indigo-600/30">
+                    N
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-base text-white">NextTask</h2>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+                      Master Admin
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-900 rounded-lg transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Navigation Links */}
+              <nav className="space-y-1.5 text-sm font-medium">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = currentTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setCurrentTab(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
+                        active
+                          ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/20'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                      </div>
+                      {item.badge > 0 && (
+                        <span className="bg-amber-500 text-slate-950 text-xs font-black px-2 py-0.5 rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="pt-5 border-t border-slate-800 space-y-2 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleAdminLogout();
+                }}
+                className="w-full bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 border border-rose-800/40 transition cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Admin Logout</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onNavigateToApp?.();
+                }}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <span>Open User App</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= DESKTOP SIDEBAR (VISIBLE ON MD+ SCREENS) ================= */}
+      <aside className="hidden md:flex md:w-64 bg-slate-950 border-r border-slate-800 p-5 flex-col justify-between shrink-0 h-screen sticky top-0 overflow-y-auto">
         <div>
           {/* Logo & Brand */}
           <div className="flex items-center gap-3 mb-8">
@@ -964,23 +1169,14 @@ export default function AdminPanel({ onNavigateToApp }) {
 
           {/* Navigation Menu */}
           <nav className="space-y-1.5 text-sm font-medium">
-            {[
-              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-              { id: 'vips', label: 'VIP Packages', icon: Gem },
-              { id: 'payments', label: 'Payment Numbers', icon: Smartphone },
-              { id: 'slides', label: 'Home Slides / Banners', icon: ImageIcon },
-              { id: 'users', label: 'Users Management', icon: Users },
-              { id: 'recharges', label: 'Recharge Requests', icon: ArrowDownLeft, badge: pendingRecharges.length },
-              { id: 'withdrawals', label: 'Withdrawal Requests', icon: ArrowUpRight, badge: pendingWithdrawals.length },
-              { id: 'settings', label: 'System Settings', icon: Settings },
-            ].map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const active = currentTab === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => setCurrentTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl transition cursor-pointer ${
                     active
                       ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/20'
                       : 'text-slate-400 hover:text-white hover:bg-slate-900'
@@ -1021,11 +1217,11 @@ export default function AdminPanel({ onNavigateToApp }) {
       </aside>
 
       {/* ================= MAIN CONTENT ================= */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+      <main className="flex-1 p-3.5 sm:p-6 md:p-8 overflow-y-auto">
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 sm:pb-6 border-b border-slate-800">
           <div>
-            <h2 className="text-2xl font-black text-white capitalize tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black text-white capitalize tracking-tight">
               {currentTab === 'vips'
                 ? 'VIP Packages Management'
                 : currentTab === 'users'
@@ -1038,13 +1234,13 @@ export default function AdminPanel({ onNavigateToApp }) {
                 ? 'System & Platform Settings'
                 : 'Platform Overview & Analytics'}
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 mt-0.5">
               Master control panel for NextTask tasks, users, and financials
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+          <div className="hidden sm:flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="text-slate-300 font-mono">admin@nexttask.online</span>
             </div>
@@ -1054,7 +1250,7 @@ export default function AdminPanel({ onNavigateToApp }) {
               title="Download Date-wise PDF Report"
             >
               <FileDown className="w-4 h-4" />
-              <span className="hidden sm:inline">Export PDF Report</span>
+              <span>Export PDF Report</span>
             </button>
             <button
               onClick={() => {
@@ -1068,84 +1264,87 @@ export default function AdminPanel({ onNavigateToApp }) {
             </button>
             <button
               onClick={handleAdminLogout}
-              className="flex items-center gap-1.5 px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold rounded-xl border border-rose-800/40 transition cursor-pointer"
-              title="Logout from Admin Panel"
+              className="p-2 bg-rose-950/40 hover:bg-rose-900/60 rounded-xl text-rose-400 border border-rose-800/40 transition cursor-pointer"
+              title="Logout Admin"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* ================= TAB 1: DASHBOARD ================= */}
         {currentTab === 'dashboard' && (
-          <div className="py-6 space-y-6">
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl">
-                <div className="flex justify-between items-center text-slate-400 text-xs font-semibold">
-                  <span>TOTAL REGISTERED USERS</span>
-                  <Users className="w-4 h-4 text-cyan-400" />
+          <div className="py-4 sm:py-6 space-y-4 sm:space-y-6">
+            {/* Stat Cards (2x2 on mobile, 4 columns on desktop) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+              <div className="bg-slate-950 border border-slate-800 p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between">
+                <div className="flex justify-between items-center text-slate-400 text-[10px] sm:text-xs font-semibold">
+                  <span className="truncate">REGISTERED USERS</span>
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0 ml-1" />
                 </div>
-                <div className="text-3xl font-black text-white mt-2">{totalUserCount}</div>
-                <div className="text-[11px] text-slate-500 mt-1">Active ecological co-builders</div>
+                <div className="text-xl sm:text-3xl font-black text-white mt-1.5 sm:mt-2">{totalUserCount}</div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 truncate">Active co-builders</div>
               </div>
 
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl">
-                <div className="flex justify-between items-center text-slate-400 text-xs font-semibold">
-                  <span>TOTAL RECHARGE (USDT)</span>
-                  <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
+              <div className="bg-slate-950 border border-slate-800 p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between">
+                <div className="flex justify-between items-center text-slate-400 text-[10px] sm:text-xs font-semibold">
+                  <span className="truncate">TOTAL RECHARGE</span>
+                  <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0 ml-1" />
                 </div>
-                <div className="text-3xl font-black text-emerald-400 mt-2">${totalRechargeVol.toLocaleString()}</div>
-                <div className="text-[11px] text-slate-500 mt-1">Approved TRC20 deposits</div>
+                <div className="text-xl sm:text-3xl font-black text-emerald-400 mt-1.5 sm:mt-2 truncate">
+                  ${totalRechargeVol.toLocaleString()}
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 truncate">TRC20 & Gateway deposits</div>
               </div>
 
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl">
-                <div className="flex justify-between items-center text-slate-400 text-xs font-semibold">
-                  <span>TOTAL WITHDRAWN (USDT)</span>
-                  <ArrowUpRight className="w-4 h-4 text-amber-400" />
+              <div className="bg-slate-950 border border-slate-800 p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between">
+                <div className="flex justify-between items-center text-slate-400 text-[10px] sm:text-xs font-semibold">
+                  <span className="truncate">TOTAL WITHDRAWN</span>
+                  <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0 ml-1" />
                 </div>
-                <div className="text-3xl font-black text-amber-400 mt-2">${totalWithdrawalVol.toLocaleString()}</div>
-                <div className="text-[11px] text-slate-500 mt-1">Paid out to users</div>
+                <div className="text-xl sm:text-3xl font-black text-amber-400 mt-1.5 sm:mt-2 truncate">
+                  ${totalWithdrawalVol.toLocaleString()}
+                </div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 truncate">Paid out to users</div>
               </div>
 
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl">
-                <div className="flex justify-between items-center text-slate-400 text-xs font-semibold">
-                  <span>PENDING ACTIONS</span>
-                  <AlertTriangle className="w-4 h-4 text-rose-400" />
+              <div className="bg-slate-950 border border-slate-800 p-3.5 sm:p-5 rounded-2xl flex flex-col justify-between">
+                <div className="flex justify-between items-center text-slate-400 text-[10px] sm:text-xs font-semibold">
+                  <span className="truncate">PENDING ACTIONS</span>
+                  <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0 ml-1" />
                 </div>
-                <div className="text-3xl font-black text-rose-400 mt-2">
+                <div className="text-xl sm:text-3xl font-black text-rose-400 mt-1.5 sm:mt-2">
                   {pendingRecharges.length + pendingWithdrawals.length}
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">Recharge & withdraw requests</div>
+                <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 truncate">Recharges & withdrawals</div>
               </div>
             </div>
 
             {/* Quick Action Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 pt-2">
               {/* Pending Recharges */}
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl space-y-4">
+              <div className="bg-slate-950 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-3 sm:space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-white text-sm">Pending Deposits ({pendingRecharges.length})</h3>
-                  <button onClick={() => setCurrentTab('recharges')} className="text-xs text-blue-400 hover:underline">
+                  <h3 className="font-bold text-white text-xs sm:text-sm">Pending Deposits ({pendingRecharges.length})</h3>
+                  <button onClick={() => setCurrentTab('recharges')} className="text-xs text-blue-400 hover:underline cursor-pointer">
                     View all &gt;
                   </button>
                 </div>
                 {pendingRecharges.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-4 text-center">No pending recharge requests</p>
+                  <p className="text-xs text-slate-500 py-3 text-center">No pending recharge requests</p>
                 ) : (
                   <div className="space-y-2">
                     {pendingRecharges.slice(0, 3).map((rec) => (
                       <div key={rec.id} className="bg-slate-900 p-3 rounded-xl flex justify-between items-center text-xs">
-                        <div>
-                          <div className="font-bold text-slate-200">{rec.user}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{rec.network} • {rec.date}</div>
+                        <div className="min-w-0 pr-2">
+                          <div className="font-bold text-slate-200 truncate">{rec.user}</div>
+                          <div className="text-[10px] text-slate-400 font-mono truncate">{rec.network} • {rec.date}</div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-emerald-400 text-sm">+${rec.amount}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-emerald-400 text-xs sm:text-sm">+${rec.amount}</span>
                           <button
                             onClick={() => handleApproveRecharge(rec)}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"
                           >
                             Approve
                           </button>
@@ -1157,28 +1356,28 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
 
               {/* Pending Withdrawals */}
-              <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl space-y-4">
+              <div className="bg-slate-950 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-3 sm:space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-white text-sm">Pending Withdrawals ({pendingWithdrawals.length})</h3>
-                  <button onClick={() => setCurrentTab('withdrawals')} className="text-xs text-blue-400 hover:underline">
+                  <h3 className="font-bold text-white text-xs sm:text-sm">Pending Withdrawals ({pendingWithdrawals.length})</h3>
+                  <button onClick={() => setCurrentTab('withdrawals')} className="text-xs text-blue-400 hover:underline cursor-pointer">
                     View all &gt;
                   </button>
                 </div>
                 {pendingWithdrawals.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-4 text-center">No pending withdrawal requests</p>
+                  <p className="text-xs text-slate-500 py-3 text-center">No pending withdrawal requests</p>
                 ) : (
                   <div className="space-y-2">
                     {pendingWithdrawals.slice(0, 3).map((wth) => (
                       <div key={wth.id} className="bg-slate-900 p-3 rounded-xl flex justify-between items-center text-xs">
-                        <div>
-                          <div className="font-bold text-slate-200">{wth.user}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{wth.method || 'USDT'} • {wth.account || wth.address || 'N/A'}</div>
+                        <div className="min-w-0 pr-2">
+                          <div className="font-bold text-slate-200 truncate">{wth.user}</div>
+                          <div className="text-[10px] text-slate-400 font-mono truncate">{wth.method || 'USDT'} • {wth.account || wth.address || 'N/A'}</div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-amber-400 text-sm">${wth.amount}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-amber-400 text-xs sm:text-sm">${wth.amount}</span>
                           <button
                             onClick={() => handleApproveWithdrawal(wth.id, wth.user, wth.amount)}
-                            className="bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                            className="bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"
                           >
                             Approve
                           </button>
@@ -1194,22 +1393,83 @@ export default function AdminPanel({ onNavigateToApp }) {
 
         {/* ================= TAB 2: VIP PACKAGES ================= */}
         {currentTab === 'vips' && (
-          <div className="py-6 space-y-4">
-            <div className="flex justify-between items-center">
+          <div className="py-4 sm:py-6 space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-200">Active VIP Levels ({vipTiers.length})</h3>
                 <p className="text-xs text-slate-400">Manage levels, required deposits, interest, and daily profits</p>
               </div>
               <button
                 onClick={handleOpenAddVip}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-600/30 transition"
+                className="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-600/30 transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add New VIP Level</span>
               </button>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            {/* Mobile Touch Cards View (md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {vipTiers.map((vip) => (
+                <div key={vip.id || vip.level} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <Gem className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-white text-sm">{vip.level}</span>
+                        <div className="text-[10px] text-slate-400 font-mono">ID: {vip.id || vip.level}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] text-slate-400 uppercase font-semibold">Required Deposit</div>
+                      <div className="text-sm font-black text-amber-400">${vip.deposit}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/60 text-center">
+                    <div>
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Daily Profit</div>
+                      <div className="text-xs font-black text-cyan-300 mt-0.5">+${vip.daily}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Total Profit</div>
+                      <div className="text-xs font-black text-emerald-400 mt-0.5">${vip.total}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Daily Tasks</div>
+                      <div className="text-xs font-black text-slate-200 mt-0.5">{vip.tasks}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-400">
+                      Interest: <strong className="text-emerald-400 font-bold">{vip.interest}</strong>
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOpenEditVip(vip)}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteVip(vip.id, vip.level)}
+                        className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border border-rose-900/40"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                   <tr>
@@ -1260,7 +1520,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
         {/* ================= TAB: PAYMENT METHODS (bKash / Nagad / Rocket / USDT) ================= */}
         {currentTab === 'payments' && (
-          <div className="py-6 space-y-4">
+          <div className="py-4 sm:py-6 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
@@ -1273,14 +1533,101 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
               <button
                 onClick={handleOpenAddPayment}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-600/30 transition"
+                className="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-600/30 transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Payment Number</span>
               </button>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            {/* Mobile Touch Cards View (md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {paymentMethods.map((pm) => (
+                <div key={pm.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-800/80">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={getPaymentLogo(pm)}
+                        alt={pm.method}
+                        className="w-8 h-8 rounded-xl object-contain bg-slate-900 border border-slate-700/80 p-1 shadow-sm shrink-0"
+                        onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                      />
+                      <div>
+                        <div className="font-extrabold text-white text-sm leading-tight">{pm.method}</div>
+                        <span className="bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded-md text-[9px] mt-0.5 inline-block">
+                          {pm.type}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePaymentActive(pm.id)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1.5 cursor-pointer ${
+                        pm.active
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${pm.active ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                      {pm.active ? 'Active' : 'Disabled'}
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-900/70 p-3 rounded-xl border border-slate-800/60 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Account Number / Address</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(pm.number);
+                          showToast('Number copied');
+                        }}
+                        className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-bold"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                    <div className="font-mono font-bold text-cyan-300 text-xs sm:text-sm break-all select-all">
+                      {pm.number}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="text-[11px]">
+                      <span className="text-slate-400">Rate: </span>
+                      <strong className="text-emerald-400 font-bold">
+                        {pm.rate > 1 ? `1 USD = ${pm.rate} BDT` : '1 USD = 1 USDT'}
+                      </strong>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOpenEditPayment(pm)}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-blue-600 text-slate-200 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeletePayment(pm.id, pm.method)}
+                        className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer border border-rose-900/40"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                  {pm.instructions && (
+                    <div className="text-[10px] text-slate-400 italic bg-slate-900/40 p-2 rounded-lg border border-slate-800/40">
+                      💡 {pm.instructions}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                   <tr>
@@ -1474,8 +1821,138 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
             </div>
 
-            {/* Users Table */}
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            {/* Mobile Touch Cards View (md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {filteredUsers.length === 0 ? (
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center text-slate-500 text-xs">
+                  No users found matching filter.
+                </div>
+              ) : (
+                filteredUsers.map((u) => (
+                  <div key={u.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800/80">
+                      <div className="min-w-0">
+                        <div className="font-bold text-white text-sm truncate">{u.name || 'User'}</div>
+                        <div className="text-[11px] text-slate-400 font-mono truncate">{u.email}</div>
+                        <div className="text-[10px] text-cyan-400 font-mono font-bold mt-0.5">
+                          UID: {u.id} • Code: {u.myInviteCode || u.inviteCode || 'N/A'}
+                        </div>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase shrink-0 ${
+                          u.status === 'active'
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : 'bg-rose-950 text-rose-400 border border-rose-800'
+                        }`}
+                      >
+                        {u.status}
+                      </span>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 text-xs">
+                      <div>
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">Balance</div>
+                        <div className="text-sm font-black text-emerald-400 mt-0.5">${u.balance.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">Total Recharge</div>
+                        <div className="text-sm font-bold text-slate-200 mt-0.5">${u.recharge.toFixed(2)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">Phone</div>
+                        <div className="text-xs text-slate-300 font-mono mt-0.5 truncate">{u.phone || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold">VIP Level</div>
+                        <select
+                          value={u.vip || 'VIP0'}
+                          onChange={(e) => handleChangeUserVip(u.id, e.target.value)}
+                          className="bg-amber-950/90 text-amber-300 font-black px-2 py-1 rounded-lg border border-amber-800/50 text-[11px] outline-none cursor-pointer mt-0.5 w-full"
+                        >
+                          <option value="VIP0">VIP0</option>
+                          {vipTiers.map((vt) => (
+                            <option key={vt.level} value={vt.level}>
+                              {vt.level}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Mobile Action Buttons */}
+                    <div className="space-y-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleLoginAsUser(u)}
+                        className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl transition font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-blue-600/20 cursor-pointer"
+                      >
+                        <LogIn className="w-3.5 h-3.5" />
+                        <span>Login as User</span>
+                      </button>
+
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <button
+                          onClick={() => {
+                            setSelectedUserForBalance(u);
+                            setShowBalanceModal(true);
+                          }}
+                          className="py-2 bg-slate-900 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-900/40 rounded-xl transition flex flex-col items-center justify-center gap-1 text-[10px] font-bold cursor-pointer"
+                          title="Adjust Balance"
+                        >
+                          <DollarSign className="w-3.5 h-3.5" />
+                          <span>Balance</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const newPass = prompt(`Enter new password for ${u.email}:`, '123456');
+                            if (newPass && newPass.trim().length >= 6) {
+                              const updated = users.map((usr) => (usr.id === u.id ? { ...usr, password: newPass.trim() } : usr));
+                              updateUsers(updated);
+                              showToast(`Password for ${u.email} reset to: ${newPass.trim()}`);
+                            } else if (newPass) {
+                              showToast('Password must be at least 6 characters');
+                            }
+                          }}
+                          className="py-2 bg-slate-900 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-900/40 rounded-xl transition flex flex-col items-center justify-center gap-1 text-[10px] font-bold cursor-pointer"
+                          title="Reset Password"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>Pass</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleToggleBanUser(u.id)}
+                          className={`py-2 rounded-xl transition flex flex-col items-center justify-center gap-1 text-[10px] font-bold cursor-pointer border ${
+                            u.status === 'active'
+                              ? 'bg-slate-900 hover:bg-amber-600/30 text-amber-400 border-amber-900/40'
+                              : 'bg-amber-600 text-white border-amber-500'
+                          }`}
+                          title={u.status === 'active' ? 'Ban User' : 'Unban User'}
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          <span>{u.status === 'active' ? 'Ban' : 'Unban'}</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteUser(u.id, u.email)}
+                          className="py-2 bg-slate-900 hover:bg-rose-600/30 text-rose-400 border border-rose-900/40 rounded-xl transition flex flex-col items-center justify-center gap-1 text-[10px] font-bold cursor-pointer"
+                          title="Delete Account"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                   <tr>
@@ -1596,10 +2073,121 @@ export default function AdminPanel({ onNavigateToApp }) {
 
         {/* ================= TAB 4: RECHARGE REQUESTS ================= */}
         {currentTab === 'recharges' && (
-          <div className="py-6 space-y-4">
-            <h3 className="text-sm font-bold text-slate-200">Recharge / Deposit Log ({recharges.length})</h3>
+          <div className="py-4 sm:py-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-bold text-slate-200">Recharge / Deposit Log ({recharges.length})</h3>
+                <p className="text-xs text-slate-400">Review, verify TrxID, and approve user deposits</p>
+              </div>
+              {pendingRecharges.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-400 border border-amber-800/60 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {pendingRecharges.length} Pending
+                </span>
+              )}
+            </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            {/* Mobile Touch Cards View (md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {recharges.length === 0 ? (
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center text-slate-500 text-xs">
+                  No recharge requests found.
+                </div>
+              ) : (
+                recharges.map((r) => (
+                  <div key={r.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800/80">
+                      <div className="min-w-0">
+                        <div className="font-bold text-white text-sm truncate">{r.user}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{r.date} • ID: {r.id}</div>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                          r.status === 'approved'
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : r.status === 'rejected'
+                            ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                            : 'bg-amber-950 text-amber-400 border border-amber-800'
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                    </div>
+
+                    {/* Amount & Method */}
+                    <div className="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                      <div>
+                        <div className="text-[9px] text-slate-400 uppercase font-bold">Deposit Amount</div>
+                        <div className="text-base font-black text-emerald-400 mt-0.5">+${r.amount.toFixed(2)} USDT</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] text-slate-400 uppercase font-bold">Network / Gateway</div>
+                        <span className="inline-block bg-blue-950 text-blue-300 font-bold px-2 py-0.5 rounded text-[10px] mt-0.5 border border-blue-800/50">
+                          {r.network}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Sender Info (if any) */}
+                    {r.senderNumber && (
+                      <div className="text-xs bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/40 flex items-center justify-between">
+                        <span className="text-[10px] text-slate-400">Sender Number:</span>
+                        <span className="font-mono font-bold text-cyan-300 text-xs">{r.senderNumber}</span>
+                      </div>
+                    )}
+
+                    {/* TxID / Reference */}
+                    <div className="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800/60 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">TxID / Reference</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(r.txid);
+                            showToast('TrxID copied to clipboard');
+                          }}
+                          className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-bold"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                      <div className="font-mono font-bold text-amber-300 text-xs break-all select-all">
+                        {r.txid}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    {r.status === 'pending' ? (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          onClick={() => handleApproveRecharge(r)}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => handleRejectRecharge(r.id)}
+                          className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md shadow-rose-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-1 text-slate-500 text-[11px] font-medium border-t border-slate-900">
+                        Processed on {r.date}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                   <tr>
@@ -1678,10 +2266,116 @@ export default function AdminPanel({ onNavigateToApp }) {
 
         {/* ================= TAB 5: WITHDRAWAL REQUESTS ================= */}
         {currentTab === 'withdrawals' && (
-          <div className="py-6 space-y-4">
-            <h3 className="text-sm font-bold text-slate-200">Withdrawal Log ({withdrawals.length})</h3>
+          <div className="py-4 sm:py-6 space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-bold text-slate-200">Withdrawal Log ({withdrawals.length})</h3>
+                <p className="text-xs text-slate-400">Process user payout requests to bKash, Nagad, or USDT</p>
+              </div>
+              {pendingWithdrawals.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-950/80 text-rose-400 border border-rose-800/60 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                  {pendingWithdrawals.length} Pending
+                </span>
+              )}
+            </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            {/* Mobile Touch Cards View (md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {withdrawals.length === 0 ? (
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 text-center text-slate-500 text-xs">
+                  No withdrawal requests found.
+                </div>
+              ) : (
+                withdrawals.map((w) => (
+                  <div key={w.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800/80">
+                      <div className="min-w-0">
+                        <div className="font-bold text-white text-sm truncate">{w.user}</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{w.date} • ID: {w.id}</div>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                          w.status === 'approved'
+                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                            : w.status === 'rejected'
+                            ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                            : 'bg-amber-950 text-amber-400 border border-amber-800'
+                        }`}
+                      >
+                        {w.status}
+                      </span>
+                    </div>
+
+                    {/* Amount & Method */}
+                    <div className="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+                      <div>
+                        <div className="text-[9px] text-slate-400 uppercase font-bold">Requested Payout</div>
+                        <div className="text-base font-black text-amber-400 mt-0.5">${w.amount.toFixed(2)} USDT</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] text-slate-400 uppercase font-bold">Payout Method</div>
+                        <span className="inline-block bg-indigo-950 text-indigo-300 font-bold px-2 py-0.5 rounded text-[10px] mt-0.5 border border-indigo-800/50">
+                          {w.method || 'USDT'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Target Account / Wallet with Copy */}
+                    <div className="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800/60 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold">Target Account / Address</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = w.account || w.address || '';
+                            if (val) {
+                              navigator.clipboard.writeText(val);
+                              showToast('Target account copied');
+                            }
+                          }}
+                          className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-bold"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                      <div className="font-mono font-bold text-cyan-300 text-xs break-all select-all">
+                        {w.account || w.address || 'N/A'}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    {w.status === 'pending' ? (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button
+                          onClick={() => handleApproveWithdrawal(w.id, w.user, w.amount)}
+                          className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span>Approve</span>
+                        </button>
+                        <button
+                          onClick={() => handleRejectWithdrawal(w)}
+                          className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md shadow-rose-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Reject & Refund</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-1 text-slate-500 text-[11px] font-medium border-t border-slate-900">
+                        Processed on {w.date}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
                   <tr>
@@ -1859,7 +2553,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                 </div>
 
                 {/* Save Button */}
-                <div className="pt-2 flex items-center gap-3">
+                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <button
                     onClick={() => {
                       const payload = {
@@ -1871,7 +2565,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       updateSettings(payload);
                       showToast(`Settings saved! Min Deposit: $${payload.minDeposit}, Min Withdrawal: $${payload.minWithdrawal}`);
                     }}
-                    className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs py-3 px-7 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.98] transition cursor-pointer flex items-center gap-2"
+                    className="w-full sm:w-auto justify-center bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs py-3 px-7 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.98] transition cursor-pointer flex items-center gap-2"
                   >
                     <span>Save Settings</span>
                   </button>
@@ -1888,7 +2582,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       {/* ================= MODAL: ADD / EDIT VIP ================= */}
       {showVipModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 animate-fade-in text-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-4 sm:p-6 space-y-4 animate-fade-in text-xs max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-sm">
                 {editingVip ? `Edit Package: ${editingVip.level}` : 'Add New VIP Package'}
@@ -1987,7 +2681,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       {/* ================= MODAL: ADJUST USER BALANCE ================= */}
       {showBalanceModal && selectedUserForBalance && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 space-y-4 animate-fade-in text-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-4 sm:p-6 space-y-4 animate-fade-in text-xs max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-sm">Adjust User Balance</h3>
               <button onClick={() => setShowBalanceModal(false)} className="text-slate-400 hover:text-white">✕</button>
@@ -2056,7 +2750,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       {/* ================= MODAL: ADD / EDIT PAYMENT NUMBER ================= */}
       {showPaymentModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 animate-fade-in text-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-4 sm:p-6 space-y-4 animate-fade-in text-xs max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-sm">
                 {editingPayment ? `Edit Payment: ${editingPayment.method}` : 'Add Payment Number'}
@@ -2238,7 +2932,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       {/* ================= MODAL: ADD / EDIT HOME SLIDE ================= */}
       {showSlideModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 animate-fade-in text-xs">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-4 sm:p-6 space-y-4 animate-fade-in text-xs max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <h3 className="font-bold text-white text-sm">
                 {editingSlide ? 'Edit Home Slide Banner' : 'Add New Slide Banner'}
@@ -2381,7 +3075,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       {/* ================= DATE-WISE PDF REPORT MODAL ================= */}
       {showReportModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-6 space-y-5 text-slate-100 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-4 sm:p-6 space-y-4 sm:space-y-5 text-slate-100 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center">
