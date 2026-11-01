@@ -52,9 +52,9 @@ export const DEFAULT_SUPPORT_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http:
 export const DEFAULT_SUPPORT_CHANNELS = [
   {
     id: 'sup_tg',
-    name: 'Telegram Live Support',
+    name: '24/7 Telegram AI Support Bot',
     type: 'telegram',
-    link: 'https://t.me/NextTask_Support',
+    link: 'https://t.me/NextTask_SupportBot',
     active: true
   },
   {
@@ -71,11 +71,11 @@ export const DEFAULT_SETTINGS = {
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
   minWithdrawal: 10.0,
   minDeposit: 10.0,
-  telegramSupport: '@NextTask_Support',
+  telegramSupport: '@NextTask_SupportBot',
   floatingSupportEnabled: true,
   supportExecutiveAvatar: '',
-  telegramBotToken: '',
-  telegramBotUsername: '@NextTask_HelpBot',
+  telegramBotToken: '9004512965:AAGPv7dp8MCDS4jPgjv8ey_V2T6TQpX3Go4',
+  telegramBotUsername: '@NextTask_SupportBot',
   telegramAdminChatId: '',
   telegramBotAutoReply: true
 };

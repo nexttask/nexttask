@@ -268,7 +268,7 @@ export default {
         const update = await request.json();
 
         // Retrieve Telegram Bot configuration from D1 or environment
-        let botToken = env.TELEGRAM_BOT_TOKEN || '';
+        let botToken = env.TELEGRAM_BOT_TOKEN || '9004512965:AAGPv7dp8MCDS4jPgjv8ey_V2T6TQpX3Go4';
         let adminChatId = env.TELEGRAM_ADMIN_CHAT_ID || '';
         let autoReplyEnabled = true;
 
