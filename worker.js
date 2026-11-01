@@ -220,6 +220,21 @@ function matchTelegramFaqAnswer(text) {
     };
   }
 
+  if (t.includes('password') || t.includes('pass') || t.includes('পাসওয়ার্ড') || t.includes('reset') || t.includes('ভুলে গেছি') || t.includes('পিন') || t.includes('login problem') || t.includes('লগইন সমস্যা')) {
+    return {
+      text: `🔐 *NextTask Password Reset Request*\n\n` +
+        `To protect member accounts, passwords cannot be changed automatically.\n\n` +
+        `👉 Please reply directly to this message with your **Registered Phone / Email / User ID**.\n` +
+        `An administrator will verify your account and provide you with a new password!`,
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '👨‍💼 Chat with Executive', callback_data: 'faq_agent' }],
+          [{ text: '🔙 Main Menu', callback_data: 'menu_main' }]
+        ]
+      }
+    };
+  }
+
   return null;
 }
 
@@ -326,6 +341,40 @@ export default {
           const text = (msg.text || '').trim();
           const fromUser = msg.from || {};
           const userName = fromUser.first_name || fromUser.username || 'User';
+
+          // 1.1 Password Reset command via Telegram deep-link
+          if (text.startsWith('/start forgot_password') || text.startsWith('/start reset')) {
+            await sendTelegramMessage(botToken, {
+              chat_id: chatId,
+              text: `🔐 *NextTask Official Password Reset Help Desk*\n\n` +
+                `Hello *${userName}*, to protect member accounts and wallet security, automatic password resets are disabled.\n\n` +
+                `👉 *Please reply directly to this message with:*\n` +
+                `1. Your registered **Email / Phone / User ID**\n` +
+                `2. Your Account Name\n` +
+                `3. Approximate registration date or last deposit TrxID\n\n` +
+                `Our executive will verify your ownership and reset your password for you shortly.`,
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '👨‍💼 Chat with Live Agent', callback_data: 'faq_agent' }],
+                  [{ text: '🌐 Back to NextTask Website', url: 'https://nexttask.online' }]
+                ]
+              }
+            });
+
+            if (adminChatId) {
+              await sendTelegramMessage(botToken, {
+                chat_id: adminChatId,
+                text: `🔐 *New Password Reset Request*\n` +
+                  `From: *${userName}* (@${fromUser.username || 'none'})\n` +
+                  `UID: ${chatId}\n\n` +
+                  `_(User requested password recovery through official Telegram desk)_`,
+                parse_mode: 'Markdown'
+              });
+            }
+
+            return JSON_RES({ ok: true });
+          }
 
           // 1. /start command
           if (text === '/start' || text.startsWith('/start')) {

@@ -1768,79 +1768,13 @@ export default function App() {
     }
   };
 
-  const handleResetPassword = (e) => {
+  const handleOpenTelegramForgot = (e) => {
     e?.preventDefault();
-    const id = (accountInput || userEmail || userPhone || '').trim();
-    if (!id) {
-      const err = 'Please enter your registered email or phone';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (!password) {
-      const err = 'Please enter new password';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (password.trim().length < 6) {
-      const err = 'Password must be at least 6 characters long';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-    if (reenterPassword && password !== reenterPassword) {
-      const err = 'Passwords do not match';
-      setAuthModalMsg(err);
-      showToast(err);
-      return;
-    }
-
-    const allUsers = getStoredData('users', DEFAULT_USERS);
-    let found = false;
-    let matchedUser = null;
-    const updated = allUsers.map((u) => {
-      if (matchAccount(u, id)) {
-        found = true;
-        matchedUser = { ...u, password };
-        return matchedUser;
-      }
-      return u;
-    });
-
-    if (!found) {
-      matchedUser = {
-        id: String(Date.now()),
-        email: id.includes('@') ? id : `${id}@phone.user`,
-        phone: !id.includes('@') ? id : '',
-        password: password,
-        vip: 'VIP0',
-        balance: 0.0,
-        recharge: 0.0,
-        status: 'active',
-        joined: new Date().toISOString().slice(0, 10)
-      };
-      setStoredData('users', [matchedUser, ...allUsers]);
-    } else {
-      setStoredData('users', updated);
-    }
-
-    try {
-      localStorage.setItem('nt_currentUser', JSON.stringify(matchedUser));
-    } catch (e) {
-      console.error(e);
-    }
-
-    setCurrentUser(matchedUser);
-    setUserVip(matchedUser.vip || 'VIP0');
-    setBalance(typeof matchedUser.balance === 'number' ? matchedUser.balance : 0);
-    setRechargeTotal(typeof matchedUser.recharge === 'number' ? matchedUser.recharge : 0);
-    setUserEmail(matchedUser.email || id);
-    setUserPhone(matchedUser.phone || '');
-    setIsLoggedIn(true);
-
-    showToast('Password updated! Signed in successfully.');
-    setActiveTab('me');
+    const rawBot = (settings?.telegramBotUsername || '@NextTask_SupportBot').replace(/^@/, '').trim();
+    const tgUrl = `https://t.me/${rawBot}?start=forgot_password`;
+    window.open(tgUrl, '_blank');
+    setAuthMode('forgot');
+    showToast('Connecting to 24/7 Telegram Support for identity verification & password reset...');
   };
 
   const handleLogout = () => {
@@ -2579,52 +2513,69 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Password Field */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {authMode === 'forgot' ? 'New Password' : 'Password'}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder={authMode === 'forgot' ? 'New Password (min 8 chars)' : 'Password'}
-                      className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Reenter password (Register & Forgot modes) */}
-                {(authMode === 'register' || authMode === 'forgot') && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Reenter password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showReenterPassword ? 'text' : 'password'}
-                        value={reenterPassword}
-                        onChange={(e) => setReenterPassword(e.target.value)}
-                        placeholder="Reenter password"
-                        className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowReenterPassword(!showReenterPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                      >
-                        {showReenterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                {authMode === 'forgot' ? (
+                  <div className="bg-sky-50 border border-sky-200/80 rounded-2xl p-4 text-center space-y-2.5 my-1">
+                    <div className="w-11 h-11 rounded-full bg-sky-500/15 text-sky-600 flex items-center justify-center mx-auto shadow-inner">
+                      <ShieldCheck className="w-6 h-6 text-sky-600" />
                     </div>
+                    <h3 className="text-sm font-bold text-slate-900">Official Password Recovery</h3>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      To protect member funds and account security, passwords can only be reset manually by our official admin team after identity verification.
+                    </p>
+                    <p className="text-[11px] text-sky-800 bg-white/90 p-2.5 rounded-xl border border-sky-100 font-medium">
+                      Please message our 24/7 Support Desk on Telegram with your registered Account/Phone/Email. Our administrator will verify and reset your password!
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    {/* Password Field */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Password"
+                          className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Reenter password (Register mode only) */}
+                    {authMode === 'register' && (
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Reenter password
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showReenterPassword ? 'text' : 'password'}
+                            value={reenterPassword}
+                            onChange={(e) => setReenterPassword(e.target.value)}
+                            placeholder="Reenter password"
+                            className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowReenterPassword(!showReenterPassword)}
+                            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            {showReenterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Invitation code (Register mode) */}
@@ -2652,14 +2603,8 @@ export default function App() {
                   <div className="text-right pt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        setAuthMode('forgot');
-                        setPassword('');
-                        setReenterPassword('');
-                        setAuthError('');
-                        setAuthModalMsg('');
-                      }}
-                      className="text-xs text-indigo-600 hover:underline font-semibold"
+                      onClick={handleOpenTelegramForgot}
+                      className="text-xs text-indigo-600 hover:underline font-semibold cursor-pointer"
                     >
                       Forgot Password?
                     </button>
@@ -2695,10 +2640,11 @@ export default function App() {
                   <>
                     <button
                       type="button"
-                      onClick={handleResetPassword}
-                      className="w-full bg-[#05132d] hover:bg-[#091e47] text-white font-medium py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm"
+                      onClick={handleOpenTelegramForgot}
+                      className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold py-3.5 rounded-full shadow-lg active:scale-[0.99] transition cursor-pointer text-sm flex items-center justify-center gap-2"
                     >
-                      Reset Password
+                      <MessageCircle className="w-4 h-4 text-white" />
+                      <span>Contact Support on Telegram</span>
                     </button>
                     <button
                       type="button"
