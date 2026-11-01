@@ -67,7 +67,14 @@ import {
 export default function AdminPanel({ onNavigateToApp }) {
   // Master Admin Authentication State
   const [isAdminAuth, setIsAdminAuth] = useState(() => {
-    return localStorage.getItem('nt_admin_auth') === 'true';
+    const isAuth = localStorage.getItem('nt_admin_auth') === 'true';
+    if (isAuth) {
+      try {
+        localStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
+        sessionStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
+      } catch {}
+    }
+    return isAuth;
   });
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -121,6 +128,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   // Auto-sync with storage whenever currentTab changes or storage event fires
   const syncData = () => {
+    if (showPaymentModal || showVipModal || showSlideModal || showSupportModal) return;
     setRecharges(getStoredData('recharges', DEFAULT_RECHARGES));
     setWithdrawals(getStoredData('withdrawals', DEFAULT_WITHDRAWALS));
     setUsers(getStoredData('users', DEFAULT_USERS));
@@ -459,45 +467,45 @@ export default function AdminPanel({ onNavigateToApp }) {
   };
 
   // Sync helpers
-  const updateVips = (newVips) => {
+  const updateVips = async (newVips) => {
     setVipTiers(newVips);
-    setStoredData('vips', newVips);
+    await setStoredData('vips', newVips);
   };
 
-  const updateUsers = (newUsers) => {
+  const updateUsers = async (newUsers) => {
     setUsers(newUsers);
-    setStoredData('users', newUsers);
+    await setStoredData('users', newUsers);
   };
 
-  const updateRecharges = (newRec) => {
+  const updateRecharges = async (newRec) => {
     setRecharges(newRec);
-    setStoredData('recharges', newRec);
+    await setStoredData('recharges', newRec);
   };
 
-  const updateWithdrawals = (newWth) => {
+  const updateWithdrawals = async (newWth) => {
     setWithdrawals(newWth);
-    setStoredData('withdrawals', newWth);
+    await setStoredData('withdrawals', newWth);
   };
 
-  const updateSettings = (newSettings) => {
+  const updateSettings = async (newSettings) => {
     setSettings(newSettings);
-    setStoredData('settings', newSettings);
+    await setStoredData('settings', newSettings);
     showToast('Platform settings updated successfully!');
   };
 
-  const updateSlides = (newSlides) => {
+  const updateSlides = async (newSlides) => {
     setSlides(newSlides);
-    setStoredData('slides', newSlides);
+    await setStoredData('slides', newSlides);
   };
 
-  const updatePaymentMethods = (newMethods) => {
+  const updatePaymentMethods = async (newMethods) => {
     setPaymentMethods(newMethods);
-    setStoredData('payments', newMethods);
+    await setStoredData('payments', newMethods);
   };
 
-  const updateSupportChannels = (newChannels) => {
+  const updateSupportChannels = async (newChannels) => {
     setSupportChannels(newChannels);
-    setStoredData('support_channels', newChannels);
+    await setStoredData('support_channels', newChannels);
   };
 
   const handleOpenAddSupportChannel = () => {
