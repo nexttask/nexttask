@@ -2257,9 +2257,9 @@ export default function App() {
                     setShowCountryPicker(false);
                     setCountrySearch('');
                   }}
-                  className="text-slate-400 hover:text-slate-600 text-xs font-semibold px-2.5 py-1 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                  className="text-slate-400 hover:text-slate-600 text-xs font-semibold px-2 py-1 rounded-lg hover:bg-slate-100 transition cursor-pointer"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -2394,7 +2394,7 @@ export default function App() {
                   onClick={() => setShowNotificationModal(false)}
                   className="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-xs font-bold cursor-pointer"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -2558,7 +2558,7 @@ export default function App() {
                   onClick={() => setSelectedNotificationDetail(null)}
                   className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold transition cursor-pointer"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -3164,12 +3164,12 @@ export default function App() {
 
                             {/* Carousel indicator dots */}
                             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
-                              {slides.map((_, i) => (
+                              {slideList.map((_, i) => (
                                 <button
                                   key={i}
                                   onClick={() => setCurrentSlideIdx(i)}
                                   className={`h-1.5 rounded-full transition-all ${
-                                    (currentSlideIdx % slides.length) === i
+                                    (currentSlideIdx % slideList.length) === i
                                       ? 'w-5 bg-slate-900'
                                       : 'w-2 bg-white/70 hover:bg-white'
                                   }`}
@@ -5022,9 +5022,9 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setShowWithdrawModal(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1"
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                 >
-                  ✕
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -5285,7 +5285,7 @@ export default function App() {
                     onClick={() => setShowRecordsModal(false)}
                     className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                   >
-                    ✕
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 
@@ -5484,7 +5484,7 @@ export default function App() {
                   onClick={() => setShowPersonalProfileModal(false)}
                   className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                 >
-                  ✕
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -5580,7 +5580,7 @@ export default function App() {
                     }}
                     className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                   >
-                    ✕
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 
@@ -5777,7 +5777,7 @@ export default function App() {
                   }}
                   className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                 >
-                  ✕
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -5847,7 +5847,9 @@ export default function App() {
                   <Globe className="w-4 h-4 text-blue-600" />
                   {t('selectLanguage')}
                 </h3>
-                <button onClick={() => setShowLangModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                <button onClick={() => setShowLangModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
               <div className="max-h-64 overflow-y-auto no-scrollbar divide-y divide-slate-100">
