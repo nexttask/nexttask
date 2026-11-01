@@ -50,6 +50,7 @@ import AdminPanel from './AdminPanel';
 import {
   getStoredData,
   setStoredData,
+  fetchCloudDataNow,
   getVipLevelFromReferrals,
   generateUniqueInviteCode,
   isReferredByUser,
@@ -67,6 +68,7 @@ import {
   DEFAULT_SUPPORT_AVATAR,
   getUserWithdrawableBalance,
   getPaymentLogo,
+  getVipDisplayName,
   recordUserLoginAudit
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
@@ -461,20 +463,32 @@ export default function App() {
       setSettings(getStoredData('settings', DEFAULT_SETTINGS));
       setSlides(getStoredData('slides', DEFAULT_SLIDES));
       setSupportChannels(getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
+      setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
+      syncCurrentUserData();
+    };
+
+    const handleSyncEvent = () => {
+      handleUrlChange();
+      setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
+      setSettings(getStoredData('settings', DEFAULT_SETTINGS));
+      setSlides(getStoredData('slides', DEFAULT_SLIDES));
+      setSupportChannels(getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
+      setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
       syncCurrentUserData();
     };
 
     handleUrlChange();
+    fetchCloudDataNow();
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
-    window.addEventListener('storage', handleUrlChange);
-    window.addEventListener('cloud-sync', handleUrlChange);
+    window.addEventListener('storage', handleSyncEvent);
+    window.addEventListener('cloud-sync', handleSyncEvent);
     const syncInterval = setInterval(syncCurrentUserData, 2000);
     return () => {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
-      window.removeEventListener('storage', handleUrlChange);
-      window.removeEventListener('cloud-sync', handleUrlChange);
+      window.removeEventListener('storage', handleSyncEvent);
+      window.removeEventListener('cloud-sync', handleSyncEvent);
       clearInterval(syncInterval);
     };
   }, []);
@@ -694,6 +708,38 @@ export default function App() {
   };
   const todayTasksKey = getUserTasksKey(currentUser);
 
+  const reloadCompletedTasks = (u) => {
+    if (!u) {
+      setCompletedTaskIndices([]);
+      return;
+    }
+    try {
+      const allRecords = getStoredData('task_records', []);
+      const userTaskIdxs = allRecords
+        .filter((t) => t && (
+          (u.id && String(t.userId) === String(u.id)) ||
+          (u.email && String(t.user || '').toLowerCase() === String(u.email).toLowerCase()) ||
+          (u.phone && String(t.user || '') === String(u.phone))
+        ) && (t.date && String(t.date).startsWith(todayDateStr)))
+        .map((t) => typeof t.taskIndex === 'number' ? t.taskIndex : (parseInt(t.taskIndex) || 0));
+
+      const profileTasks = (u.completedTasks && Array.isArray(u.completedTasks[todayDateStr]))
+        ? u.completedTasks[todayDateStr]
+        : [];
+
+      let localTasks = [];
+      try {
+        const raw = localStorage.getItem(getUserTasksKey(u));
+        if (raw) localTasks = JSON.parse(raw);
+      } catch {}
+
+      const merged = Array.from(new Set([...userTaskIdxs, ...profileTasks, ...localTasks]));
+      setCompletedTaskIndices(merged);
+    } catch {
+      setCompletedTaskIndices([]);
+    }
+  };
+
   const [completedTaskIndices, setCompletedTaskIndices] = useState(() => {
     try {
       const raw = localStorage.getItem(todayTasksKey);
@@ -703,26 +749,10 @@ export default function App() {
     }
   });
 
-  // Ensure completed tasks reload whenever currentUser changes (Login / Logout / Switch account)
+  // Ensure completed tasks reload whenever currentUser changes (Login / Logout / Switch account) or tasks update
   useEffect(() => {
-    if (!currentUser) {
-      setCompletedTaskIndices([]);
-      return;
-    }
-    const key = getUserTasksKey(currentUser);
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        setCompletedTaskIndices(JSON.parse(raw));
-      } else if (currentUser.completedTasks && currentUser.completedTasks[todayDateStr]) {
-        setCompletedTaskIndices(currentUser.completedTasks[todayDateStr]);
-      } else {
-        setCompletedTaskIndices([]);
-      }
-    } catch {
-      setCompletedTaskIndices([]);
-    }
-  }, [currentUser?.id, currentUser?.email, currentUser?.phone]);
+    reloadCompletedTasks(currentUser);
+  }, [currentUser?.id, currentUser?.email, currentUser?.phone, currentUser?.completedTasks]);
 
   useEffect(() => {
     return () => {
@@ -1243,21 +1273,23 @@ export default function App() {
         taskTimerRef.current = null;
         setTaskCountdown(0);
 
+        let updatedIndices = completedTaskIndices;
         setCompletedTaskIndices((prev) => {
-          const nextCompleted = prev.includes(taskIndex) ? prev : [...prev, taskIndex];
+          updatedIndices = prev.includes(taskIndex) ? prev : [...prev, taskIndex];
           try {
-            localStorage.setItem(todayTasksKey, JSON.stringify(nextCompleted));
+            localStorage.setItem(todayTasksKey, JSON.stringify(updatedIndices));
           } catch (e) {
             console.error(e);
           }
-          return nextCompleted;
+          return updatedIndices;
         });
 
-        // Add balance
+        // Add balance and update user with task history
         setBalance((prevBal) => {
           const newBal = parseFloat((prevBal + reward).toFixed(2));
           if (currentUser) {
-            const updated = { ...currentUser, balance: newBal };
+            const userCompleted = { ...(currentUser.completedTasks || {}), [todayDateStr]: updatedIndices };
+            const updated = { ...currentUser, balance: newBal, completedTasks: userCompleted };
             setCurrentUser(updated);
             try {
               localStorage.setItem('nt_currentUser', JSON.stringify(updated));
@@ -1265,7 +1297,10 @@ export default function App() {
               console.error(e);
             }
             const allUsers = getStoredData('users', DEFAULT_USERS);
-            setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
+            setStoredData('users', allUsers.map((u) => (
+              (u.id && String(u.id) === String(currentUser.id)) ||
+              (u.email && String(u.email).toLowerCase() === String(currentUser.email).toLowerCase())
+            ) ? { ...u, balance: newBal, completedTasks: userCompleted } : u));
           }
           return newBal;
         });
@@ -1898,12 +1933,19 @@ export default function App() {
       return;
     }
 
-    // Otherwise open recharge modal prefilled with that package amount
-    setRechargeAmount(selectedVipForUnlock.deposit);
+    // Open recharge modal prefilled with that package amount
+    openRechargeModal(selectedVipForUnlock.deposit);
+  };
+
+  const openRechargeModal = (amount = null) => {
+    if (!requireAuth('me', 'recharge')) return;
     const freshMethods = getStoredData('payments', DEFAULT_PAYMENT_METHODS);
     setPaymentMethods(freshMethods);
-    const active = freshMethods.find((p) => p.active) || freshMethods[0];
-    setSelectedPaymentMethod(active);
+    const activeList = freshMethods.filter((p) => p && p.active !== false);
+    setSelectedPaymentMethod(activeList[0] || null);
+    if (amount) {
+      setRechargeAmount(amount);
+    }
     setShowRechargeModal(true);
   };
 
@@ -2756,7 +2798,7 @@ export default function App() {
                           })()}
                         </span>
                         <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                          {userVip}
+                          {getVipDisplayName(userVip, vipTiers)}
                         </span>
                       </div>
                       <button 
@@ -2791,11 +2833,9 @@ export default function App() {
                     <div className="grid grid-cols-4 gap-3 text-center">
                       {/* Recharge */}
                       <button
-                        onClick={() => {
-                          if (!requireAuth('me', 'recharge')) return;
-                          setShowRechargeModal(true);
-                        }}
-                        className="flex flex-col items-center gap-1.5 p-1 group"
+                        type="button"
+                        onClick={() => openRechargeModal()}
+                        className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
                       >
                         <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
                           <Coins className="w-5 h-5 text-cyan-300" />
@@ -3379,7 +3419,7 @@ export default function App() {
                       <div className="mt-4 pt-3.5 border-t border-white/10 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <span className="bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
-                            {userVip} ACTIVE
+                            {getVipDisplayName(userVip, vipTiers)} ACTIVE
                           </span>
                           <span className="text-slate-300 text-[11px]">
                             {t('directReferrals')} <b className="text-white font-bold ml-1">{level1Members.length}</b>
@@ -3493,9 +3533,10 @@ export default function App() {
 
               {/* ================= TAB 4: TASK (CORRESPONDING TO USER VIP LEVEL) ================= */}
               {activeTab === 'task' && (() => {
-                const currentVipTier = vipTiers.find((v) => v.level === userVip) || vipTiers[0];
+                const currentVipTier = vipTiers.find((v) => v && (v.level === userVip || v.id === userVip)) || vipTiers[0];
                 const maxTasks = currentVipTier?.tasks || 10;
-                const rewardPerTask = parseFloat(currentVipTier?.interest || (parseFloat(currentVipTier?.daily || '7.00') / maxTasks).toFixed(2)) || 0.70;
+                const dailyProfit = parseFloat(currentVipTier?.daily || '0.70') || 0.70;
+                const rewardPerTask = parseFloat((dailyProfit / maxTasks).toFixed(2));
 
                 const totalTasks = Array.from({ length: maxTasks }, (_, i) => i);
                 const runningTasks = totalTasks.filter((i) => !completedTaskIndices.includes(i));
@@ -3509,7 +3550,7 @@ export default function App() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-full shadow-sm">
-                              {userVip}
+                              {getVipDisplayName(userVip, vipTiers)}
                             </span>
                             <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
                           </div>
@@ -3596,7 +3637,7 @@ export default function App() {
                             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
                             <h3 className="text-sm font-bold text-slate-900">All tasks completed today!</h3>
                             <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                              You have finished all {maxTasks} daily tasks for {userVip}. Daily tasks reset every 24 hours.
+                              You have finished all {maxTasks} daily tasks for {getVipDisplayName(userVip, vipTiers)}. Daily tasks reset every 24 hours.
                             </p>
                           </div>
                         ) : (
@@ -3608,7 +3649,7 @@ export default function App() {
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-bold text-slate-900">
-                                    {userVip} Verification Mission #{taskIdx + 1}
+                                    {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
                                   </span>
                                   <span className="flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-200">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
@@ -3653,7 +3694,7 @@ export default function App() {
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-bold text-slate-700">
-                                    {userVip} Verification Mission #{taskIdx + 1}
+                                    {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
                                   </span>
                                   <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
                                     <Check className="w-3 h-3" />
@@ -3683,7 +3724,7 @@ export default function App() {
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 grid grid-cols-3 gap-2 text-center">
                     <button
                       type="button"
-                      onClick={() => setShowRechargeModal(true)}
+                      onClick={() => openRechargeModal()}
                       className="flex flex-col items-center gap-2 p-2 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                     >
                       <div className="w-11 h-11 rounded-full bg-[#05132d] text-white flex items-center justify-center shadow-md">
@@ -4277,7 +4318,7 @@ export default function App() {
                   <div className="text-[10px] text-slate-500 bg-amber-50/70 border border-amber-200/60 rounded-xl p-2 flex items-center justify-between">
                     <span className="flex items-center gap-1">
                       <Lock className="w-3 h-3 text-amber-600 shrink-0" />
-                      <span>Locked VIP ({userVip}) Capital:</span>
+                      <span>Locked VIP ({getVipDisplayName(userVip, vipTiers)}) Capital:</span>
                     </span>
                     <strong className="text-amber-800 font-bold">${rechargeTotal.toFixed(2)} USDT</strong>
                   </div>
@@ -4735,7 +4776,7 @@ export default function App() {
                   </div>
                   <div className="flex justify-between items-center text-slate-500">
                     <span>Current VIP:</span>
-                    <span className="font-bold text-amber-600">{userVip}</span>
+                    <span className="font-bold text-amber-600">{getVipDisplayName(userVip, vipTiers)}</span>
                   </div>
                   <div className="flex justify-between items-center text-slate-500">
                     <span>Invitation Code:</span>

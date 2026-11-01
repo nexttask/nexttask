@@ -632,7 +632,7 @@ export default {
           const now = Date.now();
 
           // Security: Protected Admin-Only keys
-          const PROTECTED_ADMIN_KEYS = ['settings', 'payments', 'vips', 'slides'];
+          const PROTECTED_ADMIN_KEYS = ['settings', 'payments', 'vips', 'slides', 'support_channels'];
           if (body.key && PROTECTED_ADMIN_KEYS.includes(body.key)) {
             if (!isAdmin) {
               return JSON_RES({ success: false, error: 'Unauthorized: Administrator access required' }, 403);

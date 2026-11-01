@@ -22,8 +22,8 @@ export const DEFAULT_USERS = [
     dob: '',
     password: 'Admin@NextTask',
     vip: 'VIP10',
-    balance: 99999.00,
-    recharge: 99999.00,
+    balance: 0.00,
+    recharge: 0.00,
     status: 'active',
     joined: '2026-10-01',
     inviteCode: 'NT1001',
@@ -94,8 +94,8 @@ export const getPaymentLogo = (pm) => {
 
 export const DEFAULT_PAYMENT_METHODS = [
   { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 125, logo: '/logos/bkash.svg', active: true, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 125, logo: '/logos/nagad.svg', active: true, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 125, logo: '/logos/rocket.svg', active: true, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 125, logo: '/logos/nagad.svg', active: false, instructions: 'Please Send Money and enter TrxID below' },
+  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 125, logo: '/logos/rocket.svg', active: false, instructions: 'Please Send Money and enter TrxID below' },
   { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 1, logo: '/logos/usdt.svg', active: true, instructions: 'Transfer USDT via TRC20 network and submit TxID below' }
 ];
 
@@ -253,42 +253,30 @@ export const getStoredData = (key, fallback) => {
   }
 };
 
+// Get dynamic VIP display name everywhere across the platform
+export const getVipDisplayName = (vipIdentifier, vips = []) => {
+  if (!vipIdentifier || vipIdentifier === 'VIP0') return 'VIP0';
+  const cleanId = String(vipIdentifier).trim();
+  const list = Array.isArray(vips) && vips.length > 0 ? vips : getStoredData('vips', DEFAULT_VIP_TIERS);
+  const matched = (list || []).find((v) => v && (
+    String(v.id) === cleanId ||
+    String(v.level).toLowerCase() === cleanId.toLowerCase()
+  ));
+  return matched?.level || cleanId;
+};
+
 // Calculate real withdrawable task balance for a user
-// (VIP package deposit is locked during package validity; once validity ends, capital is auto-released!)
 export const getUserWithdrawableBalance = (user) => {
   if (!user) return 0;
   if (user.email === 'admin@nexttask.online') {
-    return typeof user.balance === 'number' ? user.balance : 99999.00;
+    return typeof user.balance === 'number' ? user.balance : (parseFloat(user.balance) || 0.00);
   }
 
-  // 1. Task earnings
-  const allTasks = getStoredData('task_records', []);
-  const userTasks = allTasks.filter(t => t && (
-    (user.id && String(t.userId) === String(user.id)) ||
-    (user.email && String(t.user || '').toLowerCase() === user.email.toLowerCase()) ||
-    (user.phone && String(t.user || '') === user.phone)
-  ));
-  const earned = userTasks.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-
-  // 2. Referral commissions
-  const refEarned = typeof user.referralEarnings === 'number' ? user.referralEarnings : 0;
-
-  // 3. Capital release check (when package validity ends)
-  const isExpired = !!(user.vipExpiresAt && Date.now() >= user.vipExpiresAt);
-  const isCapitalReleased = user.capitalReleased === true || isExpired;
-  const capitalBonus = isCapitalReleased ? (parseFloat(user.recharge || user.lockedCapital || 0)) : 0;
-
-  // 4. Approved or pending withdrawals
-  const allW = getStoredData('withdrawals', []);
-  const userW = allW.filter(w => w && (
-    (user.id && String(w.userId) === String(user.id)) ||
-    (user.email && String(w.user || '').toLowerCase() === user.email.toLowerCase()) ||
-    (user.phone && String(w.user || '') === user.phone)
-  ) && w.status !== 'rejected');
-  const withdrawn = userW.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
-
-  const withdrawable = Math.max(0, parseFloat((earned + refEarned + capitalBonus - withdrawn).toFixed(2)));
-  return withdrawable;
+  if (typeof user.balance === 'number') {
+    return Math.max(0, parseFloat(user.balance.toFixed(2)));
+  }
+  const parsed = parseFloat(user.balance);
+  return isNaN(parsed) ? 0 : Math.max(0, parseFloat(parsed.toFixed(2)));
 };
 
 export const getAdminToken = () => {
@@ -385,10 +373,9 @@ export const fetchCloudDataNow = async () => {
         }
       }
 
-      if (hasUpdates) {
-        window.dispatchEvent(new Event('storage'));
-        window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { data: json.data } }));
-      }
+      // Always notify components that fresh D1 cloud data is available
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { data: json.data, hasUpdates } }));
     }
   } catch {
     // Graceful offline fallback
@@ -397,10 +384,12 @@ export const fetchCloudDataNow = async () => {
   }
 };
 
-// Initialize automatic cloud synchronization
+// Initialize immediate & automatic cloud synchronization
 if (typeof window !== 'undefined') {
-  setTimeout(fetchCloudDataNow, 100);
-  setInterval(fetchCloudDataNow, 6000);
+  fetchCloudDataNow();
+  setTimeout(fetchCloudDataNow, 50);
+  setTimeout(fetchCloudDataNow, 300);
+  setInterval(fetchCloudDataNow, 3000);
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       fetchCloudDataNow();

@@ -44,6 +44,7 @@ import {
 import {
   getStoredData,
   setStoredData,
+  fetchCloudDataNow,
   DEFAULT_VIP_TIERS,
   DEFAULT_USERS,
   DEFAULT_RECHARGES,
@@ -78,6 +79,8 @@ export default function AdminPanel({ onNavigateToApp }) {
       localStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
       sessionStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
       setIsAdminAuth(true);
+      fetchCloudDataNow();
+      setTimeout(syncData, 150);
       showToast('Master Admin Authenticated Successfully');
     } else {
       setLoginError('Invalid Administrator credentials! Please check your email and password.');
@@ -125,6 +128,7 @@ export default function AdminPanel({ onNavigateToApp }) {
   };
 
   useEffect(() => {
+    fetchCloudDataNow();
     syncData();
     window.addEventListener('storage', syncData);
     window.addEventListener('cloud-sync', syncData);
