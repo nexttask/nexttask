@@ -499,3 +499,63 @@ export const getVipLevelFromReferrals = (refCount, currentVip = 'VIP0') => {
   // VIP packages must be purchased; referrals provide 10% commission bonus rather than free VIP tier unlocks
   return currentVip || 'VIP0';
 };
+
+// Record IP, City, Country and Device upon login for fraud prevention and audit
+export const recordUserLoginAudit = async (user) => {
+  if (!user || !user.id) return user;
+  try {
+    let ip = '';
+    let country = '';
+    let city = '';
+
+    try {
+      const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        const data = await res.json();
+        ip = data.ip || '';
+        country = data.country_name || data.country || '';
+        city = data.city || '';
+      }
+    } catch {
+      try {
+        const ipRes = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(2000) });
+        if (ipRes.ok) {
+          const ipData = await ipRes.json();
+          ip = ipData.ip || '';
+        }
+      } catch {}
+    }
+
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+    let device = 'Desktop';
+    if (/android/i.test(ua)) device = 'Android';
+    else if (/iPad|iPhone|iPod/.test(ua)) device = 'iOS';
+    else if (/windows/i.test(ua)) device = 'Windows';
+    else if (/macintosh|mac os x/i.test(ua)) device = 'Mac';
+
+    const locationStr = [city, country].filter(Boolean).join(', ') || 'Local Network';
+    const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    const updatedUser = {
+      ...user,
+      lastLoginIp: ip || user.lastLoginIp || '127.0.0.1',
+      lastLoginLocation: locationStr || user.lastLoginLocation || 'Unknown',
+      lastLoginDevice: device,
+      lastLoginAt: nowStr,
+      loginCount: (user.loginCount || 0) + 1
+    };
+
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedAll = allUsers.map((u) => (String(u.id) === String(user.id) ? { ...u, ...updatedUser } : u));
+    setStoredData('users', updatedAll);
+
+    try {
+      localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
+    } catch {}
+
+    return updatedUser;
+  } catch (err) {
+    console.warn('Login audit non-fatal error:', err);
+    return user;
+  }
+};

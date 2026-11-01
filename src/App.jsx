@@ -66,7 +66,8 @@ import {
   DEFAULT_SUPPORT_CHANNELS,
   DEFAULT_SUPPORT_AVATAR,
   getUserWithdrawableBalance,
-  getPaymentLogo
+  getPaymentLogo,
+  recordUserLoginAudit
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
@@ -279,6 +280,33 @@ export default function App() {
     }, 4000);
     return () => clearInterval(timer);
   }, [slides.length]);
+
+  // Preload banners and payment logos for zero-lag instant rendering on mobile
+  useEffect(() => {
+    try {
+      if (slides && slides.length > 0) {
+        slides.forEach((s) => {
+          if (s.image && typeof s.image === 'string') {
+            const img = new Image();
+            img.src = s.image;
+          }
+        });
+      }
+      const paymentLogos = ['/logos/bkash.svg', '/logos/nagad.svg', '/logos/rocket.svg', '/logos/usdt.svg', '/logos/bank.svg', '/logos/upay.svg'];
+      paymentLogos.forEach((src) => {
+        const img = new Image();
+        img.src = src;
+      });
+      if (vipTiers && vipTiers.length > 0) {
+        vipTiers.forEach((vt) => {
+          if (vt.logo && typeof vt.logo === 'string') {
+            const img = new Image();
+            img.src = vt.logo;
+          }
+        });
+      }
+    } catch {}
+  }, [slides, vipTiers]);
 
   useEffect(() => {
     const handleUrlChange = () => {
@@ -1406,6 +1434,9 @@ export default function App() {
       setAuthError('');
       setAuthModalMsg('');
 
+      // Background audit recording for fraud prevention & location tracking
+      recordUserLoginAudit(matched);
+
       const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
       navigateToTab(targetTab);
       setIntendedTab(targetTab);
@@ -1535,6 +1566,9 @@ export default function App() {
       setAuthSuccess('Account created successfully! Welcome to NextTask.');
       setAuthError('');
       setAuthModalMsg('');
+
+      // Background audit recording for fraud prevention & location tracking
+      recordUserLoginAudit(userToSave);
 
       const targetTab = intendedTab && intendedTab !== 'auth' ? intendedTab : 'me';
       navigateToTab(targetTab);
@@ -2713,6 +2747,9 @@ export default function App() {
                                 src={activeSlide.image}
                                 alt={activeSlide.subtitle || 'Banner Slide'}
                                 className="w-full h-full object-cover rounded-3xl"
+                                loading="eager"
+                                fetchPriority="high"
+                                decoding="async"
                               />
                               {showTextOverlay && (
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 z-10">
@@ -2810,7 +2847,13 @@ export default function App() {
                           {/* Left: Dark Padlocked VIP Badge */}
                           <div className="w-20 h-20 rounded-2xl bg-[#0c0d11] border border-amber-500/30 flex flex-col items-center justify-center relative shadow-inner overflow-hidden shrink-0">
                             {vip.logo ? (
-                              <img src={vip.logo} alt={vip.level} className="w-14 h-14 object-contain rounded-xl" />
+                              <img
+                                src={vip.logo}
+                                alt={vip.level}
+                                className="w-14 h-14 object-contain rounded-xl"
+                                loading="lazy"
+                                decoding="async"
+                              />
                             ) : (
                               <>
                                 <div className="absolute inset-0 bg-radial from-amber-500/10 to-transparent"></div>
@@ -2927,7 +2970,13 @@ export default function App() {
                             }`}>
                               {vip.logo ? (
                                 <div className="relative flex flex-col items-center justify-center w-full h-full">
-                                  <img src={vip.logo} alt={vip.level} className="w-16 h-16 object-contain rounded-xl drop-shadow" />
+                                  <img
+                                    src={vip.logo}
+                                    alt={vip.level}
+                                    className="w-16 h-16 object-contain rounded-xl drop-shadow"
+                                    loading="lazy"
+                                    decoding="async"
+                                  />
                                   {isCurrentUnlocked && (
                                     <div className="absolute bottom-0 text-[7px] uppercase tracking-wider text-emerald-100 font-extrabold bg-emerald-800/90 px-1 py-0.2 rounded shadow-xs">
                                       UNLOCKED
@@ -3922,6 +3971,8 @@ export default function App() {
                             src={getPaymentLogo(pm)}
                             alt={pm.method}
                             className="w-7 h-7 rounded-lg object-contain bg-slate-50 border border-slate-200/80 p-0.5 shrink-0 shadow-sm"
+                            loading="eager"
+                            decoding="async"
                             onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
                           />
                           <div>
@@ -3945,6 +3996,8 @@ export default function App() {
                         src={getPaymentLogo(selectedPaymentMethod)}
                         alt={selectedPaymentMethod.method}
                         className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200 p-0.5 shrink-0 shadow-sm"
+                        loading="eager"
+                        decoding="async"
                         onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
                       />
                       <div>

@@ -52,7 +52,8 @@ import {
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_SUPPORT_CHANNELS,
   DEFAULT_SUPPORT_AVATAR,
-  getPaymentLogo
+  getPaymentLogo,
+  isReferredByUser
 } from './store';
 
 export default function AdminPanel({ onNavigateToApp }) {
@@ -966,17 +967,24 @@ export default function AdminPanel({ onNavigateToApp }) {
     const updatedRecs = recharges.map((r) => (r.id === rec.id ? { ...r, status: 'approved' } : r));
     updateRecharges(updatedRecs);
 
-    // 2. Credit user's balance and recharge total, and auto-upgrade VIP level if qualified
+    const targetUser = users.find((u) =>
+      (rec.userId && String(u.id) === String(rec.userId)) ||
+      (rec.userEmail && String(u.email).toLowerCase() === String(rec.userEmail).toLowerCase()) ||
+      (rec.userPhone && String(u.phone) === String(rec.userPhone)) ||
+      (rec.user && (
+        String(u.email).toLowerCase() === String(rec.user).toLowerCase() ||
+        String(u.phone) === String(rec.user) ||
+        String(u.name).toLowerCase() === String(rec.user).toLowerCase()
+      ))
+    );
+
+    const commissionAmount = parseFloat(((rec.amount || 0) * 0.10).toFixed(2));
+    let referrerCredited = false;
+    let referrerName = '';
+
+    // 2. Credit user's balance and recharge total, auto-upgrade VIP level and credit referrer 10% commission
     const updatedUsers = users.map((u) => {
-      const isMatch =
-        (rec.userId && String(u.id) === String(rec.userId)) ||
-        (rec.userEmail && String(u.email).toLowerCase() === String(rec.userEmail).toLowerCase()) ||
-        (rec.userPhone && String(u.phone) === String(rec.userPhone)) ||
-        (rec.user && (
-          String(u.email).toLowerCase() === String(rec.user).toLowerCase() ||
-          String(u.phone) === String(rec.user) ||
-          String(u.name).toLowerCase() === String(rec.user).toLowerCase()
-        ));
+      const isMatch = targetUser && String(u.id) === String(targetUser.id);
 
       if (isMatch) {
         const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
@@ -1004,11 +1012,45 @@ export default function AdminPanel({ onNavigateToApp }) {
           capitalReleased: false
         };
       }
+
+      // Check if this user is the referrer of targetUser
+      if (targetUser && isReferredByUser(targetUser, u) && commissionAmount > 0) {
+        referrerCredited = true;
+        referrerName = u.name || u.email || u.myInviteCode || 'Referrer';
+        const prevB = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
+        const prevEarn = typeof u.referralEarnings === 'number' ? u.referralEarnings : 0;
+        return {
+          ...u,
+          balance: parseFloat((prevB + commissionAmount).toFixed(2)),
+          referralEarnings: parseFloat((prevEarn + commissionAmount).toFixed(2))
+        };
+      }
+
       return u;
     });
     updateUsers(updatedUsers);
+
+    // Record commission transaction
+    if (referrerCredited && commissionAmount > 0) {
+      const commissionRecord = {
+        id: `COM-${Date.now()}`,
+        userId: targetUser?.referredBy,
+        user: referrerName,
+        senderAccount: targetUser?.name || targetUser?.email || targetUser?.phone || 'Team Member',
+        amount: commissionAmount,
+        method: 'Referral Bonus',
+        network: 'Commission',
+        trxId: `COMM-DEP-${Date.now().toString().slice(-6)}`,
+        status: 'approved',
+        date: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        note: `10% referral commission from ${targetUser?.name || targetUser?.id} deposit of $${rec.amount}`
+      };
+      setStoredData('recharges', [commissionRecord, ...updatedRecs]);
+      addNotification(targetUser?.referredBy || referrerName, 'Referral Commission Credited', `You earned $${commissionAmount} USDT commission from ${targetUser?.name || targetUser?.id}'s deposit!`, 'commission');
+    }
+
     addNotification(rec.userId || rec.user, 'Recharge & VIP Activated', `Your recharge of ${rec.amount} USDT has been approved and added to Recharge Amount. VIP status is active with deposit locked as principal capital. Complete daily tasks to earn withdrawable profit!`, 'recharge');
-    showToast(`Recharge of ${rec.amount} approved for ${rec.user}!`);
+    showToast(`Recharge of ${rec.amount} approved for ${rec.user}!${referrerCredited ? ' (10% commission credited to inviter)' : ''}`);
   };
 
   const handleRejectRecharge = (id) => {
@@ -2163,6 +2205,18 @@ export default function AdminPanel({ onNavigateToApp }) {
                       </div>
                     </div>
 
+                    {/* Security & Login Audit Info */}
+                    <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/60 text-[10px] space-y-1">
+                      <div className="flex items-center justify-between text-slate-400">
+                        <span>Last IP & Location:</span>
+                        <span className="font-mono text-cyan-400 font-semibold">{u.lastLoginIp || 'Pending'} ({u.lastLoginLocation || 'Local'})</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-400">
+                        <span>Device & Activity:</span>
+                        <span className="text-slate-300">{u.lastLoginDevice || 'Mobile'} • {u.lastLoginAt ? u.lastLoginAt.slice(0, 16) : u.joined}</span>
+                      </div>
+                    </div>
+
                     {/* Mobile Action Buttons */}
                     <div className="space-y-2 pt-1">
                       <button
@@ -2255,6 +2309,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         <div className="font-bold text-white">{u.name || 'User'}</div>
                         <div className="text-[10px] text-slate-400 font-mono">{u.email}</div>
                         <div className="text-[9px] text-cyan-400 font-mono font-bold">UID: {u.id} | Code: {u.myInviteCode || u.inviteCode || 'N/A'}</div>
+                        <div className="text-[9px] text-slate-400 font-mono mt-0.5">IP: {u.lastLoginIp || 'Pending'} • {u.lastLoginLocation || 'Local'} ({u.lastLoginDevice || 'Mobile'})</div>
                       </td>
                       <td className="py-3 px-4 text-slate-400">{u.phone || '-'}</td>
                       <td className="py-3 px-4">
