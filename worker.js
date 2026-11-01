@@ -696,43 +696,79 @@ export default {
             }
           }
 
-          // If updating 'users' from non-admin client:
-          // Preserve passwords of existing users so public clients cannot wipe out stored credentials!
+          // Server-Side User Protection & Atomic Merge
+          // Public clients or desynced sessions CANNOT delete existing users or wipe credentials!
           if (body.key === 'users' && Array.isArray(body.value)) {
             const existingRow = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('users').first();
             if (existingRow) {
-              const existingUsers = JSON.parse(existingRow.value);
-              const passwordMap = new Map();
-              existingUsers.forEach((u) => {
-                if (u && u.id && u.password) {
-                  passwordMap.set(String(u.id), u.password);
-                }
-                if (u && u.email && u.password) {
-                  passwordMap.set(String(u.email).toLowerCase(), u.password);
-                }
-              });
+              let existingUsers = [];
+              try {
+                existingUsers = JSON.parse(existingRow.value) || [];
+              } catch {
+                existingUsers = [];
+              }
 
-              // Merge passwords back in if non-admin client posted stripped user models
-              body.value = body.value.map((u) => {
-                if (!u) return u;
-                if (!u.password) {
-                  const pass = passwordMap.get(String(u.id)) || passwordMap.get(String(u.email).toLowerCase());
-                  if (pass) return { ...u, password: pass };
-                }
-                return u;
-              });
+              const forceReplace = isAdmin && request.headers.get('x-force-replace') === 'true';
 
-              // Non-admin cannot modify master admin account!
-              if (!isAdmin) {
+              if (!forceReplace) {
+                // Build a map of existing users keyed by id / email / phone
+                const userMap = new Map();
+                existingUsers.forEach((u) => {
+                  if (!u) return;
+                  const key = String(u.id || u.email || u.phone || '').trim().toLowerCase();
+                  if (key) {
+                    userMap.set(key, u);
+                  }
+                });
+
+                // Merge incoming users
+                body.value.forEach((incoming) => {
+                  if (!incoming) return;
+                  const inId = incoming.id ? String(incoming.id).trim().toLowerCase() : null;
+                  const inEmail = incoming.email ? String(incoming.email).trim().toLowerCase() : null;
+                  const inPhone = incoming.phone ? String(incoming.phone).trim() : null;
+
+                  // Find match in userMap
+                  let matchKey = null;
+                  if (inId && userMap.has(inId)) matchKey = inId;
+                  else if (inEmail && userMap.has(inEmail)) matchKey = inEmail;
+                  else {
+                    for (const [k, existing] of userMap.entries()) {
+                      if (
+                        (inId && existing.id && String(existing.id).trim().toLowerCase() === inId) ||
+                        (inEmail && existing.email && String(existing.email).trim().toLowerCase() === inEmail) ||
+                        (inPhone && existing.phone && String(existing.phone).trim() === inPhone)
+                      ) {
+                        matchKey = k;
+                        break;
+                      }
+                    }
+                  }
+
+                  if (matchKey) {
+                    const existing = userMap.get(matchKey);
+                    // Retain existing password if incoming payload has empty or stripped password
+                    const password = incoming.password || existing.password;
+                    // Retain original createdAt if incoming payload missed it
+                    const createdAt = existing.createdAt || incoming.createdAt;
+                    userMap.set(matchKey, { ...existing, ...incoming, password, createdAt });
+                  } else {
+                    // New user registering
+                    const newKey = inId || inEmail || inPhone || String(Date.now());
+                    userMap.set(newKey, incoming);
+                  }
+                });
+
+                // Master Admin is always protected from modification by non-admin
                 const masterAdmin = existingUsers.find((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online');
                 if (masterAdmin) {
-                  const idx = body.value.findIndex((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online');
-                  if (idx >= 0) {
-                    body.value[idx] = masterAdmin;
-                  } else {
-                    body.value.unshift(masterAdmin);
-                  }
+                  userMap.set('100', masterAdmin);
+                  userMap.set('admin@nexttask.online', masterAdmin);
                 }
+
+                // De-duplicate in case of multiple keys pointing to same user object
+                const uniqueUsers = Array.from(new Set(userMap.values()));
+                body.value = uniqueUsers;
               }
             }
           }

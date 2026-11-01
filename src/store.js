@@ -688,7 +688,10 @@ export const recordUserLoginAudit = async (user) => {
     };
 
     const allUsers = getStoredData('users', DEFAULT_USERS);
-    const updatedAll = allUsers.map((u) => (String(u.id) === String(user.id) ? { ...u, ...updatedUser } : u));
+    const exists = allUsers.some((u) => String(u.id) === String(user.id));
+    const updatedAll = exists
+      ? allUsers.map((u) => (String(u.id) === String(user.id) ? { ...u, ...updatedUser } : u))
+      : [...allUsers, updatedUser];
     setStoredData('users', updatedAll);
 
     try {
