@@ -2637,48 +2637,8 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Auth Mode Tabs: Sign In vs Sign Up (Phone Only) */}
-              <div className="flex justify-center gap-10 mt-2 text-sm font-semibold text-white/70">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('login');
-                    setLoginMethod('phone');
-                    setAccountInput('');
-                    setAuthError('');
-                    setAuthModalMsg('');
-                  }}
-                  className={`pb-2 relative transition cursor-pointer ${
-                    authMode === 'login' ? 'text-white font-bold' : 'hover:text-white/90 text-white/60'
-                  }`}
-                >
-                  Phone Login
-                  {authMode === 'login' && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white rounded-full"></span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('register');
-                    setLoginMethod('phone');
-                    setAccountInput('');
-                    setAuthError('');
-                    setAuthModalMsg('');
-                  }}
-                  className={`pb-2 relative transition cursor-pointer ${
-                    authMode === 'register' ? 'text-white font-bold' : 'hover:text-white/90 text-white/60'
-                  }`}
-                >
-                  Register by Phone
-                  {authMode === 'register' && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white rounded-full"></span>
-                  )}
-                </button>
-              </div>
-
               {/* White Form Card (Only Inputs) */}
-              <div className="mx-4 mt-4 bg-white rounded-3xl p-5 shadow-xl space-y-3.5">
+              <div className="mx-4 mt-2 bg-white rounded-3xl p-5 shadow-xl space-y-3.5">
                 {authError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-xs text-rose-700 animate-fade-in">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
