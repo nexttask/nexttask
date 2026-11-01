@@ -59,6 +59,7 @@ import {
   DEFAULT_USERS,
   DEFAULT_VIP_TIERS,
   DEFAULT_SETTINGS,
+  DEFAULT_COMPANY_PROFILE,
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_RECHARGES,
@@ -190,7 +191,7 @@ export default function App() {
               id: `notif_${Date.now()}`,
               userId: String(freshUser.id || freshUser.email),
               title: '🎉 Package Validity Completed & Capital Released!',
-              message: `Your ${freshUser.vip} package validity period has successfully completed. Your principal deposit capital of ${freshUser.recharge} USDT is now unlocked and fully released to your withdrawable balance!`,
+              message: `Your ${freshUser.vip} package validity period has successfully completed. Your principal recharge capital of ${freshUser.recharge} USDT is now unlocked and fully released to your withdrawable balance!`,
               time: new Date().toISOString().replace('T', ' ').slice(0, 16),
               read: false,
               type: 'vip'
@@ -929,6 +930,7 @@ export default function App() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showUpgradeLogModal, setShowUpgradeLogModal] = useState(false);
   const [showCompanyProfileModal, setShowCompanyProfileModal] = useState(false);
+  const [showLicenseZoomModal, setShowLicenseZoomModal] = useState(false);
   const [showAppModal, setShowAppModal] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -1191,7 +1193,7 @@ export default function App() {
       return;
     }
     if (num > balance) {
-      showToast('Insufficient withdrawable task earnings! VIP deposit is locked.');
+      showToast('Insufficient withdrawable task earnings! VIP recharge is locked.');
       return;
     }
     const minWth = typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0
@@ -1930,7 +1932,7 @@ export default function App() {
       ? settings.minDeposit
       : (parseFloat(settings?.minDeposit) || 10.0);
     if (numAmount < minDep) {
-      showToast(`Minimum deposit is ${minDep} USDT`);
+      showToast(`Minimum recharge is ${minDep} USDT`);
       return;
     }
 
@@ -1954,7 +1956,7 @@ export default function App() {
     setShowRechargeModal(false);
     setSenderAccount('');
     setTransactionId('');
-    showToast(`Deposit of $${numAmount.toFixed(2)} submitted! Admin will verify soon.`);
+    showToast(`Recharge of $${numAmount.toFixed(2)} submitted! Admin will verify soon.`);
   };
 
     const filteredCountries = COUNTRY_LIST.filter((c) => {
@@ -3135,7 +3137,7 @@ export default function App() {
                                   {vipName}
                                 </span>
                                 <span className="font-black text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                                  Deposit: <b className="text-indigo-600">${vip.deposit}</b>
+                                  Recharge: <b className="text-indigo-600">${vip.deposit}</b>
                                 </span>
                               </div>
 
@@ -3955,26 +3957,251 @@ export default function App() {
             </div>
           </div>
         )}
-        {/* Company Profile Modal */}
-        {showCompanyProfileModal && (
-          <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl w-full max-w-[340px] p-5 space-y-3 animate-fade-in max-h-[80%] overflow-y-auto">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-indigo-600" />
-                  Company Profile
-                </h3>
-                <button onClick={() => setShowCompanyProfileModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+        {/* ================= COMPANY PROFILE MODAL ================= */}
+        {showCompanyProfileModal && (() => {
+          const profile = settings?.companyProfile || DEFAULT_COMPANY_PROFILE;
+          return (
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden max-h-[92%] flex flex-col animate-slide-up shadow-2xl border border-slate-100">
+                {/* Midnight Luxury Header */}
+                <div className="relative bg-gradient-to-r from-[#071739] via-[#0b2457] to-[#05132d] p-4 text-white shrink-0 overflow-hidden">
+                  <div className="absolute -right-8 -top-8 w-28 h-28 bg-cyan-500/20 rounded-full blur-2xl pointer-events-none" />
+                  <div className="relative flex justify-between items-center">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-extrabold text-white text-base tracking-tight">Company Profile</h3>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+                            Verified
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300 font-medium">Official Corporate Dossier &amp; Legal License</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCompanyProfileModal(false)}
+                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Verification Tagline Chip */}
+                  <div className="mt-3 flex items-center justify-between bg-white/10 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 text-[11px]">
+                    <span className="font-bold text-cyan-200 truncate">
+                      {profile.companyName || 'NextTask Global Network LTD.'}
+                    </span>
+                    <span className="font-mono text-[10px] text-emerald-400 font-extrabold shrink-0 ml-2">
+                      CERTIFIED 2026
+                    </span>
+                  </div>
+                </div>
+
+                {/* Scrollable Content Body */}
+                <div className="p-4 space-y-4 overflow-y-auto text-xs">
+                  {/* Corporate Overview Card */}
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-black text-slate-900 text-sm">
+                          {profile.companyName || 'NextTask Global Network LTD.'}
+                        </h4>
+                        <div className="text-[10px] font-mono text-cyan-700 font-bold mt-0.5">
+                          {profile.regNumber || 'UK-CRN #14892051 / INT-GLOBAL-TASK-2026'}
+                        </div>
+                      </div>
+                      <span className="bg-emerald-100 text-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-300 shrink-0 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Active Entity
+                      </span>
+                    </div>
+
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      {profile.about || 'NextTask is an internationally accredited task acceleration and digital media marketing network founded in 2026.'}
+                    </p>
+                  </div>
+
+                  {/* What We Do / Amader Kaaj Ki (আমাদের কাজ কী) */}
+                  <div className="bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-slate-50 border border-blue-200/80 rounded-2xl p-3.5 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                        <Sparkles className="w-4 h-4 text-cyan-300" />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-blue-950 text-xs">Our Work &amp; Earning Model (আমাদের কাজ ও কার্যক্রম)</h4>
+                        <span className="text-[10px] text-blue-700 font-medium">Merchant Partnerships &amp; Real-time Dividends</span>
+                      </div>
+                    </div>
+
+                    <p className="text-slate-700 text-xs leading-relaxed font-medium">
+                      {profile.whatWeDo || 'Our platform coordinates daily micro-missions between global enterprise merchants and verified community members. By fulfilling daily sponsored tasks, users earn guaranteed daily USDT dividend returns with immediate daily liquidity and automated cloud payouts.'}
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-[10px]">
+                      <div className="bg-white/80 border border-blue-100 rounded-xl p-2 space-y-0.5 shadow-2xs">
+                        <span className="font-bold text-blue-900 block">🛒 Global Brands</span>
+                        <span className="text-slate-500">Sponsored app ratings &amp; e-commerce data tasks</span>
+                      </div>
+                      <div className="bg-white/80 border border-blue-100 rounded-xl p-2 space-y-0.5 shadow-2xs">
+                        <span className="font-bold text-emerald-900 block">💰 Daily Dividends</span>
+                        <span className="text-slate-500">Instant USDT yield settled every 24 hours</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mission & Vision (মিশন ও ভিশন) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Mission */}
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs">
+                        <Award className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>Our Mission (আমাদের লক্ষ্য)</span>
+                      </div>
+                      <p className="text-slate-700 text-[11px] leading-relaxed">
+                        {profile.mission || 'To empower everyday internet users worldwide with transparent, accessible, and high-yield digital employment opportunities supported by automated cloud settlement.'}
+                      </p>
+                    </div>
+
+                    {/* Vision */}
+                    <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-1.5 shadow-2xs">
+                      <div className="flex items-center gap-1.5 text-purple-900 font-extrabold text-xs">
+                        <Crown className="w-4 h-4 text-purple-600 shrink-0" />
+                        <span>Our Vision (আমাদের ভিশন)</span>
+                      </div>
+                      <p className="text-slate-700 text-[11px] leading-relaxed">
+                        {profile.vision || 'To become the world’s most trusted and decentralized micro-task ecosystem, bridging global business intelligence with verifiable crowd participation.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Official Legal License & Certificate Photo (লাইসেন্স ও সার্টিফিকেট) */}
+                  <div className="bg-gradient-to-br from-[#0c1424] via-[#09152e] to-[#040c1a] border border-cyan-500/30 rounded-2xl p-3.5 text-white shadow-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
+                          <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-white text-xs">Official Business License &amp; Certificate</h4>
+                          <p className="text-[10px] text-slate-300">
+                            {profile.licenseTitle || 'Official Certificate of Incorporation & Global Operating License'}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-mono font-bold bg-cyan-400/20 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-400/30 shrink-0">
+                        OFFICIAL
+                      </span>
+                    </div>
+
+                    {/* License Image Box with Zoom */}
+                    <div
+                      onClick={() => setShowLicenseZoomModal(true)}
+                      className="group relative bg-black/50 border border-white/15 rounded-xl overflow-hidden cursor-pointer shadow-inner"
+                    >
+                      <img
+                        src={profile.licenseImage || '/license_certificate.svg'}
+                        alt="Company License"
+                        className="w-full max-h-48 object-contain bg-white/5 transition duration-300 group-hover:scale-102"
+                        onError={(e) => { e.currentTarget.src = '/license_certificate.svg'; }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-1.5 text-white text-xs font-bold">
+                        <span>🔍 Click to View Full License</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                      <span className="truncate">{profile.licenseDate || 'Issued: January 15, 2026 • Verified'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowLicenseZoomModal(true)}
+                        className="text-cyan-400 hover:text-cyan-300 font-bold underline shrink-0 cursor-pointer"
+                      >
+                        Enlarge Certificate
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Security & Regulatory Badges */}
+                  <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 space-y-0.5">
+                      <ShieldCheck className="w-4 h-4 text-cyan-600 mx-auto" />
+                      <div className="font-bold text-[10px] text-slate-800">100% Insured</div>
+                      <div className="text-[8px] text-slate-400">Capital Guaranteed</div>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 space-y-0.5">
+                      <Globe className="w-4 h-4 text-blue-600 mx-auto" />
+                      <div className="font-bold text-[10px] text-slate-800">Global License</div>
+                      <div className="text-[8px] text-slate-400">UK-CRN #14892051</div>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 space-y-0.5">
+                      <Sparkles className="w-4 h-4 text-amber-600 mx-auto" />
+                      <div className="font-bold text-[10px] text-slate-800">Cloud Audited</div>
+                      <div className="text-[8px] text-slate-400">Blockchain Smart Core</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Action */}
+                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowCompanyProfileModal(false)}
+                    className="w-full bg-[#071739] hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                  >
+                    Close Profile
+                  </button>
+                </div>
               </div>
-              <div className="text-xs text-slate-600 space-y-2 leading-relaxed">
-                <p className="font-semibold text-slate-800">NextTask Global Foundation</p>
-                <p>
-                  NextTask is an innovative decentralized e-commerce and tasks reward platform founded in 2026. 
-                  Our goal is to build a collaborative, credible, and multi-tier ecosystem for users worldwide.
-                </p>
-                <p>
-                  All transactions and daily tasks are recorded on verifiable blockchain smart contracts ensuring transparency and liquidity.
-                </p>
+            </div>
+          );
+        })()}
+
+        {/* ================= FULLSCREEN LICENSE ZOOM MODAL ================= */}
+        {showLicenseZoomModal && (
+          <div
+            onClick={() => setShowLicenseZoomModal(false)}
+            className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-3xl w-full bg-slate-950 border border-slate-800 rounded-3xl p-3 sm:p-5 shadow-2xl space-y-3 cursor-default animate-scale-up"
+            >
+              <div className="flex justify-between items-center text-white pb-2 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                  <span className="font-extrabold text-sm">
+                    {settings?.companyProfile?.licenseTitle || 'Official Certificate & Business Operating License'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLicenseZoomModal(false)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="max-h-[75vh] overflow-auto rounded-2xl bg-black/60 flex items-center justify-center p-2">
+                <img
+                  src={settings?.companyProfile?.licenseImage || '/license_certificate.svg'}
+                  alt="Full Official Certificate"
+                  className="w-full max-h-[70vh] object-contain rounded-xl shadow-2xl"
+                  onError={(e) => { e.currentTarget.src = '/license_certificate.svg'; }}
+                />
+              </div>
+
+              <div className="flex justify-between items-center text-[11px] text-slate-400 pt-1">
+                <span className="font-mono text-cyan-300">
+                  {settings?.companyProfile?.regNumber || 'UK-CRN #14892051'}
+                </span>
+                <span className="text-slate-400">
+                  {settings?.companyProfile?.licenseDate || 'Verified Official Corporate Document'}
+                </span>
               </div>
             </div>
           </div>
@@ -4059,7 +4286,7 @@ export default function App() {
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <h3 className="font-extrabold text-white text-base tracking-tight">Deposit Funds</h3>
+                        <h3 className="font-extrabold text-white text-base tracking-tight">Recharge</h3>
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
                           Instant
                         </span>
@@ -4311,7 +4538,7 @@ export default function App() {
                     className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-700 hover:brightness-110 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer mt-2"
                   >
                     <CheckCircle2 className="w-4 h-4 text-cyan-300" />
-                    Submit Deposit Request
+                    Submit Recharge Request
                   </button>
 
                   <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400 pt-0.5">
@@ -4597,17 +4824,17 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Left Column: Deposited Amount */}
+                  {/* Left Column: Recharged Amount */}
                   <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-2.5 text-center shadow-xs">
                     <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-800 uppercase tracking-tight">
                       <ArrowDownLeft className="w-3 h-3 text-emerald-600" />
-                      <span>Deposited</span>
+                      <span>Recharged</span>
                     </div>
                     <div className="text-sm font-black text-emerald-700 mt-1 truncate">
                       ${totalDeposited.toFixed(2)}
                     </div>
                     <div className="text-[9px] text-emerald-600/90 font-semibold mt-0.5 truncate">
-                      {userRecharges.length} Deposits
+                      {userRecharges.length} Recharges
                     </div>
                   </div>
 
@@ -4640,7 +4867,7 @@ export default function App() {
                     onClick={() => setRecordsTab('deposit')}
                     className={`flex-1 py-2 rounded-xl transition cursor-pointer text-center ${recordsTab === 'deposit' ? 'bg-white text-emerald-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
                   >
-                    Deposits ({userRecharges.length})
+                    Recharges ({userRecharges.length})
                   </button>
                   <button
                     type="button"
@@ -4691,7 +4918,7 @@ export default function App() {
                     userRecharges.length === 0 ? (
                       <div className="text-center py-10 text-slate-400 space-y-1">
                         <ArrowDownLeft className="w-8 h-8 mx-auto text-slate-300" />
-                        <p className="text-xs font-semibold">No deposit records yet.</p>
+                        <p className="text-xs font-semibold">No recharge records yet.</p>
                         <p className="text-[10px] text-slate-400">Recharges submitted will show here in real time.</p>
                       </div>
                     ) : (
@@ -4699,7 +4926,7 @@ export default function App() {
                         <div key={r.id || idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
                           <div className="space-y-0.5">
                             <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                              <span>Deposit via {r.network || 'bKash'}</span>
+                              <span>Recharge via {r.network || 'bKash'}</span>
                               <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase ${
                                 r.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
                                 r.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'

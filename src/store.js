@@ -66,6 +66,19 @@ export const DEFAULT_SUPPORT_CHANNELS = [
   }
 ];
 
+export const DEFAULT_COMPANY_PROFILE = {
+  companyName: 'NextTask Global Network LTD.',
+  regNumber: 'UK-CRN #14892051 / INT-GLOBAL-TASK-2026',
+  tagline: 'Leading Decentralized E-Commerce Task & Digital Marketing Network',
+  about: 'NextTask is an internationally accredited task acceleration and digital media marketing network founded in 2026. We collaborate with Fortune 500 digital brands, app marketplaces, and top-tier global retailers to generate verified data interactions, high-engagement user reviews, and algorithmic ranking boosts.',
+  whatWeDo: 'Our platform coordinates daily micro-missions between global enterprise merchants and verified community members. By fulfilling daily sponsored tasks (app reviews, rating orders, content auditing), users earn guaranteed daily USDT dividend returns with immediate daily liquidity and automated cloud payouts.',
+  mission: 'To empower everyday internet users worldwide with transparent, accessible, and high-yield digital employment opportunities supported by automated cloud settlement and multi-tiered referral benefits.',
+  vision: 'To become the world’s most trusted and decentralized micro-task ecosystem, bridging global business intelligence with verifiable crowd participation.',
+  licenseTitle: 'Official Certificate of Incorporation & Global Operating License',
+  licenseDate: 'Issued: January 15, 2026 • Verified by International Business Regulatory Commission',
+  licenseImage: '/license_certificate.svg'
+};
+
 export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
@@ -77,7 +90,8 @@ export const DEFAULT_SETTINGS = {
   telegramBotToken: '9004512965:AAGPv7dp8MCDS4jPgjv8ey_V2T6TQpX3Go4',
   telegramBotUsername: '@NextTask_SupportBot',
   telegramAdminChatId: '',
-  telegramBotAutoReply: true
+  telegramBotAutoReply: true,
+  companyProfile: DEFAULT_COMPANY_PROFILE
 };
 
 export const getPaymentLogo = (pm) => {

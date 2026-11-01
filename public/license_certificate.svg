@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#fafbfe"/>
+      <stop offset="100%" stop-color="#f2f5fc"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#dfb15b"/>
+      <stop offset="25%" stop-color="#fdf1a9"/>
+      <stop offset="50%" stop-color="#d4af37"/>
+      <stop offset="75%" stop-color="#aa771c"/>
+      <stop offset="100%" stop-color="#805a1b"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a2558"/>
+      <stop offset="100%" stop-color="#05132d"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="800" height="560" fill="url(#bgGrad)"/>
+
+  <!-- Ornate Outer Gold Border -->
+  <rect x="20" y="20" width="760" height="520" rx="8" fill="none" stroke="url(#goldGrad)" stroke-width="6"/>
+  <rect x="28" y="28" width="744" height="504" rx="4" fill="none" stroke="#0a2558" stroke-width="1.5" stroke-opacity="0.4"/>
+  <rect x="34" y="34" width="732" height="492" rx="2" fill="none" stroke="url(#goldGrad)" stroke-width="1" stroke-dasharray="6 3"/>
+
+  <!-- Corner Ornaments -->
+  <g fill="url(#goldGrad)">
+    <polygon points="36,36 60,36 36,60"/>
+    <polygon points="764,36 740,36 764,60"/>
+    <polygon points="36,524 60,524 36,500"/>
+    <polygon points="764,524 740,524 764,500"/>
+  </g>
+
+  <!-- Top Emblem / Crest -->
+  <g transform="translate(400, 80)" filter="url(#shadow)">
+    <!-- Shield / Seal -->
+    <circle cx="0" cy="0" r="32" fill="url(#blueGrad)" stroke="url(#goldGrad)" stroke-width="3"/>
+    <circle cx="0" cy="0" r="26" fill="none" stroke="url(#goldGrad)" stroke-width="1" stroke-dasharray="3 2"/>
+    <!-- Star & Crown in Shield -->
+    <path d="M 0 -14 L 3 -6 L 12 -6 L 5 0 L 8 9 L 0 4 L -8 9 L -5 0 L -12 -6 L -3 -6 Z" fill="url(#goldGrad)"/>
+    <!-- Laurel Wreath -->
+    <path d="M -34 6 C -40 -10, -32 -25, -18 -32" fill="none" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 34 6 C 40 -10, 32 -25, 18 -32" fill="none" stroke="url(#goldGrad)" stroke-width="2.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Certificate Headings -->
+  <text x="400" y="142" font-family="'Times New Roman', Georgia, serif" font-size="12" font-weight="bold" letter-spacing="4" fill="#64748b" text-anchor="middle">
+    INTERNATIONAL BUSINESS REGULATORY COMMISSION
+  </text>
+  
+  <text x="400" y="172" font-family="'Times New Roman', Georgia, serif" font-size="24" font-weight="bold" letter-spacing="2" fill="#0a2558" text-anchor="middle">
+    CERTIFICATE OF INCORPORATION
+  </text>
+
+  <text x="400" y="194" font-family="'Times New Roman', Georgia, serif" font-size="13" font-style="italic" fill="#8d6e32" text-anchor="middle">
+    &amp; Official Global Digital Operating License
+  </text>
+
+  <line x1="250" y1="206" x2="550" y2="206" stroke="url(#goldGrad)" stroke-width="1.5"/>
+
+  <!-- Body Content -->
+  <text x="400" y="235" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#475569" text-anchor="middle">
+    This is to certify that the digital enterprise named below has complied with all regulatory statutes and is duly incorporated as:
+  </text>
+
+  <!-- Company Name -->
+  <text x="400" y="275" font-family="'Times New Roman', Georgia, serif" font-size="28" font-weight="bold" letter-spacing="1" fill="#071739" text-anchor="middle">
+    NEXTTASK GLOBAL NETWORK LTD.
+  </text>
+
+  <text x="400" y="298" font-family="'Courier New', monospace" font-size="11" font-weight="bold" fill="#0284c7" letter-spacing="1.5" text-anchor="middle">
+    REGISTRATION ID: UK-CRN #14892051 • GLOBAL ENTITY NO: NT-2026-X8
+  </text>
+
+  <!-- Legal Body Paragraph -->
+  <g font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="11.5" fill="#334155" text-anchor="middle">
+    <text x="400" y="332">Authorized to conduct decentralized digital media marketing, micro-task coordination,</text>
+    <text x="400" y="350">and international cloud payment settlements under cross-border e-commerce conventions.</text>
+    <text x="400" y="368">All financial allocations and task reward yields are legally validated and insured.</text>
+  </g>
+
+  <!-- Golden Seal Stamp (Bottom Left) -->
+  <g transform="translate(140, 440)" filter="url(#shadow)">
+    <!-- Ribbons -->
+    <path d="M -12 25 L -20 65 L 0 55 L 20 65 L 12 25 Z" fill="#b45309"/>
+    <!-- Gold Medallion -->
+    <circle cx="0" cy="0" r="38" fill="url(#goldGrad)" stroke="#78350f" stroke-width="1.5"/>
+    <circle cx="0" cy="0" r="32" fill="none" stroke="#78350f" stroke-width="1" stroke-dasharray="3 2"/>
+    <text x="0" y="-12" font-family="'Times New Roman', serif" font-size="8" font-weight="bold" fill="#451a03" text-anchor="middle" letter-spacing="1">★ OFFICIAL ★</text>
+    <text x="0" y="3" font-family="'Times New Roman', serif" font-size="11" font-weight="bold" fill="#451a03" text-anchor="middle" letter-spacing="1">SEAL OF</text>
+    <text x="0" y="16" font-family="'Times New Roman', serif" font-size="10" font-weight="bold" fill="#451a03" text-anchor="middle" letter-spacing="1">AUTHENTICITY</text>
+    <text x="0" y="26" font-family="'Times New Roman', serif" font-size="7" font-weight="bold" fill="#451a03" text-anchor="middle">2026 VERIFIED</text>
+  </g>
+
+  <!-- Signatures and QR Code (Bottom Right) -->
+  <g transform="translate(630, 445)">
+    <!-- Signature Line 1 -->
+    <path d="M -100 -5 Q -80 -25, -60 -10 T -30 -20 T 0 -5" fill="none" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+    <line x1="-120" y1="10" x2="20" y2="10" stroke="#94a3b8" stroke-width="1"/>
+    <text x="-50" y="24" font-family="'Segoe UI', sans-serif" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">Arthur Pendelton</text>
+    <text x="-50" y="35" font-family="'Segoe UI', sans-serif" font-size="8" fill="#64748b" text-anchor="middle">Registrar General of Companies</text>
+    
+    <!-- Security QR Badge Placeholder -->
+    <rect x="50" y="-35" width="55" height="55" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <!-- Mini QR grid representation -->
+    <rect x="56" y="-29" width="13" height="13" fill="#0f172a"/>
+    <rect x="86" y="-29" width="13" height="13" fill="#0f172a"/>
+    <rect x="56" y="1" width="13" height="13" fill="#0f172a"/>
+    <rect x="73" y="-14" width="8" height="8" fill="#0f172a"/>
+    <rect x="85" y="1" width="14" height="6" fill="#0f172a"/>
+    <text x="77.5" y="28" font-family="'Courier New', monospace" font-size="6.5" font-weight="bold" fill="#64748b" text-anchor="middle">VERIFIED</text>
+  </g>
+
+  <!-- Date Issued in Center Bottom -->
+  <text x="400" y="475" font-family="'Segoe UI', sans-serif" font-size="9.5" font-weight="600" fill="#64748b" text-anchor="middle">
+    GIVEN UNDER OUR HAND AND OFFICIAL SEAL THIS 15TH DAY OF JANUARY, 2026
+  </text>
+  <text x="400" y="492" font-family="'Segoe UI', sans-serif" font-size="8.5" fill="#94a3b8" text-anchor="middle">
+    Jurisdiction: United Kingdom &amp; Global E-Commerce Regulatory Authority • Valid Worldwide
+  </text>
+</svg>

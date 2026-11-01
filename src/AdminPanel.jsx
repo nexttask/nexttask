@@ -39,7 +39,9 @@ import {
   Headphones,
   MessageCircle,
   Send,
-  Check
+  Check,
+  Building2,
+  Award
 } from 'lucide-react';
 import {
   getStoredData,
@@ -50,6 +52,7 @@ import {
   DEFAULT_RECHARGES,
   DEFAULT_WITHDRAWALS,
   DEFAULT_SETTINGS,
+  DEFAULT_COMPANY_PROFILE,
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_SUPPORT_CHANNELS,
@@ -118,7 +121,7 @@ export default function AdminPanel({ onNavigateToApp }) {
     setRecharges(getStoredData('recharges', DEFAULT_RECHARGES));
     setWithdrawals(getStoredData('withdrawals', DEFAULT_WITHDRAWALS));
     setUsers(getStoredData('users', DEFAULT_USERS));
-    if (currentTab !== 'settings') {
+    if (currentTab !== 'settings' && currentTab !== 'company') {
       setSettings(getStoredData('settings', DEFAULT_SETTINGS));
     }
     setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
@@ -1303,6 +1306,7 @@ export default function AdminPanel({ onNavigateToApp }) {
     { id: 'payments', label: 'Payment Numbers', shortLabel: 'Payments', icon: Smartphone },
     { id: 'vips', label: 'VIP Packages', shortLabel: 'VIPs', icon: Gem },
     { id: 'slides', label: 'Home Slides / Banners', shortLabel: 'Banners', icon: ImageIcon },
+    { id: 'company', label: 'Company Profile & License', shortLabel: 'Company', icon: Building2 },
     { id: 'settings', label: 'System Settings', shortLabel: 'Settings', icon: Settings },
   ];
 
@@ -2900,6 +2904,26 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
 
               <div className="space-y-5 text-xs">
+                {/* Company Profile Quick Shortcut Card */}
+                <div className="bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-cyan-950/40 border border-blue-800/50 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold shrink-0">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-xs sm:text-sm">Company Profile & Official License</h4>
+                      <p className="text-[11px] text-slate-400">Edit company background, our work model, mission, vision, and upload certificate photo</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentTab('company')}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 shadow-md shadow-cyan-600/20 transition cursor-pointer self-start sm:self-auto shrink-0"
+                  >
+                    <span>Manage Profile</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 {/* Platform USDT Deposit Address */}
                 <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
                   <div className="flex justify-between items-center">
@@ -3365,6 +3389,354 @@ export default function AdminPanel({ onNavigateToApp }) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ================= TAB 9: COMPANY PROFILE & LEGAL LICENSE ================= */}
+        {currentTab === 'company' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black text-white flex items-center gap-2">
+                  <Building2 className="w-6 h-6 text-cyan-400" />
+                  Company Profile & Corporate License
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Manage the official company information, work model, mission, vision, and legal license photo displayed to all users
+                </p>
+              </div>
+              <span className="self-start sm:self-auto px-3 py-1 rounded-full text-[10px] font-bold bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 flex items-center gap-1.5 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                Live User Sync
+              </span>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const updatedSettings = {
+                  ...settings,
+                  companyProfile: settings.companyProfile || DEFAULT_COMPANY_PROFILE
+                };
+                setSettings(updatedSettings);
+                updateSettings(updatedSettings);
+                showToast('Company profile & license updated successfully!');
+              }}
+              className="space-y-6 text-xs"
+            >
+              {/* Card 1: Corporate Identity */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-800/80">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-100 text-sm">Corporate Legal Identity</h3>
+                    <p className="text-[11px] text-slate-400">Official registered name and international registration number</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Company Legal Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={settings?.companyProfile?.companyName ?? DEFAULT_COMPANY_PROFILE.companyName}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSettings((prev) => ({
+                          ...prev,
+                          companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), companyName: val }
+                        }));
+                      }}
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-cyan-400 font-semibold"
+                      placeholder="e.g. NextTask Global Network LTD."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Registration / Certificate Number</label>
+                    <input
+                      type="text"
+                      required
+                      value={settings?.companyProfile?.regNumber ?? DEFAULT_COMPANY_PROFILE.regNumber}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSettings((prev) => ({
+                          ...prev,
+                          companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), regNumber: val }
+                        }));
+                      }}
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-cyan-400 font-mono"
+                      placeholder="e.g. UK-CRN #14892051 / INT-GLOBAL-TASK-2026"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">Platform Tagline / Slogan</label>
+                  <input
+                    type="text"
+                    value={settings?.companyProfile?.tagline ?? DEFAULT_COMPANY_PROFILE.tagline}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSettings((prev) => ({
+                        ...prev,
+                        companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), tagline: val }
+                      }));
+                    }}
+                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-cyan-400"
+                    placeholder="e.g. Leading Decentralized E-Commerce Task & Digital Marketing Network"
+                  />
+                </div>
+              </div>
+
+              {/* Card 2: What We Do (Our Work) & About */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-800/80">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                    <CheckCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-100 text-sm">Our Work & Platform Operations (আমাদের কাজ কী)</h3>
+                    <p className="text-[11px] text-slate-400">Detailed explanation of how the platform operates and how users earn profit</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">
+                    What We Do / Our Business Model (আমাদের কাজ ও আয়ের পদ্ধতি)
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={settings?.companyProfile?.whatWeDo ?? DEFAULT_COMPANY_PROFILE.whatWeDo}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSettings((prev) => ({
+                        ...prev,
+                        companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), whatWeDo: val }
+                      }));
+                    }}
+                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-emerald-400 leading-relaxed resize-y"
+                    placeholder="Explain what the platform does, merchant partnerships, daily tasks, and how members generate income..."
+                  />
+                  <p className="text-[10px] text-slate-500">Displayed prominently under 'Our Work' in the Company Profile modal.</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold block">About Company Overview</label>
+                  <textarea
+                    rows={3}
+                    value={settings?.companyProfile?.about ?? DEFAULT_COMPANY_PROFILE.about}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSettings((prev) => ({
+                        ...prev,
+                        companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), about: val }
+                      }));
+                    }}
+                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-emerald-400 leading-relaxed resize-y"
+                    placeholder="Short introduction about the company background, founding year, and digital market presence..."
+                  />
+                </div>
+              </div>
+
+              {/* Card 3: Mission & Vision */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-800/80">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                    <Crown className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-100 text-sm">Mission & Vision Statements (মিশন ও ভিশন)</h3>
+                    <p className="text-[11px] text-slate-400">Strategic goals and future vision of the network</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Corporate Mission (আমাদের লক্ষ্য / মিশন)</label>
+                    <textarea
+                      rows={3}
+                      value={settings?.companyProfile?.mission ?? DEFAULT_COMPANY_PROFILE.mission}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSettings((prev) => ({
+                          ...prev,
+                          companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), mission: val }
+                        }));
+                      }}
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-amber-400 leading-relaxed resize-y"
+                      placeholder="e.g. To empower everyday internet users worldwide with transparent digital employment opportunities..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Corporate Vision (আমাদের দূরদৃষ্টি / ভিশন)</label>
+                    <textarea
+                      rows={3}
+                      value={settings?.companyProfile?.vision ?? DEFAULT_COMPANY_PROFILE.vision}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSettings((prev) => ({
+                          ...prev,
+                          companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), vision: val }
+                        }));
+                      }}
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-amber-400 leading-relaxed resize-y"
+                      placeholder="e.g. To become the world’s most trusted and decentralized micro-task ecosystem..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Official Certificate & License Photo */}
+              <div className="bg-slate-950/70 border border-slate-800/90 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-slate-800/80">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-100 text-sm">Official License & Certificate Photo (লাইসেন্স বা সনদপত্র)</h3>
+                    <p className="text-[11px] text-slate-400">Upload your government registration certificate, business license, or incorporation document</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Certificate Title / Document Name</label>
+                    <input
+                      type="text"
+                      value={settings?.companyProfile?.licenseTitle ?? DEFAULT_COMPANY_PROFILE.licenseTitle}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSettings((prev) => ({
+                          ...prev,
+                          companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), licenseTitle: val }
+                        }));
+                      }}
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-400 font-semibold"
+                      placeholder="Official Certificate of Incorporation & Global Operating License"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Issuance Date / Legal Authority</label>
+                    <input
+                      type="text"
+                      value={settings?.companyProfile?.licenseDate ?? DEFAULT_COMPANY_PROFILE.licenseDate}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSettings((prev) => ({
+                          ...prev,
+                          companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), licenseDate: val }
+                        }));
+                      }}
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-400"
+                      placeholder="Issued: January 15, 2026 • Verified by International Business Regulatory Commission"
+                    />
+                  </div>
+                </div>
+
+                {/* Upload or Image URL controls */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-2">
+                  <div className="lg:col-span-2 space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-slate-300 font-bold block">Certificate Image URL</label>
+                      <input
+                        type="text"
+                        value={settings?.companyProfile?.licenseImage ?? DEFAULT_COMPANY_PROFILE.licenseImage}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSettings((prev) => ({
+                            ...prev,
+                            companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), licenseImage: val }
+                          }));
+                        }}
+                        className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-400 font-mono"
+                        placeholder="e.g. /license_certificate.svg or https://..."
+                      />
+                      <p className="text-[10px] text-slate-500">You can paste an online image link or upload a photo directly below.</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <label className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs py-2 px-4 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5 transition active:scale-95">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload License Photo / Document</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) {
+                              showToast('Image size exceeds 5MB limit');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const dataUrl = ev.target.result;
+                              setSettings((prev) => ({
+                                ...prev,
+                                companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), licenseImage: dataUrl }
+                              }));
+                              showToast('License photo uploaded! Click Save to apply.');
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSettings((prev) => ({
+                            ...prev,
+                            companyProfile: { ...(prev.companyProfile || DEFAULT_COMPANY_PROFILE), licenseImage: '/license_certificate.svg' }
+                          }));
+                          showToast('Reset to default official certificate.');
+                        }}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs py-2 px-3.5 rounded-xl transition cursor-pointer"
+                      >
+                        Restore Default Certificate
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Certificate Live Preview Box */}
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold text-[11px] block">Live Document Preview</label>
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col items-center justify-center text-center shadow-inner overflow-hidden min-h-[140px]">
+                      <img
+                        src={settings?.companyProfile?.licenseImage || '/license_certificate.svg'}
+                        alt="License Preview"
+                        className="w-full max-h-40 object-contain rounded-lg shadow-md border border-slate-700/50"
+                        onError={(e) => { e.currentTarget.src = '/license_certificate.svg'; }}
+                      />
+                      <span className="text-[10px] text-cyan-400 font-mono mt-1.5 truncate max-w-full">
+                        {settings?.companyProfile?.licenseTitle || 'Official License'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto justify-center bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-black text-xs py-3.5 px-8 rounded-xl shadow-lg shadow-cyan-600/30 active:scale-[0.98] transition cursor-pointer flex items-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Save Company Profile & License</span>
+                </button>
+                <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                  ✓ Instantly updates the user-side Company Profile modal on all devices
+                </span>
+              </div>
+            </form>
           </div>
         )}
       </main>
