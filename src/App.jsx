@@ -473,32 +473,51 @@ export default function App() {
       syncCurrentUserData();
     };
 
-    const handleSyncEvent = () => {
+    const applyFreshState = () => {
       handleUrlChange();
-      setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
-      setSettings(getStoredData('settings', DEFAULT_SETTINGS));
-      setSlides(getStoredData('slides', DEFAULT_SLIDES));
-      setSupportChannels(getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
-      setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
+      const freshVips = getStoredData('vips', DEFAULT_VIP_TIERS);
+      const freshSettings = getStoredData('settings', DEFAULT_SETTINGS);
+      const freshSlides = getStoredData('slides', DEFAULT_SLIDES);
+      const freshSupport = getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS);
+      const freshPayments = getStoredData('payments', DEFAULT_PAYMENT_METHODS);
+
+      setVipTiers((prev) => JSON.stringify(prev) === JSON.stringify(freshVips) ? prev : freshVips);
+      setSettings((prev) => JSON.stringify(prev) === JSON.stringify(freshSettings) ? prev : freshSettings);
+      setSlides((prev) => JSON.stringify(prev) === JSON.stringify(freshSlides) ? prev : freshSlides);
+      setSupportChannels((prev) => JSON.stringify(prev) === JSON.stringify(freshSupport) ? prev : freshSupport);
+      setPaymentMethods((prev) => JSON.stringify(prev) === JSON.stringify(freshPayments) ? prev : freshPayments);
       syncCurrentUserData();
     };
 
+    const handleSyncEvent = (e) => {
+      // If cloud-sync triggered without real updates, skip state replacement to prevent UI jitter
+      if (e?.detail && e.detail.hasUpdates === false) return;
+      applyFreshState();
+    };
+
     handleUrlChange();
+
+    // Await cloud synchronization BEFORE dismissing the loading splash
     fetchCloudDataNow().then(() => {
-      setIsInitialSyncing(false);
+      applyFreshState();
+      setTimeout(() => {
+        setIsInitialSyncing(false);
+      }, 150);
     }).catch(() => {
+      applyFreshState();
       setIsInitialSyncing(false);
     });
 
     const splashSafetyTimer = setTimeout(() => {
+      applyFreshState();
       setIsInitialSyncing(false);
-    }, 1200);
+    }, 1800);
 
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
     window.addEventListener('storage', handleSyncEvent);
     window.addEventListener('cloud-sync', handleSyncEvent);
-    const syncInterval = setInterval(syncCurrentUserData, 2000);
+    const syncInterval = setInterval(syncCurrentUserData, 3000);
     return () => {
       clearTimeout(splashSafetyTimer);
       window.removeEventListener('popstate', handleUrlChange);
@@ -2148,31 +2167,33 @@ export default function App() {
       {/* Mobile App Viewport Frame - Always fixed height with internal scrolling */}
       <div ref={appFrameRef} dir={currentLangObj.dir} className="w-full max-w-md bg-[#f4f7fb] h-full sm:h-[840px] sm:max-h-[96dvh] flex flex-col relative sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-800">
 
-        {/* ================= INITIAL CLOUD SYNC SPLASH (NO FLICKER ON NEW DEVICES) ================= */}
-        {isInitialSyncing && (
-          <div className="absolute inset-0 z-[100] bg-gradient-to-b from-[#05132d] via-[#091b3e] to-[#040e22] flex flex-col items-center justify-center p-6 text-white animate-fade-in select-none">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-amber-400 p-0.5 shadow-2xl shadow-cyan-500/30">
-                <div className="w-full h-full bg-[#05132d] rounded-3xl flex items-center justify-center overflow-hidden">
-                  <img src="/app-logo.png" alt="NextTask" className="w-12 h-12 object-contain drop-shadow" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                </div>
+        {/* ================= INITIAL CLOUD SYNC SPLASH (NO FLICKER ON ANY DEVICE) ================= */}
+        <div
+          className={`absolute inset-0 z-[100] bg-gradient-to-b from-[#05132d] via-[#091b3e] to-[#040e22] flex flex-col items-center justify-center p-6 text-white select-none transition-all duration-300 ease-out ${
+            isInitialSyncing ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+        >
+          <div className="relative mb-6">
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-amber-400 p-0.5 shadow-2xl shadow-cyan-500/30">
+              <div className="w-full h-full bg-[#05132d] rounded-3xl flex items-center justify-center overflow-hidden">
+                <img src="/app-logo.png" alt="NextTask" className="w-12 h-12 object-contain drop-shadow" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               </div>
-              <div className="absolute -inset-1 rounded-3xl bg-cyan-400/20 blur-md -z-10 animate-pulse"></div>
             </div>
-
-            <h2 className="text-xl font-black tracking-tight text-white mb-1">
-              NextTask
-            </h2>
-            <p className="text-xs text-cyan-300/80 font-medium tracking-wide mb-6">
-              Official Earning Platform
-            </p>
-
-            <div className="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden relative shadow-inner">
-              <div className="h-full bg-gradient-to-r from-cyan-400 via-indigo-400 to-amber-400 animate-progress rounded-full"></div>
-            </div>
-            <span className="text-[10px] text-slate-400 mt-3 font-mono">Synchronizing live data...</span>
+            <div className="absolute -inset-1 rounded-3xl bg-cyan-400/20 blur-md -z-10 animate-pulse"></div>
           </div>
-        )}
+
+          <h2 className="text-xl font-black tracking-tight text-white mb-1">
+            NextTask
+          </h2>
+          <p className="text-xs text-cyan-300/80 font-medium tracking-wide mb-6">
+            Official Earning Platform
+          </p>
+
+          <div className="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden relative shadow-inner">
+            <div className="h-full bg-gradient-to-r from-cyan-400 via-indigo-400 to-amber-400 animate-progress rounded-full"></div>
+          </div>
+          <span className="text-[10px] text-slate-400 mt-3 font-mono">Synchronizing live data...</span>
+        </div>
 
         {/* ================= RECHARGE ERROR POPUP (11 DIGITS & 10 TRX) ================= */}
         {rechargeErrorPopup && (

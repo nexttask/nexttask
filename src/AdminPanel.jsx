@@ -136,12 +136,16 @@ export default function AdminPanel({ onNavigateToApp }) {
   useEffect(() => {
     fetchCloudDataNow();
     syncData();
-    window.addEventListener('storage', syncData);
-    window.addEventListener('cloud-sync', syncData);
-    const syncTimer = setInterval(syncData, 2000);
+    const handleSync = (e) => {
+      if (e?.detail && e.detail.hasUpdates === false) return;
+      syncData();
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('cloud-sync', handleSync);
+    const syncTimer = setInterval(syncData, 5000);
     return () => {
-      window.removeEventListener('storage', syncData);
-      window.removeEventListener('cloud-sync', syncData);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('cloud-sync', handleSync);
       clearInterval(syncTimer);
     };
   }, [currentTab]);

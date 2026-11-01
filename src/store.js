@@ -480,75 +480,87 @@ export const setStoredData = (key, value) => {
   }
 };
 
-let isCloudSyncing = false;
+let activeSyncPromise = null;
+export let hasEverSyncedFromCloud = false;
+
 export const fetchCloudDataNow = async () => {
-  if (typeof fetch === 'undefined' || typeof window === 'undefined') return;
-  if (isCloudSyncing) return;
-  isCloudSyncing = true;
+  if (typeof fetch === 'undefined' || typeof window === 'undefined') return { success: false };
+  if (activeSyncPromise) {
+    return activeSyncPromise;
+  }
 
-  try {
-    const res = await fetch('/api/data', { headers: getAuthHeaders() });
-    if (!res.ok) return;
-    const json = await res.json();
+  activeSyncPromise = (async () => {
+    try {
+      const res = await fetch('/api/data', { headers: getAuthHeaders() });
+      if (!res.ok) return { success: false };
+      const json = await res.json();
 
-    if (json && json.success && json.data) {
-      let hasUpdates = false;
+      if (json && json.success && json.data) {
+        let hasUpdates = false;
 
-      // If D1 is connected but has 0 keys, auto-seed defaults into D1
-      if (json.source === 'd1' && Object.keys(json.data).length === 0) {
-        console.log('[Cloudflare D1] Initializing fresh database with default platform state...');
-        fetch('/api/data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bulk: {
-              users: DEFAULT_USERS,
-              vips: DEFAULT_VIP_TIERS,
-              slides: DEFAULT_SLIDES,
-              payments: DEFAULT_PAYMENT_METHODS,
-              settings: DEFAULT_SETTINGS,
-              recharges: [],
-              withdrawals: [],
-              notifications: []
+        // If D1 is connected but has 0 keys, auto-seed defaults into D1
+        if (json.source === 'd1' && Object.keys(json.data).length === 0) {
+          console.log('[Cloudflare D1] Initializing fresh database with default platform state...');
+          fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bulk: {
+                users: DEFAULT_USERS,
+                vips: DEFAULT_VIP_TIERS,
+                slides: DEFAULT_SLIDES,
+                payments: DEFAULT_PAYMENT_METHODS,
+                settings: DEFAULT_SETTINGS,
+                recharges: [],
+                withdrawals: [],
+                notifications: []
+              }
+            })
+          }).catch(() => {});
+          hasEverSyncedFromCloud = true;
+          return { success: true, hasUpdates: false };
+        }
+
+        for (const [k, v] of Object.entries(json.data)) {
+          if (v !== undefined && v !== null) {
+            const currentMem = memoryCache.get(k);
+            const currentStr = JSON.stringify(currentMem);
+            const newStr = JSON.stringify(v);
+
+            if (currentStr !== newStr) {
+              memoryCache.set(k, v);
+              try {
+                localStorage.setItem(`nt_${k}`, newStr);
+              } catch {}
+              hasUpdates = true;
             }
-          })
-        }).catch(() => {});
-        return;
-      }
-
-      for (const [k, v] of Object.entries(json.data)) {
-        if (v !== undefined && v !== null) {
-          const currentMem = memoryCache.get(k);
-          const currentStr = JSON.stringify(currentMem);
-          const newStr = JSON.stringify(v);
-
-          if (currentStr !== newStr) {
-            memoryCache.set(k, v);
-            try {
-              localStorage.setItem(`nt_${k}`, newStr);
-            } catch {}
-            hasUpdates = true;
           }
         }
-      }
 
-      // Always notify components that fresh D1 cloud data is available
-      window.dispatchEvent(new Event('storage'));
-      window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { data: json.data, hasUpdates } }));
+        hasEverSyncedFromCloud = true;
+
+        // ONLY dispatch update event if data actually changed to avoid UI re-render flicker
+        if (hasUpdates) {
+          window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { data: json.data, hasUpdates: true } }));
+        }
+
+        return { success: true, hasUpdates, data: json.data };
+      }
+      return { success: false };
+    } catch (e) {
+      return { success: false, error: e };
+    } finally {
+      activeSyncPromise = null;
     }
-  } catch {
-    // Graceful offline fallback
-  } finally {
-    isCloudSyncing = false;
-  }
+  })();
+
+  return activeSyncPromise;
 };
 
-// Initialize immediate & automatic cloud synchronization
+// Initialize automatic background cloud synchronization
 if (typeof window !== 'undefined') {
   fetchCloudDataNow();
-  setTimeout(fetchCloudDataNow, 50);
-  setTimeout(fetchCloudDataNow, 300);
-  setInterval(fetchCloudDataNow, 3000);
+  setInterval(fetchCloudDataNow, 4000);
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       fetchCloudDataNow();
