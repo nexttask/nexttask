@@ -161,13 +161,43 @@ export default function App() {
         (u.phone && cur.phone && u.phone === cur.phone)
       );
       if (freshUser) {
+        // Auto-check capital release if package validity has ended
+        if (
+          freshUser.vipExpiresAt &&
+          Date.now() >= freshUser.vipExpiresAt &&
+          !freshUser.capitalReleased &&
+          freshUser.vip !== 'VIP0' &&
+          freshUser.email !== 'admin@nexttask.online'
+        ) {
+          freshUser.capitalReleased = true;
+          const updatedUsers = allUsers.map(u => (
+            (u.id && freshUser.id && String(u.id) === String(freshUser.id)) ||
+            (u.email && freshUser.email && u.email.toLowerCase() === freshUser.email.toLowerCase())
+          ) ? { ...u, capitalReleased: true } : u);
+          setStoredData('users', updatedUsers);
+          try {
+            const allNotifs = getStoredData('notifications', []);
+            allNotifs.unshift({
+              id: `notif_${Date.now()}`,
+              userId: String(freshUser.id || freshUser.email),
+              title: '🎉 Package Validity Completed & Capital Released!',
+              message: `Your ${freshUser.vip} package validity period has successfully completed. Your principal deposit capital of ${freshUser.recharge} USDT is now unlocked and fully released to your withdrawable balance!`,
+              time: new Date().toISOString().replace('T', ' ').slice(0, 16),
+              read: false,
+              type: 'vip'
+            });
+            setStoredData('notifications', allNotifs);
+          } catch (e) {}
+        }
+
         setCurrentUser((prev) => {
           if (!prev) return freshUser;
           if (
             prev.balance !== freshUser.balance ||
             prev.recharge !== freshUser.recharge ||
             prev.vip !== freshUser.vip ||
-            prev.name !== freshUser.name
+            prev.name !== freshUser.name ||
+            prev.capitalReleased !== freshUser.capitalReleased
           ) {
             try {
               localStorage.setItem('nt_currentUser', JSON.stringify(freshUser));
@@ -1586,6 +1616,10 @@ export default function App() {
     if (balance >= reqDeposit && reqDeposit > 0) {
       const newBalance = parseFloat((balance - reqDeposit).toFixed(2));
       const newRecharge = parseFloat(((currentUser?.recharge || rechargeTotal || 0) + reqDeposit).toFixed(2));
+      const durationDays = selectedVipForUnlock.days ? parseInt(selectedVipForUnlock.days) : 20;
+      const now = Date.now();
+      const expiresAt = now + durationDays * 86400000;
+
       setBalance(newBalance);
       setRechargeTotal(newRecharge);
       setUserVip(selectedVipForUnlock.level);
@@ -1602,7 +1636,16 @@ export default function App() {
           (u.email && u.email.toLowerCase() === emailOrPhone.toLowerCase()) ||
           (u.phone && u.phone === emailOrPhone)
         ) {
-          return { ...u, vip: selectedVipForUnlock.level, balance: newBalance, recharge: newRecharge };
+          return {
+            ...u,
+            vip: selectedVipForUnlock.level,
+            balance: newBalance,
+            recharge: newRecharge,
+            vipActivatedAt: now,
+            vipDurationDays: durationDays,
+            vipExpiresAt: expiresAt,
+            capitalReleased: false
+          };
         }
 
         // Credit the referrer
@@ -2848,26 +2891,32 @@ export default function App() {
                             </div>
 
                             {/* Middle Specs */}
-                            <div className={`flex-1 rounded-2xl p-3 flex flex-col justify-between text-xs space-y-1 ${
+                            <div className={`flex-1 rounded-2xl p-3 flex flex-col justify-between text-xs space-y-1.5 ${
                               isCurrentUnlocked
                                 ? "bg-emerald-50/70 border border-emerald-100/70"
                                 : "bg-[#ebf0f8]/80"
                             }`}>
                               <div className="flex justify-between items-center text-slate-600">
                                 <span>{t('dailyTasks')}</span>
-                                <span className="font-semibold text-slate-800">{vip.tasks}</span>
+                                <span className="font-semibold text-slate-800">{vip.tasks} Tasks</span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
-                                <span>{t('simpleInterest')}</span>
-                                <span className="font-bold text-[#00c282]">{vip.interest}</span>
+                                <span>Validity (মেয়াদ)</span>
+                                <span className="font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md text-[11px]">{vip.days || 20} Days</span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
                                 <span>{t('dailyProfit')}</span>
-                                <span className="font-semibold text-slate-800">{vip.daily} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
+                                <span className="font-bold text-cyan-700">+{vip.daily} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
-                                <span>{t('totalProfit')}</span>
-                                <span className="font-semibold text-slate-800">{vip.total} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
+                                <span>Total Return ({vip.profitPercent || 80}%)</span>
+                                <span className="font-black text-emerald-600">{vip.total} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
+                              </div>
+                              <div className="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                                <span className="text-slate-500">Capital Status</span>
+                                <span className="text-emerald-700 font-bold bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                                  Auto-release on expiry
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -3223,9 +3272,23 @@ export default function App() {
                             <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
                           </div>
                           <h2 className="text-base font-black text-white mt-1.5 tracking-tight">AI & Blockchain Node Tasks</h2>
-                          <p className="text-[11px] text-slate-300 mt-0.5">
-                            {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+{rewardPerTask.toFixed(2)} USDT</b>
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <span className="text-[11px] text-slate-300">
+                              {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+{rewardPerTask.toFixed(2)} USDT</b>
+                            </span>
+                            {userVip && userVip !== 'VIP0' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs">
+                                <span>⏳ মেয়াদ:</span>
+                                <b>
+                                  {currentUser?.capitalReleased || (currentUser?.vipExpiresAt && Date.now() >= currentUser.vipExpiresAt)
+                                    ? 'মেয়াদ শেষ (ক্যাপিটাল রিলিজ হয়েছে)'
+                                    : currentUser?.vipExpiresAt
+                                    ? `${Math.max(1, Math.ceil((currentUser.vipExpiresAt - Date.now()) / 86400000))} দিন বাকি`
+                                    : `${currentVipTier?.days || 20} দিন`}
+                                </b>
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="text-right">
@@ -3826,7 +3889,9 @@ export default function App() {
                   <div>
                     <div className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1.5">
                       <span>Available Balance</span>
-                      <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded-full font-bold">Task Earnings</span>
+                      <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded-full font-bold">
+                        {currentUser?.capitalReleased || (currentUser?.vipExpiresAt && Date.now() >= currentUser.vipExpiresAt) ? 'Earnings + Released Capital' : 'Task Earnings'}
+                      </span>
                     </div>
                     <div className="text-xl font-black text-slate-900 mt-0.5">{balance.toFixed(2)} USDT</div>
                   </div>

@@ -1,16 +1,16 @@
 // Shared State Store with LocalStorage Persistence
 
 export const DEFAULT_VIP_TIERS = [
-  { id: '1', level: 'VIP1', deposit: '10.00', tasks: 10, interest: '0.70', daily: '7.00', total: '1,680.00' },
-  { id: '2', level: 'VIP2', deposit: '70.00', tasks: 10, interest: '4.90', daily: '49.00', total: '11,760.00' },
-  { id: '3', level: 'VIP3', deposit: '170.00', tasks: 10, interest: '11.90', daily: '119.00', total: '28,560.00' },
-  { id: '4', level: 'VIP4', deposit: '370.00', tasks: 10, interest: '25.90', daily: '259.00', total: '62,160.00' },
-  { id: '5', level: 'VIP5', deposit: '770.00', tasks: 10, interest: '53.90', daily: '539.00', total: '129,360.00' },
-  { id: '6', level: 'VIP6', deposit: '1,570.00', tasks: 10, interest: '109.90', daily: '1,099.00', total: '263,760.00' },
-  { id: '7', level: 'VIP7', deposit: '3,570.00', tasks: 10, interest: '267.70', daily: '2,677.00', total: '642,480.00' },
-  { id: '8', level: 'VIP8', deposit: '7,770.00', tasks: 10, interest: '599.00', daily: '5,990.00', total: '1,437,600.00' },
-  { id: '9', level: 'VIP9', deposit: '17,700.00', tasks: 10, interest: '1416.00', daily: '14,160.00', total: '3,398,400.00' },
-  { id: '10', level: 'VIP10', deposit: '27,700.00', tasks: 10, interest: '2354.50', daily: '23,545.00', total: '5,650,800.00' },
+  { id: '1', level: 'VIP1', deposit: '10.00', tasks: 10, days: 20, profitPercent: 80, interest: '0.09', daily: '0.90', total: '18.00' },
+  { id: '2', level: 'VIP2', deposit: '70.00', tasks: 10, days: 20, profitPercent: 80, interest: '0.63', daily: '6.30', total: '126.00' },
+  { id: '3', level: 'VIP3', deposit: '170.00', tasks: 10, days: 20, profitPercent: 80, interest: '1.53', daily: '15.30', total: '306.00' },
+  { id: '4', level: 'VIP4', deposit: '370.00', tasks: 10, days: 20, profitPercent: 80, interest: '3.33', daily: '33.30', total: '666.00' },
+  { id: '5', level: 'VIP5', deposit: '770.00', tasks: 10, days: 20, profitPercent: 80, interest: '6.93', daily: '69.30', total: '1,386.00' },
+  { id: '6', level: 'VIP6', deposit: '1,570.00', tasks: 10, days: 20, profitPercent: 80, interest: '14.13', daily: '141.30', total: '2,826.00' },
+  { id: '7', level: 'VIP7', deposit: '3,570.00', tasks: 10, days: 20, profitPercent: 80, interest: '32.13', daily: '321.30', total: '6,426.00' },
+  { id: '8', level: 'VIP8', deposit: '7,770.00', tasks: 10, days: 20, profitPercent: 80, interest: '69.93', daily: '699.30', total: '13,986.00' },
+  { id: '9', level: 'VIP9', deposit: '17,700.00', tasks: 10, days: 20, profitPercent: 80, interest: '159.30', daily: '1,593.00', total: '31,860.00' },
+  { id: '10', level: 'VIP10', deposit: '27,700.00', tasks: 10, days: 20, profitPercent: 80, interest: '249.30', daily: '2,493.00', total: '49,860.00' },
 ];
 
 export const DEFAULT_USERS = [
@@ -125,6 +125,27 @@ export const getStoredData = (key, fallback) => {
       }
     }
 
+    // Ensure VIP tiers have validity days and 80% profit parameters
+    if (key === 'vips' && Array.isArray(parsed)) {
+      return parsed.map((v) => {
+        if (!v) return v;
+        const dep = parseFloat(String(v.deposit || 0).replace(/,/g, '')) || 0;
+        const days = v.days ? parseInt(v.days) : 20;
+        const profitPct = v.profitPercent ? parseFloat(v.profitPercent) : 80;
+        const tot = v.total && !v.total.includes('1,680') ? v.total : (dep * (1 + profitPct / 100)).toFixed(2);
+        const daily = v.daily && !v.daily.includes('7.00') ? v.daily : (parseFloat(tot) / days).toFixed(2);
+        const interest = (parseFloat(daily) / (v.tasks || 10)).toFixed(2);
+        return {
+          ...v,
+          days,
+          profitPercent: profitPct,
+          daily,
+          interest,
+          total: tot
+        };
+      });
+    }
+
     // Load users safely and preserve all real users
     if (key === 'users' && Array.isArray(parsed)) {
       // Ensure master admin is always present
@@ -207,12 +228,15 @@ export const getStoredData = (key, fallback) => {
   }
 };
 
-// Calculate real withdrawable task balance for a user (VIP package deposit is locked)
+// Calculate real withdrawable task balance for a user
+// (VIP package deposit is locked during package validity; once validity ends, capital is auto-released!)
 export const getUserWithdrawableBalance = (user) => {
   if (!user) return 0;
   if (user.email === 'admin@nexttask.online') {
     return typeof user.balance === 'number' ? user.balance : 99999.00;
   }
+
+  // 1. Task earnings
   const allTasks = getStoredData('task_records', []);
   const userTasks = allTasks.filter(t => t && (
     (user.id && String(t.userId) === String(user.id)) ||
@@ -220,6 +244,16 @@ export const getUserWithdrawableBalance = (user) => {
     (user.phone && String(t.user || '') === user.phone)
   ));
   const earned = userTasks.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+
+  // 2. Referral commissions
+  const refEarned = typeof user.referralEarnings === 'number' ? user.referralEarnings : 0;
+
+  // 3. Capital release check (when package validity / মেয়াদ ends)
+  const isExpired = !!(user.vipExpiresAt && Date.now() >= user.vipExpiresAt);
+  const isCapitalReleased = user.capitalReleased === true || isExpired;
+  const capitalBonus = isCapitalReleased ? (parseFloat(user.recharge || user.lockedCapital || 0)) : 0;
+
+  // 4. Approved or pending withdrawals
   const allW = getStoredData('withdrawals', []);
   const userW = allW.filter(w => w && (
     (user.id && String(w.userId) === String(user.id)) ||
@@ -227,8 +261,9 @@ export const getUserWithdrawableBalance = (user) => {
     (user.phone && String(w.user || '') === user.phone)
   ) && w.status !== 'rejected');
   const withdrawn = userW.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
-  const taskBal = Math.max(0, parseFloat((earned - withdrawn).toFixed(2)));
-  return taskBal;
+
+  const withdrawable = Math.max(0, parseFloat((earned + refEarned + capitalBonus - withdrawn).toFixed(2)));
+  return withdrawable;
 };
 
 export const getAdminToken = () => {

@@ -387,6 +387,8 @@ export default function AdminPanel({ onNavigateToApp }) {
     level: '',
     deposit: '',
     tasks: 10,
+    days: 20,
+    profitPercent: 80,
     interest: '',
     daily: '',
     total: ''
@@ -587,22 +589,86 @@ export default function AdminPanel({ onNavigateToApp }) {
   };
 
   // --- VIP CRUD HANDLERS ---
+  const handleVipFormChange = (field, value) => {
+    setVipForm((prev) => {
+      const next = { ...prev, [field]: value };
+      const dep = parseFloat(String(field === 'deposit' ? value : next.deposit).replace(/,/g, '')) || 0;
+      const profitPct = parseFloat(field === 'profitPercent' ? value : next.profitPercent) || 80;
+      const tasks = parseInt(field === 'tasks' ? value : next.tasks) || 10;
+      const totalReturn = dep * (1 + profitPct / 100);
+
+      if (field === 'deposit' || field === 'profitPercent') {
+        const days = parseInt(next.days) || 20;
+        const dailyProfit = days > 0 ? (totalReturn / days) : 0;
+        const rewardPerTask = tasks > 0 ? (dailyProfit / tasks) : 0;
+        next.total = totalReturn.toFixed(2);
+        next.daily = dailyProfit.toFixed(2);
+        next.interest = rewardPerTask.toFixed(2);
+      } else if (field === 'days') {
+        const days = parseInt(value) || 20;
+        const dailyProfit = days > 0 ? (totalReturn / days) : 0;
+        const rewardPerTask = tasks > 0 ? (dailyProfit / tasks) : 0;
+        next.total = totalReturn.toFixed(2);
+        next.daily = dailyProfit.toFixed(2);
+        next.interest = rewardPerTask.toFixed(2);
+      } else if (field === 'daily') {
+        const daily = parseFloat(value) || 0;
+        if (daily > 0) {
+          next.days = Math.max(1, Math.round(totalReturn / daily));
+          next.interest = tasks > 0 ? (daily / tasks).toFixed(2) : '0.00';
+        }
+        next.total = totalReturn.toFixed(2);
+      } else if (field === 'tasks') {
+        const daily = parseFloat(next.daily) || 0;
+        next.interest = tasks > 0 ? (daily / tasks).toFixed(2) : '0.00';
+      }
+
+      return next;
+    });
+  };
+
   const handleOpenAddVip = () => {
     setEditingVip(null);
+    const nextNum = vipTiers.length + 1;
+    const dep = 100.00;
+    const profitPct = 80;
+    const days = 20;
+    const total = (dep * (1 + profitPct / 100)).toFixed(2);
+    const daily = (parseFloat(total) / days).toFixed(2);
+    const interest = (parseFloat(daily) / 10).toFixed(2);
     setVipForm({
-      level: `VIP${vipTiers.length + 1}`,
-      deposit: '100.00',
+      level: `VIP${nextNum}`,
+      deposit: dep.toFixed(2),
       tasks: 10,
-      interest: '7.00',
-      daily: '70.00',
-      total: '16,800.00'
+      days: days,
+      profitPercent: profitPct,
+      interest: interest,
+      daily: daily,
+      total: total
     });
     setShowVipModal(true);
   };
 
   const handleOpenEditVip = (vip) => {
     setEditingVip(vip);
-    setVipForm({ ...vip });
+    const dep = parseFloat(String(vip.deposit || 0).replace(/,/g, '')) || 0;
+    const profitPct = vip.profitPercent !== undefined ? parseFloat(vip.profitPercent) : 80;
+    const days = vip.days ? parseInt(vip.days) : 20;
+    const total = vip.total || (dep * (1 + profitPct / 100)).toFixed(2);
+    const daily = vip.daily || (parseFloat(total) / days).toFixed(2);
+    const tasks = vip.tasks || 10;
+    const interest = vip.interest || (parseFloat(daily) / tasks).toFixed(2);
+
+    setVipForm({
+      level: vip.level,
+      deposit: vip.deposit,
+      tasks: tasks,
+      days: days,
+      profitPercent: profitPct,
+      interest: interest,
+      daily: daily,
+      total: total
+    });
     setShowVipModal(true);
   };
 
@@ -612,14 +678,31 @@ export default function AdminPanel({ onNavigateToApp }) {
       showToast('Level name and deposit amount are required');
       return;
     }
+    const days = parseInt(vipForm.days) || 20;
+    const profitPercent = parseFloat(vipForm.profitPercent) || 80;
+    const tasks = parseInt(vipForm.tasks) || 10;
+    const dep = parseFloat(String(vipForm.deposit).replace(/,/g, '')) || 0;
+    const total = vipForm.total || (dep * (1 + profitPercent / 100)).toFixed(2);
+    const daily = vipForm.daily || (parseFloat(total) / days).toFixed(2);
+    const interest = vipForm.interest || (parseFloat(daily) / tasks).toFixed(2);
+
+    const payload = {
+      ...vipForm,
+      days,
+      profitPercent,
+      tasks,
+      total,
+      daily,
+      interest
+    };
 
     if (editingVip) {
-      const updated = vipTiers.map((v) => (v.id === editingVip.id ? { ...vipForm, id: v.id } : v));
+      const updated = vipTiers.map((v) => (v.id === editingVip.id ? { ...payload, id: v.id } : v));
       updateVips(updated);
-      showToast(`${vipForm.level} updated successfully!`);
+      showToast(`${vipForm.level} updated successfully (${days} Days, ${profitPercent}% Profit)`);
     } else {
       const newVip = {
-        ...vipForm,
+        ...payload,
         id: String(Date.now())
       };
       updateVips([...vipTiers, newVip]);
@@ -638,10 +721,21 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   // --- USER HANDLERS ---
   const handleChangeUserVip = (id, newVip) => {
+    const matchedTier = vipTiers.find((v) => v.level === newVip);
+    const durationDays = matchedTier?.days ? parseInt(matchedTier.days) : 20;
+    const now = Date.now();
+    const expiresAt = now + durationDays * 86400000;
     const updated = users.map((u) => {
       if (u.id === id) {
-        showToast(`User ${u.email} VIP changed to ${newVip}`);
-        return { ...u, vip: newVip };
+        showToast(`User ${u.email} VIP set to ${newVip} (${durationDays} Days validity)`);
+        return {
+          ...u,
+          vip: newVip,
+          vipActivatedAt: now,
+          vipDurationDays: durationDays,
+          vipExpiresAt: expiresAt,
+          capitalReleased: false
+        };
       }
       return u;
     });
@@ -750,17 +844,26 @@ export default function AdminPanel({ onNavigateToApp }) {
         const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
 
         let newVip = u.vip || 'VIP0';
+        let matchedTier = null;
         for (const tier of vipTiers) {
           const reqDeposit = parseFloat(tier.deposit.toString().replace(/,/g, '')) || 0;
           if (newRecharge >= reqDeposit && reqDeposit > 0) {
             newVip = tier.level;
+            matchedTier = tier;
           }
         }
+        const durationDays = matchedTier?.days ? parseInt(matchedTier.days) : 20;
+        const now = Date.now();
+        const expiresAt = now + durationDays * 86400000;
 
         return {
           ...u,
           recharge: newRecharge,
-          vip: newVip
+          vip: newVip,
+          vipActivatedAt: now,
+          vipDurationDays: durationDays,
+          vipExpiresAt: expiresAt,
+          capitalReleased: false
         };
       }
       return u;
@@ -1426,13 +1529,17 @@ export default function AdminPanel({ onNavigateToApp }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/60 text-center">
+                  <div className="grid grid-cols-4 gap-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/60 text-center">
+                    <div>
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Validity (মেয়াদ)</div>
+                      <div className="text-xs font-black text-amber-300 mt-0.5">{vip.days || 20} Days</div>
+                    </div>
                     <div>
                       <div className="text-[9px] text-slate-400 uppercase font-bold">Daily Profit</div>
                       <div className="text-xs font-black text-cyan-300 mt-0.5">+${vip.daily}</div>
                     </div>
                     <div>
-                      <div className="text-[9px] text-slate-400 uppercase font-bold">Total Profit</div>
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Total Return</div>
                       <div className="text-xs font-black text-emerald-400 mt-0.5">${vip.total}</div>
                     </div>
                     <div>
@@ -1442,9 +1549,14 @@ export default function AdminPanel({ onNavigateToApp }) {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-400">
-                      Interest: <strong className="text-emerald-400 font-bold">{vip.interest}</strong>
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400">
+                        Task Reward: <strong className="text-emerald-400 font-bold">${vip.interest}</strong>
+                      </span>
+                      <span className="text-[9px] bg-emerald-500/10 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        Auto Capital Release
+                      </span>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleOpenEditVip(vip)}
@@ -1473,10 +1585,12 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <tr>
                     <th className="py-3 px-4">Level</th>
                     <th className="py-3 px-4">Deposit (USDT)</th>
-                    <th className="py-3 px-4">Tasks</th>
-                    <th className="py-3 px-4">Simple Interest</th>
+                    <th className="py-3 px-4">Validity (মেয়াদ)</th>
+                    <th className="py-3 px-4">Daily Tasks</th>
+                    <th className="py-3 px-4">Task Reward</th>
                     <th className="py-3 px-4">Daily Profit</th>
-                    <th className="py-3 px-4">Total Profit</th>
+                    <th className="py-3 px-4">Total Return (80% Return)</th>
+                    <th className="py-3 px-4">Capital Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1488,10 +1602,23 @@ export default function AdminPanel({ onNavigateToApp }) {
                         {vip.level}
                       </td>
                       <td className="py-3 px-4 font-semibold text-slate-200">${vip.deposit}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">
+                          {vip.days || 20} Days
+                        </span>
+                      </td>
                       <td className="py-3 px-4 text-slate-400">{vip.tasks}</td>
-                      <td className="py-3 px-4 text-emerald-400 font-bold">{vip.interest}</td>
+                      <td className="py-3 px-4 text-emerald-400 font-bold">${vip.interest}</td>
                       <td className="py-3 px-4 text-cyan-300 font-bold">+${vip.daily}</td>
-                      <td className="py-3 px-4 text-slate-300 font-semibold">${vip.total}</td>
+                      <td className="py-3 px-4">
+                        <span className="text-slate-200 font-semibold">${vip.total}</span>
+                        <span className="text-[10px] text-emerald-400 font-bold ml-1">({vip.profitPercent || 80}%)</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-[10px] text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          Auto-release at expiry
+                        </span>
+                      </td>
                       <td className="py-3 px-4 text-right space-x-2">
                         <button
                           onClick={() => handleOpenEditVip(vip)}
@@ -1863,7 +1990,14 @@ export default function AdminPanel({ onNavigateToApp }) {
                         <div className="text-xs text-slate-300 font-mono mt-0.5 truncate">{u.phone || '-'}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-slate-400 uppercase font-semibold">VIP Level</div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold">VIP Level</span>
+                          {u.vip && u.vip !== 'VIP0' && (
+                            <span className="text-[9px] font-bold text-amber-300">
+                              {u.capitalReleased || (u.vipExpiresAt && Date.now() >= u.vipExpiresAt) ? 'Capital Released' : `${Math.max(1, Math.ceil(((u.vipExpiresAt || Date.now() + 20*86400000) - Date.now()) / 86400000))}d left`}
+                            </span>
+                          )}
+                        </div>
                         <select
                           value={u.vip || 'VIP0'}
                           onChange={(e) => handleChangeUserVip(u.id, e.target.value)}
@@ -1872,7 +2006,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                           <option value="VIP0">VIP0</option>
                           {vipTiers.map((vt) => (
                             <option key={vt.level} value={vt.level}>
-                              {vt.level}
+                              {vt.level} ({vt.days || 20}d - {vt.profitPercent || 80}%)
                             </option>
                           ))}
                         </select>
@@ -1974,18 +2108,25 @@ export default function AdminPanel({ onNavigateToApp }) {
                       </td>
                       <td className="py-3 px-4 text-slate-400">{u.phone || '-'}</td>
                       <td className="py-3 px-4">
-                        <select
-                          value={u.vip || 'VIP0'}
-                          onChange={(e) => handleChangeUserVip(u.id, e.target.value)}
-                          className="bg-amber-950/90 text-amber-300 font-black px-2 py-1 rounded-lg border border-amber-800/50 text-[10px] outline-none cursor-pointer hover:border-amber-500"
-                        >
-                          <option value="VIP0">VIP0</option>
-                          {vipTiers.map((vt) => (
-                            <option key={vt.level} value={vt.level}>
-                              {vt.level}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="flex flex-col gap-0.5">
+                          <select
+                            value={u.vip || 'VIP0'}
+                            onChange={(e) => handleChangeUserVip(u.id, e.target.value)}
+                            className="bg-amber-950/90 text-amber-300 font-black px-2 py-1 rounded-lg border border-amber-800/50 text-[10px] outline-none cursor-pointer hover:border-amber-500"
+                          >
+                            <option value="VIP0">VIP0</option>
+                            {vipTiers.map((vt) => (
+                              <option key={vt.level} value={vt.level}>
+                                {vt.level} ({vt.days || 20}d)
+                              </option>
+                            ))}
+                          </select>
+                          {u.vip && u.vip !== 'VIP0' && (
+                            <span className="text-[9px] font-bold text-amber-400">
+                              {u.capitalReleased || (u.vipExpiresAt && Date.now() >= u.vipExpiresAt) ? 'Capital Released' : `${Math.max(1, Math.ceil(((u.vipExpiresAt || Date.now() + 20*86400000) - Date.now()) / 86400000))}d left`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 font-black text-emerald-400">${u.balance.toFixed(2)}</td>
                       <td className="py-3 px-4 text-slate-300 font-semibold">${u.recharge.toFixed(2)}</td>
@@ -2590,13 +2731,13 @@ export default function AdminPanel({ onNavigateToApp }) {
 
             <form onSubmit={handleSaveVip} className="space-y-3">
               <div>
-                <label className="block text-slate-400 mb-1">Level Name (e.g. VIP11)</label>
+                <label className="block text-slate-400 mb-1">Level Name (e.g. VIP1)</label>
                 <input
                   type="text"
                   value={vipForm.level}
                   onChange={(e) => setVipForm({ ...vipForm, level: e.target.value })}
-                  placeholder="VIP11"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
+                  placeholder="VIP1"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 font-bold"
                   required
                 />
               </div>
@@ -2607,9 +2748,37 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <input
                     type="text"
                     value={vipForm.deposit}
-                    onChange={(e) => setVipForm({ ...vipForm, deposit: e.target.value })}
-                    placeholder="50,000.00"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
+                    onChange={(e) => handleVipFormChange('deposit', e.target.value)}
+                    placeholder="10.00"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-amber-300 font-bold outline-none focus:border-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Target Profit (%)</label>
+                  <input
+                    type="number"
+                    value={vipForm.profitPercent !== undefined ? vipForm.profitPercent : 80}
+                    onChange={(e) => handleVipFormChange('profitPercent', e.target.value)}
+                    placeholder="80"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-bold outline-none focus:border-blue-500"
+                    min="1"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Package Validity (Days / মেয়াদ)</label>
+                  <input
+                    type="number"
+                    value={vipForm.days || 20}
+                    onChange={(e) => handleVipFormChange('days', e.target.value)}
+                    placeholder="20"
+                    min="1"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-cyan-300 font-bold outline-none focus:border-blue-500"
+                    required
                   />
                 </div>
                 <div>
@@ -2617,43 +2786,56 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <input
                     type="number"
                     value={vipForm.tasks}
-                    onChange={(e) => setVipForm({ ...vipForm, tasks: parseInt(e.target.value) || 10 })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
+                    onChange={(e) => handleVipFormChange('tasks', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 font-semibold"
+                    min="1"
+                    required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Simple Interest</label>
-                  <input
-                    type="text"
-                    value={vipForm.interest}
-                    onChange={(e) => setVipForm({ ...vipForm, interest: e.target.value })}
-                    placeholder="3500.00"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-400 mb-1">Daily Profit</label>
+                  <label className="block text-slate-400 mb-1">Daily Profit ($)</label>
                   <input
                     type="text"
                     value={vipForm.daily}
-                    onChange={(e) => setVipForm({ ...vipForm, daily: e.target.value })}
-                    placeholder="35,000.00"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
+                    onChange={(e) => handleVipFormChange('daily', e.target.value)}
+                    placeholder="0.90"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-cyan-300 font-bold outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Total Profit</label>
+                  <label className="block text-slate-400 mb-1">Task Reward ($)</label>
+                  <input
+                    type="text"
+                    value={vipForm.interest}
+                    onChange={(e) => handleVipFormChange('interest', e.target.value)}
+                    placeholder="0.09"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-bold outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Total Return ($)</label>
                   <input
                     type="text"
                     value={vipForm.total}
-                    onChange={(e) => setVipForm({ ...vipForm, total: e.target.value })}
-                    placeholder="8,400,000.00"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
+                    onChange={(e) => handleVipFormChange('total', e.target.value)}
+                    placeholder="18.00"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-bold outline-none focus:border-blue-500"
                   />
                 </div>
+              </div>
+
+              {/* Explanatory Banner */}
+              <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/20 text-[11px] text-blue-200/90 leading-relaxed space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-blue-300">
+                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>স্মার্ট মেয়াদ ও মূল ক্যাপিটাল রিলিজ পলিসি:</span>
+                </div>
+                <p>
+                  প্যাকেজ মূল্যের সাথে <b>{vipForm.profitPercent || 80}% লাভ</b> যুক্ত হয়ে মোট রিটার্ন <b>{vipForm.days || 20} দিনের মেয়াদে</b> প্রতিদিনের টাস্ক আয়ে পরিণত হয়। মেয়াদ শেষ হওয়ার সাথে সাথে ইউজারের <b>লকড মূল ক্যাপিটাল স্বয়ংক্রিয়ভাবে উত্তোলনের জন্য রিলিজ</b> হয়ে যাবে।
+                </p>
               </div>
 
               <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
