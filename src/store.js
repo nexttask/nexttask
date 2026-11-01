@@ -169,6 +169,56 @@ export const DEFAULT_PAYMENT_METHODS = [
 
 export const DEFAULT_SLIDES = [
   {
+    id: 's_bn1',
+    badge: '১০% বোনাস',
+    amount: 'রেফারেল বোনাস',
+    subtitle: 'রেফার করে আয় করুন ১০% সরাসরি বোনাস',
+    image: '/banners/banner_bn_referral.png',
+    gradient: 'default',
+    description: 'বন্ধুদের ইনভাইট করুন এবং প্রতি রিচার্জে সাথে সাথে ১০% নগদ ক্যাশব্যাক লাভ করুন!',
+    active: true
+  },
+  {
+    id: 's_bn2',
+    badge: 'দৈনিক বোনাস',
+    amount: 'নিশ্চিত ইনকাম',
+    subtitle: 'দৈনিক বোনাস ও স্পনসর্ড মিশন',
+    image: '/banners/banner_bn_daily_bonus.png',
+    gradient: 'default',
+    description: 'প্রতিদিন মাত্র ১০টি সহজ টাস্ক সম্পন্ন করে নিশ্চিত দৈনিক মুনাফা তুলে নিন!',
+    active: true
+  },
+  {
+    id: 's_bn3',
+    badge: '১০০% ফ্রি',
+    amount: 'প্রতিদিন ৫০ টাকা',
+    subtitle: 'ফ্রি স্টার্টার প্যাকেজ — কোনো ডিপোজিট নেই',
+    image: '/banners/banner_bn_starter_free.png',
+    gradient: 'default',
+    description: 'কোনো রিচার্জ লাগবে না! ফ্রিতে ১০টি টাস্ক আনলক করে প্রতিদিন আয় করুন ৫০ টাকা।',
+    active: true
+  },
+  {
+    id: 's_bn4',
+    badge: '৮০% লাভ',
+    amount: 'মূলধন ফেরত',
+    subtitle: 'ভিআইপি প্যাকেজে ৮০% পর্যন্ত লাভ',
+    image: '/banners/banner_bn_vip_packages.png',
+    gradient: 'default',
+    description: 'প্রতিদিন গ্যারান্টিযুক্ত প্রফিট এবং প্যাকেজের মেয়াদ শেষে ১০০% মূলধন অটো-রিলিজ!',
+    active: true
+  },
+  {
+    id: 's_bn5',
+    badge: 'ইনস্ট্যান্ট পেআউট',
+    amount: '৫ মিনিটে ক্যাশআউট',
+    subtitle: 'ইনস্ট্যান্ট উইথড্রয়াল ও পেমেন্ট সেটেলমেন্ট',
+    image: '/banners/banner_bn_fast_withdraw.png',
+    gradient: 'default',
+    description: 'বিকাশ, নগদ এবং রকেটে মাত্র ৫ মিনিটে নিরাপদ ও স্বয়ংক্রিয় পেমেন্ট উত্তোলন করুন!',
+    active: true
+  },
+  {
     id: 's1',
     badge: '10% REWARD',
     amount: 'REFERRAL BONUS',

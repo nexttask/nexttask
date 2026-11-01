@@ -4363,8 +4363,52 @@ export default function AdminPanel({ onNavigateToApp }) {
 
             <form onSubmit={handleSaveSlide} className="space-y-3">
               <div>
+                <label className="block text-slate-300 font-bold mb-1.5 flex items-center justify-between">
+                  <span>Choose Preset Official Banner (বাংলা / English)</span>
+                  <span className="text-[10px] text-amber-400 font-semibold">10 HD Presets</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1.5 bg-slate-950 rounded-xl border border-slate-800">
+                  {[
+                    { name: 'রেফার বোনাস (বাংলা)', img: '/banners/banner_bn_referral.png', badge: '১০% বোনাস', title: 'রেফার করে আয় করুন ১০% সরাসরি বোনাস', sub: 'সরাসরি কমিশন' },
+                    { name: 'দৈনিক বোনাস (বাংলা)', img: '/banners/banner_bn_daily_bonus.png', badge: 'দৈনিক বোনাস', title: 'দৈনিক বোনাস ও স্পনসর্ড মিশন', sub: 'দৈনিক প্রফিট' },
+                    { name: 'ফ্রি স্টার্টার (বাংলা)', img: '/banners/banner_bn_starter_free.png', badge: '১০০% ফ্রি', title: 'ফ্রি স্টার্টার প্যাকেজ — কোনো ডিপোজিট নেই', sub: 'জিরো রিচার্জ' },
+                    { name: 'ভিআইপি প্যাকেজ (বাংলা)', img: '/banners/banner_bn_vip_packages.png', badge: '৮০% লাভ', title: 'ভিআইপি প্যাকেজে ৮০% পর্যন্ত লাভ', sub: 'সর্বোচ্চ রিটার্ন' },
+                    { name: 'ইনস্ট্যান্ট উইথড্র (বাংলা)', img: '/banners/banner_bn_fast_withdraw.png', badge: 'ইনস্ট্যান্ট পেআউট', title: 'ইনস্ট্যান্ট উইথড্রয়াল ও পেমেন্ট সেটেলমেন্ট', sub: '৫ মিনিটে ক্যাশআউট' },
+                    { name: 'Referral Bonus (EN)', img: '/banners/banner_referral.png', badge: '10% REWARD', title: 'REFER & EARN 10% COMMISSION', sub: 'DIRECT BONUS' },
+                    { name: 'Daily Bonus (EN)', img: '/banners/banner_daily_bonus.png', badge: 'DAILY BONUS', title: 'DAILY MISSIONS & TASK EARNINGS', sub: 'DAILY PAYOUT' },
+                    { name: 'Free Starter (EN)', img: '/banners/banner_starter_free.png', badge: '100% FREE', title: 'FREE STARTER PACKAGE', sub: 'NO DEPOSIT NEEDED' },
+                    { name: 'VIP Packages (EN)', img: '/banners/banner_vip_packages.png', badge: 'HIGH YIELD', title: 'VIP PACKAGES UP TO 80% RETURN', sub: 'PROFIT MARGIN' },
+                    { name: 'Fast Withdraw (EN)', img: '/banners/banner_fast_withdraw.png', badge: 'INSTANT PAYOUT', title: 'INSTANT WITHDRAWAL TO bKash & Nagad', sub: 'SPEED OF PAYOUT' }
+                  ].map((pre) => (
+                    <button
+                      key={pre.img}
+                      type="button"
+                      onClick={() => {
+                        setSlideForm((prev) => ({
+                          ...prev,
+                          image: pre.img,
+                          gradient: 'default',
+                          badge: pre.badge,
+                          subtitle: pre.title,
+                          amount: pre.sub
+                        }));
+                      }}
+                      className={`group p-1.5 rounded-lg border text-left flex items-center gap-2 transition cursor-pointer ${
+                        slideForm.image === pre.img
+                          ? 'bg-blue-950/80 border-blue-500 ring-1 ring-blue-500'
+                          : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <img src={pre.img} alt={pre.name} className="w-12 h-6 object-cover rounded shrink-0 border border-slate-700" />
+                      <span className="text-[10px] font-bold text-slate-300 group-hover:text-white truncate">{pre.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-slate-400 mb-1 font-semibold">
-                  Upload Photo Slide / Banner (Optional)
+                  Or Upload Custom Photo Slide / Banner
                 </label>
                 <div className="flex items-center gap-2">
                   <input
