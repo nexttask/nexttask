@@ -2654,6 +2654,9 @@ export default function App() {
                       {(() => {
                         const activeSlide = slides[currentSlideIdx % slides.length] || slides[0];
                         if (activeSlide.image) {
+                          const isDefaultTheme = !activeSlide.gradient || activeSlide.gradient === 'default' || activeSlide.gradient === 'none';
+                          const showTextOverlay = !isDefaultTheme && (activeSlide.subtitle || activeSlide.badge);
+
                           return (
                             <div className="rounded-3xl overflow-hidden shadow-md relative min-h-[145px] max-h-[165px] flex items-center justify-center transition-all duration-500 bg-slate-900 border border-slate-100/10">
                               <img
@@ -2661,7 +2664,7 @@ export default function App() {
                                 alt={activeSlide.subtitle || 'Banner Slide'}
                                 className="w-full h-full object-cover rounded-3xl"
                               />
-                              {(activeSlide.subtitle || activeSlide.badge) && (
+                              {showTextOverlay && (
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 z-10">
                                   {activeSlide.badge && (
                                     <span className="inline-block bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full w-fit mb-1 shadow-sm uppercase">
@@ -2692,8 +2695,11 @@ export default function App() {
                             </div>
                           );
                         }
+                        const gradientTheme = (!activeSlide.gradient || activeSlide.gradient === 'default')
+                          ? 'from-amber-500 via-orange-500 to-yellow-400'
+                          : activeSlide.gradient;
                         return (
-                          <div className={`rounded-3xl overflow-hidden shadow-md bg-gradient-to-r ${activeSlide.gradient || 'from-amber-500 via-orange-500 to-yellow-400'} p-5 text-white relative min-h-[140px] flex items-center transition-all duration-500`}>
+                          <div className={`rounded-3xl overflow-hidden shadow-md bg-gradient-to-r ${gradientTheme} p-5 text-white relative min-h-[140px] flex items-center transition-all duration-500`}>
                             <div className="relative z-10 max-w-[210px]">
                               {activeSlide.badge && (
                                 <div className="inline-block bg-white text-orange-600 font-black text-xl px-2 py-0.5 rounded shadow-sm tracking-tight mb-1">

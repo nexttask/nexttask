@@ -399,10 +399,11 @@ export default function AdminPanel({ onNavigateToApp }) {
   const [showSlideModal, setShowSlideModal] = useState(false);
   const [editingSlide, setEditingSlide] = useState(null);
   const [slideForm, setSlideForm] = useState({
-    badge: 'MADE',
-    amount: '$3,200',
-    subtitle: 'IN 48 HOURS!',
-    gradient: 'from-amber-500 via-orange-500 to-yellow-400',
+    image: '',
+    badge: '',
+    amount: '',
+    subtitle: '',
+    gradient: 'default',
     description: ''
   });
 
@@ -539,18 +540,26 @@ export default function AdminPanel({ onNavigateToApp }) {
   const handleOpenAddSlide = () => {
     setEditingSlide(null);
     setSlideForm({
-      badge: 'PROMO',
-      amount: '$5,000',
-      subtitle: 'EXCLUSIVE EVENT!',
-      gradient: 'from-amber-500 via-orange-500 to-yellow-400',
-      description: 'Special seasonal member reward promotion'
+      image: '',
+      badge: '',
+      amount: '',
+      subtitle: '',
+      gradient: 'default',
+      description: ''
     });
     setShowSlideModal(true);
   };
 
   const handleOpenEditSlide = (slide) => {
     setEditingSlide(slide);
-    setSlideForm({ ...slide });
+    setSlideForm({
+      image: slide.image || '',
+      badge: slide.badge || '',
+      amount: slide.amount || '',
+      subtitle: slide.subtitle || '',
+      gradient: slide.gradient || 'default',
+      description: slide.description || ''
+    });
     setShowSlideModal(true);
   };
 
@@ -563,6 +572,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
     const payload = {
       ...slideForm,
+      gradient: slideForm.gradient || 'default',
       amount: slideForm.amount || '',
       subtitle: slideForm.subtitle || ''
     };
@@ -1874,14 +1884,18 @@ export default function AdminPanel({ onNavigateToApp }) {
                   {slide.image ? (
                     <div className="rounded-2xl overflow-hidden relative min-h-[120px] max-h-[140px] border border-slate-700">
                       <img src={slide.image} alt="Banner" className="w-full h-full object-cover" />
-                      {slide.subtitle && (
+                      {(!slide.gradient || slide.gradient === 'default') ? (
+                        <div className="absolute top-2 right-2 bg-emerald-500/90 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-xs">
+                          Default Theme
+                        </div>
+                      ) : slide.subtitle ? (
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-3">
                           <span className="text-white text-xs font-bold">{slide.subtitle}</span>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   ) : (
-                  <div className={`rounded-2xl p-4 text-white bg-gradient-to-r ${slide.gradient || 'from-amber-500 via-orange-500 to-yellow-400'} shadow-md relative overflow-hidden min-h-[120px]`}>
+                  <div className={`rounded-2xl p-4 text-white bg-gradient-to-r ${(!slide.gradient || slide.gradient === 'default') ? 'from-amber-500 via-orange-500 to-yellow-400' : slide.gradient} shadow-md relative overflow-hidden min-h-[120px]`}>
                     {slide.badge && (
                       <span className="inline-block bg-white text-orange-600 font-black text-xs px-2 py-0.5 rounded shadow-sm mb-1 uppercase">
                         {slide.badge}
@@ -3304,25 +3318,38 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Subtitle Line</label>
+                <label className="block text-slate-400 mb-1 flex items-center justify-between">
+                  <span>Subtitle Line</span>
+                  <span className="text-[10px] text-slate-500">
+                    {slideForm.image ? '(Optional for photo banners)' : '(Required)'}
+                  </span>
+                </label>
                 <input
                   type="text"
                   value={slideForm.subtitle}
                   onChange={(e) => setSlideForm({ ...slideForm, subtitle: e.target.value })}
-                  placeholder="IN 48 HOURS! / LEVEL 1 REWARDS"
+                  placeholder={slideForm.image ? "Optional banner subtitle (e.g. SPECIAL OFFER)" : "IN 48 HOURS! / LEVEL 1 REWARDS"}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
-                  required
+                  required={!slideForm.image}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Gradient Theme</label>
+                <label className="block text-slate-400 mb-1 flex items-center justify-between">
+                  <span>Theme / Banner Style</span>
+                  {slideForm.image && (
+                    <span className="text-[10px] text-emerald-400 font-semibold">
+                      ✓ Default Theme keeps 100% original photo colors
+                    </span>
+                  )}
+                </label>
                 <select
-                  value={slideForm.gradient}
+                  value={slideForm.gradient || 'default'}
                   onChange={(e) => setSlideForm({ ...slideForm, gradient: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 font-semibold"
                 >
-                  <option value="from-amber-500 via-orange-500 to-yellow-400">Amber / Gold (NextTask Default)</option>
+                  <option value="default">Default Theme (Original Photo Colors / Clean - No Color Shift)</option>
+                  <option value="from-amber-500 via-orange-500 to-yellow-400">Amber / Gold Classic Gradient</option>
                   <option value="from-blue-600 via-indigo-600 to-purple-600">Indigo / Royal Purple</option>
                   <option value="from-emerald-600 via-teal-600 to-cyan-600">Emerald / Cyan Teal</option>
                   <option value="from-rose-600 via-pink-600 to-purple-600">Rose / Vivid Pink</option>
