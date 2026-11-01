@@ -1473,6 +1473,8 @@ export default function App() {
           setUserEmail(loggedUser.email || '');
           setUserPhone(loggedUser.phone || '');
           setIsLoggedIn(true);
+          fetchCloudDataNow();
+          reloadCompletedTasks(loggedUser);
           navigateToTab('me');
           setIntendedTab('me');
           showToast(authJson.isAdmin ? 'Welcome back, Master Admin!' : 'Login successful!');
@@ -1498,21 +1500,21 @@ export default function App() {
             dob: '',
             password: 'Admin@NextTask',
             vip: 'VIP10',
-            balance: 99999.00,
-            recharge: 99999.00,
+            balance: 0.00,
+            recharge: 0.00,
             status: 'active',
             joined: '2026-10-01',
             inviteCode: 'NT1001',
             myInviteCode: 'NT1001',
             referredBy: '',
             withdrawalAccounts: {
-              bkash: '01712345678',
-              nagad: '01812345678',
+              bkash: '',
+              nagad: '',
               rocket: '',
               trc20: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
-              bankName: 'City Bank',
-              bankAccount: '11029384756',
-              bankHolder: 'Master Admin'
+              bankName: '',
+              bankAccount: '',
+              bankHolder: ''
             }
           };
           try {
@@ -1522,8 +1524,8 @@ export default function App() {
           }
           setCurrentUser(adminUser);
           setUserVip('VIP10');
-          setBalance(99999.00);
-          setRechargeTotal(99999.00);
+          setBalance(0.00);
+          setRechargeTotal(0.00);
           setUserEmail('admin@nexttask.online');
           setUserPhone('');
           setIsLoggedIn(true);
