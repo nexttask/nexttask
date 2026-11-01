@@ -2061,7 +2061,7 @@ export default function App() {
   const handleSubmitRecharge = (e) => {
     e.preventDefault();
     if (!senderAccount.trim()) {
-      showToast('Please enter your sender account / phone number');
+      showToast('Please enter your sender account number');
       return;
     }
     if (!transactionId.trim()) {
@@ -2078,7 +2078,7 @@ export default function App() {
       if (senderDigits.length !== 11) {
         setRechargeErrorPopup({
           title: 'Invalid Sender Number',
-          message: `Sender phone number must be exactly 11 digits (e.g. 017XXXXXXXX). You entered ${senderDigits.length} digits. Please check and provide a valid 11-digit mobile banking number.`
+          message: `Sender account number must be exactly 11 digits. You entered ${senderDigits.length} digits. Please check and provide a valid 11-digit mobile banking number.`
         });
         return;
       }
@@ -2087,7 +2087,7 @@ export default function App() {
       if (cleanTrx.length < 10) {
         setRechargeErrorPopup({
           title: 'Invalid Transaction ID (TrxID)',
-          message: `Transaction ID (TrxID) must be at least 10 characters (e.g. 9ABC1234XY). You entered ${cleanTrx.length} characters. Please check your bKash/Nagad statement and enter the correct TrxID.`
+          message: `Transaction ID (TrxID) must be at least 10 characters. You entered ${cleanTrx.length} characters. Please check your statement and enter the correct TrxID.`
         });
         return;
       }
@@ -2256,7 +2256,7 @@ export default function App() {
                   type="text"
                   value={countrySearch}
                   onChange={(e) => setCountrySearch(e.target.value)}
-                  placeholder="Search country or code (e.g. Bangladesh or +880)..."
+                  placeholder="Search country or code"
                   className="w-full bg-white text-slate-800 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none transition"
                   autoFocus
                 />
@@ -2661,7 +2661,7 @@ export default function App() {
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
+                      placeholder="Full Name"
                       className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
                     />
                   </div>
@@ -2740,14 +2740,14 @@ export default function App() {
                     {authMode === 'register' && (
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Reenter password
+                          Confirm Password
                         </label>
                         <div className="relative">
                           <input
                             type={showReenterPassword ? 'text' : 'password'}
                             value={reenterPassword}
                             onChange={(e) => setReenterPassword(e.target.value)}
-                            placeholder="Reenter password"
+                            placeholder="Confirm Password"
                             className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition pr-11"
                           />
                           <button
@@ -2778,7 +2778,7 @@ export default function App() {
                       type="text"
                       value={regInviteCode}
                       onChange={(e) => setRegInviteCode(e.target.value.toUpperCase().trim())}
-                      placeholder="Invitation code (optional)"
+                      placeholder="Invitation code"
                       className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition font-mono tracking-wider font-bold"
                     />
                   </div>
@@ -4782,7 +4782,7 @@ export default function App() {
                       type="text"
                       value={rechargeAmount}
                       onChange={(e) => setRechargeAmount(e.target.value)}
-                      placeholder="1,000.00"
+                      placeholder="Amount"
                       className="w-full bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-cyan-600 rounded-2xl pl-8 pr-16 py-2.5 text-base font-black text-slate-900 outline-none transition shadow-inner font-mono"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -4951,7 +4951,7 @@ export default function App() {
                 <form onSubmit={handleSubmitRecharge} className="space-y-3 pt-1">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                      <span>Sender Account / Phone Number</span>
+                      <span>Sender Account Number</span>
                       <span className="text-[10px] font-semibold text-slate-400">Required</span>
                     </label>
                     <input
@@ -4959,14 +4959,14 @@ export default function App() {
                       required
                       value={senderAccount}
                       onChange={(e) => setSenderAccount(e.target.value)}
-                      placeholder="e.g. 017XXXXXXXX or Wallet address"
+                      placeholder="Sender Account Number"
                       className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none transition font-medium"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                      <span>Transaction ID (TrxID / Hash)</span>
+                      <span>Transaction ID (TrxID)</span>
                       <span className="text-[10px] font-semibold text-slate-400">Required</span>
                     </label>
                     <input
@@ -4974,7 +4974,7 @@ export default function App() {
                       required
                       value={transactionId}
                       onChange={(e) => setTransactionId(e.target.value)}
-                      placeholder="e.g. 9B7X2K4A90 or 0x..."
+                      placeholder="Transaction ID"
                       className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono outline-none transition uppercase"
                     />
                   </div>
@@ -5169,7 +5169,7 @@ export default function App() {
                           step="1"
                           value={withdrawAmount}
                           onChange={(e) => setWithdrawAmount(e.target.value)}
-                          placeholder={`Enter amount (Min ৳${minWthLimit})`}
+                          placeholder="Amount"
                           className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl pl-8 pr-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500 focus:bg-white transition"
                         />
                       </div>
@@ -5483,7 +5483,7 @@ export default function App() {
                     type="text"
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
-                    placeholder="Enter your name"
+                    placeholder="Full Name"
                     className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                   />
                 </div>
@@ -5494,7 +5494,7 @@ export default function App() {
                     type="tel"
                     value={profilePhone}
                     onChange={(e) => setProfilePhone(e.target.value)}
-                    placeholder="e.g. 01712345678"
+                    placeholder="Phone Number"
                     className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                   />
                 </div>
@@ -5606,7 +5606,7 @@ export default function App() {
                         required
                         value={newAccHolder}
                         onChange={(e) => setNewAccHolder(e.target.value)}
-                        placeholder="e.g. Md. Khalid Hasan"
+                        placeholder="Account Holder Name"
                         className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                       />
                     </div>
@@ -5622,7 +5622,7 @@ export default function App() {
                           required
                           value={newAccBankName}
                           onChange={(e) => setNewAccBankName(e.target.value)}
-                          placeholder="e.g. Islami Bank, Gulshan Branch"
+                          placeholder="Bank Name & Branch"
                           className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                         />
                       </div>
@@ -5638,7 +5638,7 @@ export default function App() {
                         required
                         value={newAccNumber}
                         onChange={(e) => setNewAccNumber(e.target.value)}
-                        placeholder={newAccType === 'USDT (TRC20)' ? 'Paste TRC20 address (Starts with T)' : 'e.g. 017XXXXXXXX'}
+                        placeholder={newAccType === 'USDT (TRC20)' ? 'TRC20 Wallet Address' : 'Account Number'}
                         className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                       />
                     </div>
@@ -5784,7 +5784,7 @@ export default function App() {
                     required
                     value={oldPasswordInput}
                     onChange={(e) => setOldPasswordInput(e.target.value)}
-                    placeholder="Enter current password"
+                    placeholder="Old Password"
                     className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                   />
                 </div>
@@ -5796,7 +5796,7 @@ export default function App() {
                     required
                     value={newPasswordInput}
                     onChange={(e) => setNewPasswordInput(e.target.value)}
-                    placeholder="Enter new password"
+                    placeholder="New Password"
                     className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                   />
                 </div>
@@ -5808,7 +5808,7 @@ export default function App() {
                     required
                     value={confirmNewPasswordInput}
                     onChange={(e) => setConfirmNewPasswordInput(e.target.value)}
-                    placeholder="Reenter new password"
+                    placeholder="Confirm New Password"
                     className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
                   />
                 </div>

@@ -31,7 +31,6 @@ import {
   EyeOff,
   Mail,
   Upload,
-  Video,
   Menu,
   X,
   ChevronRight,
@@ -1306,7 +1305,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   autoComplete="off"
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
-                  placeholder="Enter email address"
+                  placeholder="Email Address"
                   className="w-full bg-slate-950/80 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none transition pl-11"
                 />
                 <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -1324,7 +1323,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   autoComplete="new-password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Password"
                   className="w-full bg-slate-950/80 border border-slate-700 focus:border-cyan-400 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none transition pl-11 pr-11"
                 />
                 <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -2256,7 +2255,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search user email or phone..."
+                  placeholder="Search user email or phone"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 outline-none focus:border-blue-500"
@@ -3003,7 +3002,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     value={settings.trc20Address}
                     onChange={(e) => setSettings({ ...settings, trc20Address: e.target.value })}
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 transition shadow-inner"
-                    placeholder="Enter TRC20 Wallet Address"
+                    placeholder="TRC20 Wallet Address"
                   />
                   <p className="text-[10px] text-slate-500">This TRC20 wallet address is presented to users in the app when recharging via crypto.</p>
                 </div>
@@ -3029,7 +3028,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition shadow-inner"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500">Recharge modal will enforce this minimum (e.g. 500 BDT).</p>
+                    <p className="text-[10px] text-slate-500">Recharge modal will enforce this minimum amount.</p>
                   </div>
 
                   <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
@@ -3051,7 +3050,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition shadow-inner"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500">User withdrawal modal will enforce this minimum (e.g. 500 BDT).</p>
+                    <p className="text-[10px] text-slate-500">User withdrawal modal will enforce this minimum amount.</p>
                   </div>
 
                   <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
@@ -3086,7 +3085,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     value={settings.telegramSupport}
                     onChange={(e) => setSettings({ ...settings, telegramSupport: e.target.value })}
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/20 transition shadow-inner"
-                    placeholder="@NextTask_Support"
+                    placeholder="Telegram Support Handle"
                   />
                   <p className="text-[10px] text-slate-500">Connected to 24/7 customer service floating buttons and help links.</p>
                 </div>
@@ -3388,7 +3387,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       type="text"
                       value={settings.telegramBotUsername || ''}
                       onChange={(e) => setSettings({ ...settings, telegramBotUsername: e.target.value })}
-                      placeholder="@NextTask_HelpBot"
+                      placeholder="Telegram Bot Username"
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-sky-400"
                     />
                     <p className="text-[10px] text-slate-500">Public bot handle users can click to start chat.</p>
@@ -3400,7 +3399,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       type="text"
                       value={settings.telegramAdminChatId || ''}
                       onChange={(e) => setSettings({ ...settings, telegramAdminChatId: e.target.value })}
-                      placeholder="e.g. 1234567890"
+                      placeholder="Admin Telegram Chat ID"
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-sky-400"
                     />
                     <p className="text-[10px] text-slate-500">Inquiries will be forwarded here; reply to answer users.</p>
@@ -3417,7 +3416,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     type="password"
                     value={settings.telegramBotToken || ''}
                     onChange={(e) => setSettings({ ...settings, telegramBotToken: e.target.value })}
-                    placeholder="Enter Telegram bot API token"
+                    placeholder="Telegram Bot API Token"
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-sky-400"
                   />
                 </div>
@@ -3524,7 +3523,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         }));
                       }}
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-cyan-400 font-semibold"
-                      placeholder="e.g. NextTask Global Network LTD."
+                      placeholder="Company Legal Name"
                     />
                   </div>
 
@@ -3542,7 +3541,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         }));
                       }}
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-cyan-400 font-mono"
-                      placeholder="e.g. UK-CRN #14892051 / INT-GLOBAL-TASK-2026"
+                      placeholder="Registration Number"
                     />
                   </div>
                 </div>
@@ -3560,7 +3559,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       }));
                     }}
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-cyan-400"
-                    placeholder="e.g. Leading Decentralized E-Commerce Task & Digital Marketing Network"
+                    placeholder="Tagline / Slogan"
                   />
                 </div>
               </div>
@@ -3592,7 +3591,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       }));
                     }}
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-emerald-400 leading-relaxed resize-y"
-                    placeholder="Explain what the platform does, merchant partnerships, daily tasks, and how members generate income..."
+                    placeholder="What We Do / Our Work"
                   />
                   <p className="text-[10px] text-slate-500">Displayed prominently under 'Our Work' in the Company Profile modal.</p>
                 </div>
@@ -3610,7 +3609,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       }));
                     }}
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-emerald-400 leading-relaxed resize-y"
-                    placeholder="Short introduction about the company background, founding year, and digital market presence..."
+                    placeholder="About Company Overview"
                   />
                 </div>
               </div>
@@ -3641,7 +3640,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         }));
                       }}
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-amber-400 leading-relaxed resize-y"
-                      placeholder="e.g. To empower everyday internet users worldwide with transparent digital employment opportunities..."
+                      placeholder="Corporate Mission"
                     />
                   </div>
 
@@ -3658,7 +3657,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         }));
                       }}
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 text-slate-100 text-xs outline-none focus:border-amber-400 leading-relaxed resize-y"
-                      placeholder="e.g. To become the world’s most trusted and decentralized micro-task ecosystem..."
+                      placeholder="Corporate Vision"
                     />
                   </div>
                 </div>
@@ -3690,7 +3689,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         }));
                       }}
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-400 font-semibold"
-                      placeholder="Official Certificate of Incorporation & Global Operating License"
+                      placeholder="Certificate Title"
                     />
                   </div>
 
@@ -3707,7 +3706,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         }));
                       }}
                       className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-400"
-                      placeholder="Issued: January 15, 2026 • Verified by International Business Regulatory Commission"
+                      placeholder="Issuance Date / Authority"
                     />
                   </div>
                 </div>
@@ -3728,7 +3727,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                           }));
                         }}
                         className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs outline-none focus:border-indigo-400 font-mono"
-                        placeholder="e.g. /license_certificate.svg or https://..."
+                        placeholder="Certificate Image URL"
                       />
                       <p className="text-[10px] text-slate-500">You can paste an online image link or upload a photo directly below.</p>
                     </div>
@@ -3827,12 +3826,12 @@ export default function AdminPanel({ onNavigateToApp }) {
 
             <form onSubmit={handleSaveVip} className="space-y-3">
               <div>
-                <label className="block text-slate-400 mb-1">Level Name (e.g. VIP1)</label>
+                <label className="block text-slate-400 mb-1">Package Level Name</label>
                 <input
                   type="text"
                   value={vipForm.level}
                   onChange={(e) => setVipForm({ ...vipForm, level: e.target.value })}
-                  placeholder="VIP1"
+                  placeholder="Package Level Name"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 font-bold"
                   required
                 />
@@ -3927,7 +3926,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       type="text"
                       value={vipForm.logo || ''}
                       onChange={(e) => setVipForm({ ...vipForm, logo: e.target.value })}
-                      placeholder="Or paste image URL (e.g. /packages/starter.svg)"
+                      placeholder="Package Logo URL"
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-[10px] text-slate-200 outline-none focus:border-blue-500 font-mono"
                     />
 
@@ -4259,7 +4258,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       type="text"
                       value={paymentForm.logo || ''}
                       onChange={(e) => setPaymentForm({ ...paymentForm, logo: e.target.value })}
-                      placeholder="Or paste image URL (e.g. /logos/bkash.svg)"
+                      placeholder="Payment Logo URL"
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 outline-none focus:border-blue-500 font-mono"
                     />
                   </div>
@@ -4272,7 +4271,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   type="text"
                   value={paymentForm.number}
                   onChange={(e) => setPaymentForm({ ...paymentForm, number: e.target.value })}
-                  placeholder="017XXXXXXXX or TRC20 Address"
+                  placeholder="Phone Number / Wallet Address"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-mono outline-none focus:border-blue-500"
                   required
                 />
@@ -4286,7 +4285,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     step="0.01"
                     value={paymentForm.rate}
                     onChange={(e) => setPaymentForm({ ...paymentForm, rate: parseFloat(e.target.value) || 1 })}
-                    placeholder="125"
+                    placeholder="Exchange Rate (BDT)"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
                   />
                   <span className="text-[10px] text-slate-500">Set 1 for crypto/USDT</span>
@@ -4312,7 +4311,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   rows="2"
                   value={paymentForm.instructions}
                   onChange={(e) => setPaymentForm({ ...paymentForm, instructions: e.target.value })}
-                  placeholder="Please Send Money and enter TrxID below"
+                  placeholder="Payment Instructions"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 resize-none"
                 />
               </div>
@@ -4350,52 +4349,8 @@ export default function AdminPanel({ onNavigateToApp }) {
 
             <form onSubmit={handleSaveSlide} className="space-y-3">
               <div>
-                <label className="block text-slate-300 font-bold mb-1.5 flex items-center justify-between">
-                  <span>Choose Preset Official Banner (বাংলা / English)</span>
-                  <span className="text-[10px] text-amber-400 font-semibold">10 HD Presets</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1.5 bg-slate-950 rounded-xl border border-slate-800">
-                  {[
-                    { name: 'রেফার বোনাস (বাংলা)', img: '/banners/banner_bn_referral.png', badge: '১০% বোনাস', title: 'রেফার করে আয় করুন ১০% সরাসরি বোনাস', sub: 'সরাসরি কমিশন' },
-                    { name: 'দৈনিক বোনাস (বাংলা)', img: '/banners/banner_bn_daily_bonus.png', badge: 'দৈনিক বোনাস', title: 'দৈনিক বোনাস ও স্পনসর্ড মিশন', sub: 'দৈনিক প্রফিট' },
-                    { name: 'ফ্রি স্টার্টার (বাংলা)', img: '/banners/banner_bn_starter_free.png', badge: '১০০% ফ্রি', title: 'ফ্রি স্টার্টার প্যাকেজ — কোনো ডিপোজিট নেই', sub: 'জিরো রিচার্জ' },
-                    { name: 'ভিআইপি প্যাকেজ (বাংলা)', img: '/banners/banner_bn_vip_packages.png', badge: '৮০% লাভ', title: 'ভিআইপি প্যাকেজে ৮০% পর্যন্ত লাভ', sub: 'সর্বোচ্চ রিটার্ন' },
-                    { name: 'ইনস্ট্যান্ট উইথড্র (বাংলা)', img: '/banners/banner_bn_fast_withdraw.png', badge: 'ইনস্ট্যান্ট পেআউট', title: 'ইনস্ট্যান্ট উইথড্রয়াল ও পেমেন্ট সেটেলমেন্ট', sub: '৫ মিনিটে ক্যাশআউট' },
-                    { name: 'Referral Bonus (EN)', img: '/banners/banner_referral.png', badge: '10% REWARD', title: 'REFER & EARN 10% COMMISSION', sub: 'DIRECT BONUS' },
-                    { name: 'Daily Bonus (EN)', img: '/banners/banner_daily_bonus.png', badge: 'DAILY BONUS', title: 'DAILY MISSIONS & TASK EARNINGS', sub: 'DAILY PAYOUT' },
-                    { name: 'Free Starter (EN)', img: '/banners/banner_starter_free.png', badge: '100% FREE', title: 'FREE STARTER PACKAGE', sub: 'NO DEPOSIT NEEDED' },
-                    { name: 'VIP Packages (EN)', img: '/banners/banner_vip_packages.png', badge: 'HIGH YIELD', title: 'VIP PACKAGES UP TO 80% RETURN', sub: 'PROFIT MARGIN' },
-                    { name: 'Fast Withdraw (EN)', img: '/banners/banner_fast_withdraw.png', badge: 'INSTANT PAYOUT', title: 'INSTANT WITHDRAWAL TO bKash & Nagad', sub: 'SPEED OF PAYOUT' }
-                  ].map((pre) => (
-                    <button
-                      key={pre.img}
-                      type="button"
-                      onClick={() => {
-                        setSlideForm((prev) => ({
-                          ...prev,
-                          image: pre.img,
-                          gradient: 'default',
-                          badge: pre.badge,
-                          subtitle: pre.title,
-                          amount: pre.sub
-                        }));
-                      }}
-                      className={`group p-1.5 rounded-lg border text-left flex items-center gap-2 transition cursor-pointer ${
-                        slideForm.image === pre.img
-                          ? 'bg-blue-950/80 border-blue-500 ring-1 ring-blue-500'
-                          : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                      }`}
-                    >
-                      <img src={pre.img} alt={pre.name} className="w-12 h-6 object-cover rounded shrink-0 border border-slate-700" />
-                      <span className="text-[10px] font-bold text-slate-300 group-hover:text-white truncate">{pre.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
                 <label className="block text-slate-400 mb-1 font-semibold">
-                  Or Upload Custom Photo Slide / Banner
+                  Upload Photo Slide / Banner
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -4450,7 +4405,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     type="text"
                     value={slideForm.badge}
                     onChange={(e) => setSlideForm({ ...slideForm, badge: e.target.value })}
-                    placeholder="MADE / BONUS / OFFICIAL"
+                    placeholder="Top Badge"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
                   />
                 </div>
@@ -4460,7 +4415,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     type="text"
                     value={slideForm.amount}
                     onChange={(e) => setSlideForm({ ...slideForm, amount: e.target.value })}
-                    placeholder="$3,200 or 16% BONUS"
+                    placeholder="Amount / Title"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 font-bold"
                   />
                 </div>
@@ -4477,7 +4432,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   type="text"
                   value={slideForm.subtitle}
                   onChange={(e) => setSlideForm({ ...slideForm, subtitle: e.target.value })}
-                  placeholder={slideForm.image ? "Optional banner subtitle (e.g. SPECIAL OFFER)" : "IN 48 HOURS! / LEVEL 1 REWARDS"}
+                  placeholder="Subtitle"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500"
                   required={!slideForm.image}
                 />
@@ -4512,7 +4467,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   rows="2"
                   value={slideForm.description}
                   onChange={(e) => setSlideForm({ ...slideForm, description: e.target.value })}
-                  placeholder="Brief promotional description..."
+                  placeholder="Description"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 resize-none"
                 />
               </div>
@@ -4695,7 +4650,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   type="text"
                   value={supportForm.name}
                   onChange={(e) => setSupportForm({ ...supportForm, name: e.target.value })}
-                  placeholder="e.g. Official WhatsApp Support or 24/7 Telegram Desk"
+                  placeholder="Channel Name"
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-emerald-500"
                   required
                 />
@@ -4728,17 +4683,17 @@ export default function AdminPanel({ onNavigateToApp }) {
                   onChange={(e) => setSupportForm({ ...supportForm, link: e.target.value })}
                   placeholder={
                     supportForm.type === 'telegram'
-                      ? '@NextTask_Support or https://t.me/NextTask_Support'
+                      ? 'Telegram Username or Link'
                       : supportForm.type === 'whatsapp'
-                      ? '+8801700000000 or https://wa.me/8801700000000'
-                      : 'https://example.com/support'
+                      ? 'WhatsApp Phone Number or Link'
+                      : 'Support URL'
                   }
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-emerald-500 font-mono"
                   required
                 />
                 <p className="text-[10px] text-slate-500 mt-1">
                   {supportForm.type === 'whatsapp'
-                    ? 'Enter phone with country code (e.g. +880...) or full https://wa.me/... link'
+                    ? 'Enter phone with country code or full WhatsApp link'
                     : supportForm.type === 'telegram'
                     ? 'Enter @handle or full https://t.me/... link'
                     : 'Enter standard web URL'}
