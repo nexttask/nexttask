@@ -53,6 +53,8 @@ import {
   DEFAULT_WITHDRAWALS,
   DEFAULT_SETTINGS,
   DEFAULT_COMPANY_PROFILE,
+  DEFAULT_UPGRADE_LOGS,
+  recordUpgradeLog,
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_SUPPORT_CHANNELS,
@@ -955,6 +957,20 @@ export default function AdminPanel({ onNavigateToApp }) {
       return u;
     });
     updateUsers(updated);
+
+    // Record Upgrade Log on manual admin change
+    const targetUser = users.find((u) => u.id === id);
+    if (targetUser && (targetUser.vip || 'VIP0') !== newVip) {
+      recordUpgradeLog({
+        userId: targetUser.id,
+        user: targetUser.name || targetUser.phone || targetUser.email || 'User',
+        userIdentifier: (targetUser.phone || targetUser.email || 'Member').replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2'),
+        fromVip: targetUser.vip || 'VIP0',
+        toVip: newVip,
+        amount: 0,
+        type: (targetUser.vip || 'VIP0') === 'VIP0' ? 'Admin Unlock' : 'Admin Upgrade'
+      });
+    }
   };
 
   const handleLoginAsUser = (targetUser) => {
@@ -1105,6 +1121,23 @@ export default function AdminPanel({ onNavigateToApp }) {
       return u;
     });
     updateUsers(updatedUsers);
+
+    // Record Upgrade Log if VIP tier changed
+    if (targetUser) {
+      const oldVip = targetUser.vip || 'VIP0';
+      const updatedTarget = updatedUsers.find((u) => String(u.id) === String(targetUser.id));
+      if (updatedTarget && updatedTarget.vip !== oldVip) {
+        recordUpgradeLog({
+          userId: targetUser.id,
+          user: targetUser.name || targetUser.phone || targetUser.email || 'User',
+          userIdentifier: (targetUser.phone || targetUser.email || 'Member').replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2'),
+          fromVip: oldVip,
+          toVip: updatedTarget.vip,
+          amount: rec.amount,
+          type: oldVip === 'VIP0' ? 'Unlock' : 'Upgrade'
+        });
+      }
+    }
 
     // Record commission transaction
     if (referrerCredited && commissionAmount > 0) {
@@ -3499,14 +3532,14 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <CheckCircle className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-100 text-sm">Our Work & Platform Operations (আমাদের কাজ কী)</h3>
+                    <h3 className="font-bold text-slate-100 text-sm">Our Work & Platform Operations</h3>
                     <p className="text-[11px] text-slate-400">Detailed explanation of how the platform operates and how users earn profit</p>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-slate-300 font-bold block">
-                    What We Do / Our Business Model (আমাদের কাজ ও আয়ের পদ্ধতি)
+                    What We Do / Our Business Model
                   </label>
                   <textarea
                     rows={4}
@@ -3549,14 +3582,14 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <Crown className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-100 text-sm">Mission & Vision Statements (মিশন ও ভিশন)</h3>
+                    <h3 className="font-bold text-slate-100 text-sm">Mission & Vision Statements</h3>
                     <p className="text-[11px] text-slate-400">Strategic goals and future vision of the network</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-slate-300 font-bold block">Corporate Mission (আমাদের লক্ষ্য / মিশন)</label>
+                    <label className="text-slate-300 font-bold block">Corporate Mission</label>
                     <textarea
                       rows={3}
                       value={settings?.companyProfile?.mission ?? DEFAULT_COMPANY_PROFILE.mission}
@@ -3573,7 +3606,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-slate-300 font-bold block">Corporate Vision (আমাদের দূরদৃষ্টি / ভিশন)</label>
+                    <label className="text-slate-300 font-bold block">Corporate Vision</label>
                     <textarea
                       rows={3}
                       value={settings?.companyProfile?.vision ?? DEFAULT_COMPANY_PROFILE.vision}
@@ -3598,7 +3631,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <Award className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-100 text-sm">Official License & Certificate Photo (লাইসেন্স বা সনদপত্র)</h3>
+                    <h3 className="font-bold text-slate-100 text-sm">Official License & Certificate Photo</h3>
                     <p className="text-[11px] text-slate-400">Upload your government registration certificate, business license, or incorporation document</p>
                   </div>
                 </div>

@@ -60,6 +60,8 @@ import {
   DEFAULT_VIP_TIERS,
   DEFAULT_SETTINGS,
   DEFAULT_COMPANY_PROFILE,
+  DEFAULT_UPGRADE_LOGS,
+  recordUpgradeLog,
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_RECHARGES,
@@ -929,6 +931,7 @@ export default function App() {
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showUpgradeLogModal, setShowUpgradeLogModal] = useState(false);
+  const [upgradeLogTab, setUpgradeLogTab] = useState('all');
   const [showCompanyProfileModal, setShowCompanyProfileModal] = useState(false);
   const [showLicenseZoomModal, setShowLicenseZoomModal] = useState(false);
   const [showAppModal, setShowAppModal] = useState(false);
@@ -1891,6 +1894,18 @@ export default function App() {
         };
         setStoredData('recharges', [commissionRecord, ...allRecharges]);
       }
+
+      // Record in Upgrade Log
+      const prevLevel = currentUser?.vip || userVip || 'VIP0';
+      recordUpgradeLog({
+        userId: currentUser?.id,
+        user: currentUser?.name || currentUser?.phone || currentUser?.email || userPhone || userEmail || 'User',
+        userIdentifier: (currentUser?.phone || currentUser?.email || userPhone || userEmail || 'Member').replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2'),
+        fromVip: prevLevel,
+        toVip: selectedVipForUnlock.level,
+        amount: reqDeposit,
+        type: prevLevel === 'VIP0' ? 'Unlock' : 'Upgrade'
+      });
 
       showToast(`🎉 Congratulations! You have unlocked ${selectedVipForUnlock.level}`);
       return;
@@ -4025,14 +4040,14 @@ export default function App() {
                     </p>
                   </div>
 
-                  {/* What We Do / Amader Kaaj Ki (আমাদের কাজ কী) */}
+                  {/* What We Do / Platform Operations */}
                   <div className="bg-gradient-to-br from-blue-50/70 via-indigo-50/40 to-slate-50 border border-blue-200/80 rounded-2xl p-3.5 space-y-2.5">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
                         <Sparkles className="w-4 h-4 text-cyan-300" />
                       </div>
                       <div>
-                        <h4 className="font-extrabold text-blue-950 text-xs">Our Work &amp; Earning Model (আমাদের কাজ ও কার্যক্রম)</h4>
+                        <h4 className="font-extrabold text-blue-950 text-xs">Our Work &amp; Earning Model</h4>
                         <span className="text-[10px] text-blue-700 font-medium">Merchant Partnerships &amp; Real-time Dividends</span>
                       </div>
                     </div>
@@ -4053,13 +4068,13 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Mission & Vision (মিশন ও ভিশন) */}
+                  {/* Mission & Vision */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {/* Mission */}
                     <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3 space-y-1.5 shadow-2xs">
                       <div className="flex items-center gap-1.5 text-amber-900 font-extrabold text-xs">
                         <Award className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Our Mission (আমাদের লক্ষ্য)</span>
+                        <span>Our Mission</span>
                       </div>
                       <p className="text-slate-700 text-[11px] leading-relaxed">
                         {profile.mission || 'To empower everyday internet users worldwide with transparent, accessible, and high-yield digital employment opportunities supported by automated cloud settlement.'}
@@ -4070,7 +4085,7 @@ export default function App() {
                     <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3 space-y-1.5 shadow-2xs">
                       <div className="flex items-center gap-1.5 text-purple-900 font-extrabold text-xs">
                         <Crown className="w-4 h-4 text-purple-600 shrink-0" />
-                        <span>Our Vision (আমাদের ভিশন)</span>
+                        <span>Our Vision</span>
                       </div>
                       <p className="text-slate-700 text-[11px] leading-relaxed">
                         {profile.vision || 'To become the world’s most trusted and decentralized micro-task ecosystem, bridging global business intelligence with verifiable crowd participation.'}
@@ -4078,7 +4093,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Official Legal License & Certificate Photo (লাইসেন্স ও সার্টিফিকেট) */}
+                  {/* Official Legal License & Certificate Photo */}
                   <div className="bg-gradient-to-br from-[#0c1424] via-[#09152e] to-[#040c1a] border border-cyan-500/30 rounded-2xl p-3.5 text-white shadow-xl space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -4233,20 +4248,200 @@ export default function App() {
           </div>
         )}
 
-        {/* Upgrade Log Modal */}
-        {showUpgradeLogModal && (
-          <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-[320px] p-5 space-y-3 animate-fade-in">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                <h3 className="font-bold text-slate-800 text-sm">Upgrade Log</h3>
-                <button onClick={() => setShowUpgradeLogModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-              </div>
-              <div className="text-center py-6 text-slate-400 text-xs">
-                No upgrade records yet.
+        {/* ================= UPGRADE LOG MODAL ================= */}
+        {showUpgradeLogModal && (() => {
+          const upgradeLogs = getStoredData('upgrade_logs', DEFAULT_UPGRADE_LOGS);
+          const myLogs = upgradeLogs.filter((log) => {
+            if (!currentUser) return false;
+            return (
+              (log.userId && String(log.userId) === String(currentUser.id)) ||
+              (log.user && currentUser.name && log.user === currentUser.name) ||
+              (log.user && (currentUser.email === log.user || currentUser.phone === log.user))
+            );
+          });
+          const displayedLogs = upgradeLogTab === 'my' ? myLogs : upgradeLogs;
+
+          return (
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden max-h-[92%] flex flex-col animate-slide-up shadow-2xl border border-slate-100">
+                {/* Midnight Luxury Header */}
+                <div className="relative bg-gradient-to-r from-[#071739] via-[#0b2457] to-[#05132d] p-4 text-white shrink-0 overflow-hidden">
+                  <div className="absolute -right-8 -top-8 w-28 h-28 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+                  <div className="relative flex justify-between items-center">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/25">
+                        <Crown className="w-5 h-5 fill-slate-950 text-slate-950" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-extrabold text-white text-base tracking-tight">Upgrade Log</h3>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                            Live
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300 font-medium">Real-time VIP Unlocks &amp; Transitions</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowUpgradeLogModal(false)}
+                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Summary Bar */}
+                  <div className="mt-3 flex items-center justify-between bg-white/10 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Total Unlocks:</span>
+                      <b className="text-white font-mono">{upgradeLogs.length} Records</b>
+                    </div>
+                    <span className="font-mono text-[10px] text-cyan-300 font-extrabold bg-cyan-950/60 px-2 py-0.5 rounded-full border border-cyan-800/40">
+                      My VIP: {currentUser?.vip || userVip || 'VIP0'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="p-3 pb-0 bg-slate-50 border-b border-slate-100 flex gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setUpgradeLogTab('all')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
+                      upgradeLogTab === 'all'
+                        ? 'bg-[#071739] text-white shadow-sm'
+                        : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80'
+                    }`}
+                  >
+                    All Upgrades ({upgradeLogs.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUpgradeLogTab('my')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
+                      upgradeLogTab === 'my'
+                        ? 'bg-[#071739] text-white shadow-sm'
+                        : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80'
+                    }`}
+                  >
+                    My Upgrades ({myLogs.length})
+                  </button>
+                </div>
+
+                {/* Scrollable Records List */}
+                <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1">
+                  {displayedLogs.length === 0 ? (
+                    <div className="text-center py-12 px-4 space-y-3">
+                      <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                        <Award className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-700">No upgrade records in this tab</p>
+                        <p className="text-[11px] text-slate-400">
+                          {upgradeLogTab === 'my'
+                            ? 'You have not unlocked any VIP packages yet.'
+                            : 'Upgrade logs will appear here in real time.'}
+                        </p>
+                      </div>
+                      {upgradeLogTab === 'my' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowUpgradeLogModal(false);
+                            setActiveTab('vip');
+                          }}
+                          className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs py-2.5 px-5 rounded-full shadow-md transition cursor-pointer"
+                        >
+                          Unlock VIP Package Now
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    displayedLogs.map((log, idx) => {
+                      const isMyRecord = currentUser && (
+                        String(log.userId) === String(currentUser.id) ||
+                        log.user === currentUser.name ||
+                        log.user === currentUser.email ||
+                        log.user === currentUser.phone
+                      );
+                      const isUnlock = log.type === 'Unlock' || log.fromVip === 'VIP0' || !log.fromVip;
+
+                      return (
+                        <div
+                          key={log.id || idx}
+                          className={`p-3 rounded-2xl border transition ${
+                            isMyRecord
+                              ? 'bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 border-amber-300 shadow-sm ring-1 ring-amber-400/20'
+                              : 'bg-slate-50/80 hover:bg-slate-50 border-slate-200/90'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] shrink-0 ${
+                                isUnlock
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-amber-100 text-amber-900 border border-amber-300'
+                              }`}>
+                                {isUnlock ? '★' : '▲'}
+                              </div>
+                              <span className="font-extrabold text-xs text-slate-900 truncate">
+                                {log.userIdentifier || (log.user ? String(log.user).replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2') : 'Member')}
+                              </span>
+                              {isMyRecord && (
+                                <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded font-mono shrink-0">
+                                  YOU
+                                </span>
+                              )}
+                            </div>
+
+                            <span className="text-[10px] font-bold text-slate-400 shrink-0 font-mono">
+                              {log.date}
+                            </span>
+                          </div>
+
+                          {/* Transition Bar: VIP From -> To */}
+                          <div className="flex items-center justify-between bg-white border border-slate-200/70 rounded-xl px-2.5 py-1.5 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 text-slate-600">
+                                {log.fromVip || 'VIP0'}
+                              </span>
+                              <span className="text-slate-400 font-bold text-xs">➔</span>
+                              <span className="px-2 py-0.5 rounded-md font-black text-[10px] bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 shadow-xs">
+                                {log.toVip}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-500 ml-1">
+                                {isUnlock ? 'Package Unlock' : 'Tier Upgrade'}
+                              </span>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <span className="font-mono text-xs font-black text-emerald-600">
+                                {log.amount > 0 ? `+$${parseFloat(log.amount).toFixed(2)}` : 'Active'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer Action */}
+                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowUpgradeLogModal(false)}
+                    className="w-full bg-[#071739] hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                  >
+                    Close Log
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ================= VIP UNLOCK CONFIRMATION POPUP (MATCHING USER SCREENSHOT) ================= */}
         {showUnlockConfirmModal && selectedVipForUnlock && (
@@ -4472,12 +4667,12 @@ export default function App() {
                         <div className="space-y-0.5">
                           <div className="text-slate-300 text-[11px] font-medium">Payable in BDT:</div>
                           <div className="text-[10px] text-cyan-300 font-mono">
-                            Rate: 1 USDT = {selectedPaymentMethod.rate} ৳
+                            Rate: 1 USDT = {selectedPaymentMethod.rate} BDT
                           </div>
                         </div>
                         <div className="text-right">
                           <span className="font-black text-emerald-400 text-sm tracking-tight font-mono">
-                            ৳{( (parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0) * selectedPaymentMethod.rate ).toLocaleString()} BDT
+                            {( (parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0) * selectedPaymentMethod.rate ).toLocaleString()} BDT
                           </span>
                         </div>
                       </div>

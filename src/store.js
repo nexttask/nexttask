@@ -79,6 +79,120 @@ export const DEFAULT_COMPANY_PROFILE = {
   licenseImage: '/license_certificate.svg'
 };
 
+export const DEFAULT_UPGRADE_LOGS = [
+  {
+    id: 'UPG-984210',
+    userId: 'usr_8421',
+    userIdentifier: '017******49',
+    fromVip: 'VIP1',
+    toVip: 'VIP2',
+    amount: 70.00,
+    date: '2026-11-01 16:15',
+    type: 'Upgrade',
+    timestamp: Date.now() - 15 * 60 * 1000
+  },
+  {
+    id: 'UPG-983190',
+    userId: 'usr_3190',
+    userIdentifier: '880******82',
+    fromVip: 'VIP0',
+    toVip: 'VIP1',
+    amount: 10.00,
+    date: '2026-11-01 15:42',
+    type: 'Unlock',
+    timestamp: Date.now() - 48 * 60 * 1000
+  },
+  {
+    id: 'UPG-981045',
+    userId: 'usr_1045',
+    userIdentifier: '018******11',
+    fromVip: 'VIP2',
+    toVip: 'VIP3',
+    amount: 170.00,
+    date: '2026-11-01 14:10',
+    type: 'Upgrade',
+    timestamp: Date.now() - 140 * 60 * 1000
+  },
+  {
+    id: 'UPG-979822',
+    userId: 'usr_9822',
+    userIdentifier: '019******63',
+    fromVip: 'VIP0',
+    toVip: 'VIP1',
+    amount: 10.00,
+    date: '2026-11-01 12:35',
+    type: 'Unlock',
+    timestamp: Date.now() - 250 * 60 * 1000
+  },
+  {
+    id: 'UPG-975411',
+    userId: 'usr_5411',
+    userIdentifier: '016******95',
+    fromVip: 'VIP3',
+    toVip: 'VIP4',
+    amount: 370.00,
+    date: '2026-11-01 10:18',
+    type: 'Upgrade',
+    timestamp: Date.now() - 380 * 60 * 1000
+  },
+  {
+    id: 'UPG-971203',
+    userId: 'usr_1203',
+    userIdentifier: '880******34',
+    fromVip: 'VIP0',
+    toVip: 'VIP1',
+    amount: 10.00,
+    date: '2026-10-31 22:50',
+    type: 'Unlock',
+    timestamp: Date.now() - 800 * 60 * 1000
+  },
+  {
+    id: 'UPG-968921',
+    userId: 'usr_8921',
+    userIdentifier: '013******77',
+    fromVip: 'VIP1',
+    toVip: 'VIP2',
+    amount: 70.00,
+    date: '2026-10-31 20:15',
+    type: 'Upgrade',
+    timestamp: Date.now() - 950 * 60 * 1000
+  },
+  {
+    id: 'UPG-965402',
+    userId: 'usr_5402',
+    userIdentifier: '017******18',
+    fromVip: 'VIP4',
+    toVip: 'VIP5',
+    amount: 770.00,
+    date: '2026-10-31 18:04',
+    type: 'Upgrade',
+    timestamp: Date.now() - 1100 * 60 * 1000
+  }
+];
+
+export const recordUpgradeLog = ({ userId, user, userIdentifier, fromVip, toVip, amount, type }) => {
+  try {
+    const logs = getStoredData('upgrade_logs', DEFAULT_UPGRADE_LOGS);
+    const newLog = {
+      id: `UPG-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
+      userId: userId || '',
+      user: user || 'User',
+      userIdentifier: userIdentifier || (user ? String(user).replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2') : 'Member'),
+      fromVip: fromVip || 'VIP0',
+      toVip: toVip || 'VIP1',
+      amount: typeof amount === 'number' ? amount : (parseFloat(amount) || 0),
+      date: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      type: type || (fromVip === 'VIP0' || !fromVip ? 'Unlock' : 'Upgrade'),
+      timestamp: Date.now()
+    };
+    const updated = [newLog, ...logs].slice(0, 100);
+    setStoredData('upgrade_logs', updated);
+    return newLog;
+  } catch (e) {
+    console.error('Error recording upgrade log:', e);
+  }
+};
+
 export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
