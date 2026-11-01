@@ -560,6 +560,74 @@ export default function AdminPanel({ onNavigateToApp }) {
     showToast('Default call center executive avatar restored!');
   };
 
+  // --- TELEGRAM 24/7 AI BOT HANDLERS ---
+  const [telegramSettingStatus, setTelegramSettingStatus] = useState('');
+  const [isSettingWebhook, setIsSettingWebhook] = useState(false);
+  const [isTestingBot, setIsTestingBot] = useState(false);
+
+  const handleConnectTelegramWebhook = async () => {
+    if (!settings.telegramBotToken) {
+      showToast('Please enter Telegram Bot Token first', 'error');
+      return;
+    }
+    setIsSettingWebhook(true);
+    setTelegramSettingStatus('Connecting webhook to Telegram...');
+    try {
+      const res = await fetch('/api/telegram/set-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: settings.telegramBotToken })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        showToast('Telegram Bot Webhook connected successfully!');
+        setTelegramSettingStatus('✅ Webhook Active: ' + (data.webhookUrl || 'Connected'));
+      } else {
+        const err = data?.telegramResponse?.description || data?.error || 'Failed to connect webhook';
+        showToast(err, 'error');
+        setTelegramSettingStatus('❌ ' + err);
+      }
+    } catch (err) {
+      showToast('Connection error: ' + err.message, 'error');
+      setTelegramSettingStatus('❌ Connection error');
+    } finally {
+      setIsSettingWebhook(false);
+    }
+  };
+
+  const handleTestTelegramBot = async () => {
+    if (!settings.telegramBotToken) {
+      showToast('Please enter Telegram Bot Token', 'error');
+      return;
+    }
+    if (!settings.telegramAdminChatId) {
+      showToast('Please enter Admin Chat ID to receive test message', 'error');
+      return;
+    }
+    setIsTestingBot(true);
+    try {
+      const res = await fetch('/api/telegram/test-bot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: settings.telegramBotToken,
+          chatId: settings.telegramAdminChatId
+        })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        showToast('Test message sent to your Telegram!');
+      } else {
+        const err = data?.telegramResponse?.description || data?.error || 'Test failed';
+        showToast(err, 'error');
+      }
+    } catch (err) {
+      showToast('Test error: ' + err.message, 'error');
+    } finally {
+      setIsTestingBot(false);
+    }
+  };
+
   // --- PAYMENT METHOD HANDLERS (bKash / Nagad / Rocket / USDT) ---
   const handleTogglePaymentActive = (id) => {
     const updated = paymentMethods.map((pm) => {
@@ -3165,6 +3233,131 @@ export default function AdminPanel({ onNavigateToApp }) {
                       })}
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+
+            {/* Telegram 24/7 AI Automated Support Bot Management */}
+            <div className="relative overflow-hidden bg-gradient-to-b from-slate-900/90 to-slate-950/95 border border-slate-800/80 rounded-2xl p-6 sm:p-7 shadow-2xl shadow-indigo-950/30 backdrop-blur-xl before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-transparent before:via-sky-500/60 before:to-transparent">
+              <div className="flex items-center justify-between pb-5 border-b border-slate-800/80 mb-6">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-sky-600/20 to-blue-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-inner">
+                    <Send className="w-5 h-5 text-sky-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-white text-base tracking-tight flex items-center gap-2">
+                      🤖 24/7 Automated Telegram Support Bot
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Auto-replies to user questions with buttons, FAQs, and two-way human agent chat
+                    </p>
+                  </div>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                  settings.telegramBotToken
+                    ? 'bg-sky-950/80 text-sky-400 border-sky-800/60'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}>
+                  {settings.telegramBotToken ? 'Configured' : 'Needs Setup'}
+                </span>
+              </div>
+
+              <div className="space-y-4 text-xs">
+                {/* Bot Username & Token Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Telegram Bot Username</label>
+                    <input
+                      type="text"
+                      value={settings.telegramBotUsername || ''}
+                      onChange={(e) => setSettings({ ...settings, telegramBotUsername: e.target.value })}
+                      placeholder="@NextTask_HelpBot"
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-sky-400"
+                    />
+                    <p className="text-[10px] text-slate-500">Public bot handle users can click to start chat.</p>
+                  </div>
+
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl space-y-1.5">
+                    <label className="text-slate-300 font-bold block">Admin Telegram Chat ID</label>
+                    <input
+                      type="text"
+                      value={settings.telegramAdminChatId || ''}
+                      onChange={(e) => setSettings({ ...settings, telegramAdminChatId: e.target.value })}
+                      placeholder="e.g. 1234567890"
+                      className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-sky-400"
+                    />
+                    <p className="text-[10px] text-slate-500">Inquiries will be forwarded here; reply to answer users.</p>
+                  </div>
+                </div>
+
+                {/* Bot Token Input */}
+                <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-slate-300 font-bold">Telegram HTTP Bot API Token (from @BotFather)</label>
+                    <span className="text-[10px] text-amber-400 font-semibold">Secret Key</span>
+                  </div>
+                  <input
+                    type="password"
+                    value={settings.telegramBotToken || ''}
+                    onChange={(e) => setSettings({ ...settings, telegramBotToken: e.target.value })}
+                    placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ..."
+                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-sky-400"
+                  />
+                  <p className="text-[10px] text-slate-500">Created via @BotFather in Telegram. Keep this token private.</p>
+                </div>
+
+                {/* Status notice */}
+                {telegramSettingStatus && (
+                  <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl text-xs font-mono text-sky-300">
+                    {telegramSettingStatus}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    disabled={isSettingWebhook}
+                    onClick={handleConnectTelegramWebhook}
+                    className="bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 disabled:opacity-50 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>{isSettingWebhook ? 'Connecting...' : '🔗 Connect Webhook'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isTestingBot}
+                    onClick={handleTestTelegramBot}
+                    className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 font-semibold text-xs py-2.5 px-4 rounded-xl border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>{isTestingBot ? 'Sending...' : '🚀 Send Test Message'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateSettings(settings);
+                      showToast('Telegram bot configuration saved!');
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition cursor-pointer ml-auto"
+                  >
+                    <span>Save Bot Settings</span>
+                  </button>
+                </div>
+
+                {/* Step-by-Step Guide Accordion */}
+                <div className="bg-sky-950/20 border border-sky-800/40 p-4 rounded-xl space-y-2 text-[11px] text-slate-300">
+                  <div className="font-bold text-sky-400 flex items-center gap-1.5 text-xs">
+                    <span>💡 How to Create your Telegram Bot in 2 minutes:</span>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-300/90 leading-relaxed">
+                    <li>Open Telegram and search for <b className="text-white">@BotFather</b></li>
+                    <li>Send the message <code className="bg-slate-900 px-1 py-0.5 rounded text-sky-300 font-mono">/newbot</code></li>
+                    <li>Choose a display name (e.g. <b className="text-white">NextTask Live Support</b>)</li>
+                    <li>Choose a unique username ending in "bot" (e.g. <b className="text-white">NextTask_HelpBot</b>)</li>
+                    <li>BotFather will reply with your <b className="text-amber-400">HTTP API Token</b>. Copy and paste it above!</li>
+                    <li>Click <b className="text-sky-400">Connect Webhook</b> above — your automated AI bot is instantly live 24/7!</li>
+                  </ol>
                 </div>
               </div>
             </div>

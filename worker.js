@@ -64,6 +64,165 @@ function sanitizeUsers(users, isAdmin) {
   });
 }
 
+// --- Telegram Bot Helper Methods & Keyboards ---
+async function sendTelegramMessage(token, payload) {
+  if (!token) return { success: false, error: 'No Telegram Bot Token' };
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+async function answerTelegramCallback(token, callbackQueryId, text = '') {
+  if (!token) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: callbackQueryId, text })
+    });
+  } catch {}
+}
+
+const TELEGRAM_MAIN_KEYBOARD = {
+  inline_keyboard: [
+    [
+      { text: '💳 How to Deposit / Recharge', callback_data: 'faq_deposit' },
+      { text: '💸 How to Withdraw Money', callback_data: 'faq_withdraw' }
+    ],
+    [
+      { text: '👑 VIP Packages & Profit Rules', callback_data: 'faq_vip' },
+      { text: '👥 Referral Bonus (10%)', callback_data: 'faq_referral' }
+    ],
+    [
+      { text: '👨‍💼 Chat with Live Human Agent', callback_data: 'faq_agent' },
+      { text: '🌐 Open NextTask Website', url: 'https://nexttask.online' }
+    ]
+  ]
+};
+
+const TELEGRAM_BACK_KEYBOARD = {
+  inline_keyboard: [
+    [
+      { text: '🔙 Back to Main Menu', callback_data: 'menu_main' },
+      { text: '🌐 Open Website', url: 'https://nexttask.online' }
+    ]
+  ]
+};
+
+function getTelegramFaqContent(key) {
+  switch (key) {
+    case 'faq_deposit':
+      return `💳 *NextTask Recharge & Deposit Guide*\n\n` +
+        `1. *Accepted Methods:* bKash, Nagad, Rocket & USDT (TRC20).\n` +
+        `2. *Minimum Deposit:* 10.00 USDT / equivalent BDT.\n` +
+        `3. *How to Deposit:*\n` +
+        `   • Open NextTask Website -> Tap *Recharge*\n` +
+        `   • Choose your payment channel.\n` +
+        `   • Send Money to the official number/address shown on screen.\n` +
+        `   • Enter your Sender Number & TrxID / Hash in the submission form.\n` +
+        `   • Admin verifies and approves within 5-15 minutes!\n\n` +
+        `⚠️ *Safety Notice:* Always send funds to the number shown inside the app only.`;
+
+    case 'faq_withdraw':
+      return `💸 *NextTask Withdrawal Rules & Limits*\n\n` +
+        `1. *Minimum Withdrawal:* 10.00 USDT.\n` +
+        `2. *Payout Channels:* bKash, Nagad, Rocket, or USDT (TRC20) wallet.\n` +
+        `3. *Daily Profit Withdrawals:* You can withdraw 100% of your daily task earnings and referral commissions at any time!\n` +
+        `4. *Locked Capital Release:* When your VIP package duration (e.g. 20 days) ends, your initial deposit is automatically released and becomes 100% withdrawable!\n` +
+        `5. *Processing Time:* Handled quickly by automated audit and finance team.`;
+
+    case 'faq_vip':
+      return `👑 *VIP Packages & Profit Structure*\n\n` +
+        `• *80% Net Guaranteed Profit:* Every VIP package cycle yields 80% total net profit.\n` +
+        `• *Package Validity:* Default 20 days.\n` +
+        `• *Daily Verification Tasks:* Complete simple daily tasks in the *Task* tab to collect your daily earnings.\n` +
+        `• *Auto Capital Release:* At the end of the package validity, your principal locked capital automatically unfreezes for withdrawal!`;
+
+    case 'faq_referral':
+      return `👥 *Referral Income & Team Rewards*\n\n` +
+        `• *10% Instant Direct Commission:* Share your personal invitation link or code. When your direct (Level 1) referrals recharge or unlock any VIP package, you instantly get *10% of their package amount* credited directly to your withdrawable balance!\n` +
+        `• *Withdrawable Immediately:* Referral commissions have zero lock period.\n` +
+        `• *Multi-Tier Progression:* Build Level 1, Level 2, and Level 3 teams to climb VIP rankings and earn higher bonuses!`;
+
+    case 'faq_agent':
+      return `👨‍💼 *Live Customer Support Desk*\n\n` +
+        `Our support executives are available 24/7 to assist you.\n\n` +
+        `👉 *Please reply directly to this message* with:\n` +
+        `1. Your *NextTask User ID / Phone / Email*\n` +
+        `2. Describe your issue or attach screenshot\n\n` +
+        `Our executive will review and reply to you right here in Telegram!`;
+
+    default:
+      return null;
+  }
+}
+
+function matchTelegramFaqAnswer(text) {
+  const t = (text || '').toLowerCase();
+  if (t.includes('deposit') || t.includes('recharge') || t.includes('bkash') || t.includes('nagad') || t.includes('rocket') || t.includes('usdt') || t.includes('ডিপোজিট') || t.includes('রিচার্জ') || t.includes('টাকা জমা')) {
+    return {
+      text: `💳 *NextTask Recharge & Deposit Help*\n\n` +
+        `You can easily recharge using *bKash, Nagad, Rocket, or USDT (TRC20)*. Minimum deposit is *10 USDT*.\n\n` +
+        `Submit your TrxID on the platform, and our admin approves within minutes!`,
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '📖 Read Full Deposit Guide', callback_data: 'faq_deposit' }],
+          [{ text: '🔙 Main Menu', callback_data: 'menu_main' }]
+        ]
+      }
+    };
+  }
+
+  if (t.includes('withdraw') || t.includes('উইথড্র') || t.includes('টাকা তোলা') || t.includes('payout') || t.includes('cashout')) {
+    return {
+      text: `💸 *NextTask Withdrawal Help*\n\n` +
+        `Minimum withdrawal is *10.00 USDT*. You can withdraw all your daily task earnings and referral commissions anytime to bKash, Nagad, Rocket, or USDT!\n\n` +
+        `Your locked VIP capital will also automatically unfreeze after 20 days!`,
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '📖 Read Withdrawal Rules', callback_data: 'faq_withdraw' }],
+          [{ text: '🔙 Main Menu', callback_data: 'menu_main' }]
+        ]
+      }
+    };
+  }
+
+  if (t.includes('vip') || t.includes('package') || t.includes('profit') || t.includes('প্যাকেজ') || t.includes('লাভ')) {
+    return {
+      text: `👑 *NextTask VIP Packages & Profit*\n\n` +
+        `All VIP packages generate *80% net profit* over a *20-day validity cycle*. Complete simple daily verification tasks to earn daily rewards!`,
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '👑 View VIP Rules', callback_data: 'faq_vip' }],
+          [{ text: '🔙 Main Menu', callback_data: 'menu_main' }]
+        ]
+      }
+    };
+  }
+
+  if (t.includes('refer') || t.includes('invite') || t.includes('commission') || t.includes('রেফার') || t.includes('বোনাস')) {
+    return {
+      text: `👥 *NextTask Referral Program*\n\n` +
+        `Earn *10% instant direct commission* on every VIP recharge made by your referred partners! Commissions are 100% withdrawable immediately.`,
+      keyboard: {
+        inline_keyboard: [
+          [{ text: '👥 Referral Details', callback_data: 'faq_referral' }],
+          [{ text: '🔙 Main Menu', callback_data: 'menu_main' }]
+        ]
+      }
+    };
+  }
+
+  return null;
+}
+
 export default {
   async fetch(request, env, _ctx) {
     const url = new URL(request.url);
@@ -101,6 +260,211 @@ export default {
         location: `${city}, ${country}`,
         device
       });
+    }
+
+    // 2.2 Telegram Bot Webhook API (/api/telegram/webhook)
+    if (url.pathname === '/api/telegram/webhook' && request.method === 'POST') {
+      try {
+        const update = await request.json();
+
+        // Retrieve Telegram Bot configuration from D1 or environment
+        let botToken = env.TELEGRAM_BOT_TOKEN || '';
+        let adminChatId = env.TELEGRAM_ADMIN_CHAT_ID || '';
+        let autoReplyEnabled = true;
+
+        if (env.DB) {
+          try {
+            await ensureTable(env.DB);
+            const row = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('settings').first();
+            if (row) {
+              const s = JSON.parse(row.value);
+              if (s.telegramBotToken) botToken = s.telegramBotToken;
+              if (s.telegramAdminChatId) adminChatId = s.telegramAdminChatId;
+              if (s.telegramBotAutoReply !== undefined) autoReplyEnabled = s.telegramBotAutoReply;
+            }
+          } catch {}
+        }
+
+        if (!botToken) {
+          return JSON_RES({ ok: true, note: 'No bot token configured yet' });
+        }
+
+        // Handle Inline Keyboard Callback Queries
+        if (update.callback_query) {
+          const cq = update.callback_query;
+          const chatId = cq.message?.chat?.id;
+          const data = cq.data;
+
+          await answerTelegramCallback(botToken, cq.id);
+
+          if (data === 'menu_main') {
+            await sendTelegramMessage(botToken, {
+              chat_id: chatId,
+              text: `👋 *Welcome to NextTask Official 24/7 AI Support Desk!*\n\n` +
+                `How can we assist you today? Please tap an option below:`,
+              parse_mode: 'Markdown',
+              reply_markup: TELEGRAM_MAIN_KEYBOARD
+            });
+          } else {
+            const content = getTelegramFaqContent(data);
+            if (content) {
+              await sendTelegramMessage(botToken, {
+                chat_id: chatId,
+                text: content,
+                parse_mode: 'Markdown',
+                reply_markup: TELEGRAM_BACK_KEYBOARD
+              });
+            }
+          }
+          return JSON_RES({ ok: true });
+        }
+
+        // Handle Incoming User Messages
+        if (update.message) {
+          const msg = update.message;
+          const chatId = msg.chat?.id;
+          const text = (msg.text || '').trim();
+          const fromUser = msg.from || {};
+          const userName = fromUser.first_name || fromUser.username || 'User';
+
+          // 1. /start command
+          if (text === '/start' || text.startsWith('/start')) {
+            await sendTelegramMessage(botToken, {
+              chat_id: chatId,
+              text: `👋 *Welcome to NextTask Official 24/7 AI Support Desk!*\n\n` +
+                `Hello *${userName}*, we are here to provide instant guidance for your deposits, withdrawals, VIP packages, and tasks.\n\n` +
+                `Please select a topic below or type your question:`,
+              parse_mode: 'Markdown',
+              reply_markup: TELEGRAM_MAIN_KEYBOARD
+            });
+            return JSON_RES({ ok: true });
+          }
+
+          // 2. Admin Replying to a User Message
+          if (adminChatId && String(chatId) === String(adminChatId) && msg.reply_to_message) {
+            const replyText = msg.reply_to_message.text || '';
+            const match = replyText.match(/UID: (\d+)/);
+            if (match && match[1]) {
+              const targetUserId = match[1];
+              await sendTelegramMessage(botToken, {
+                chat_id: targetUserId,
+                text: `💬 *Reply from NextTask Executive:*\n\n${text}\n\n_You can reply here anytime if you have further questions._`,
+                parse_mode: 'Markdown'
+              });
+              await sendTelegramMessage(botToken, {
+                chat_id: adminChatId,
+                text: `✅ Reply sent to User (ID: ${targetUserId}) successfully!`
+              });
+              return JSON_RES({ ok: true });
+            }
+          }
+
+          // 3. Smart FAQ Engine
+          if (autoReplyEnabled) {
+            const matchedFaq = matchTelegramFaqAnswer(text);
+            if (matchedFaq) {
+              await sendTelegramMessage(botToken, {
+                chat_id: chatId,
+                text: matchedFaq.text,
+                parse_mode: 'Markdown',
+                reply_markup: matchedFaq.keyboard
+              });
+              return JSON_RES({ ok: true });
+            }
+          }
+
+          // 4. Forward unhandled messages to Admin Desk
+          if (adminChatId && String(chatId) !== String(adminChatId)) {
+            await sendTelegramMessage(botToken, {
+              chat_id: adminChatId,
+              text: `📩 *New Support Inquiry*\n` +
+                `From: *${userName}* (@${fromUser.username || 'none'})\n` +
+                `UID: ${chatId}\n\n` +
+                `Message:\n"${text}"\n\n` +
+                `_(Reply directly to this message to send an answer to this user)_`,
+              parse_mode: 'Markdown'
+            });
+
+            await sendTelegramMessage(botToken, {
+              chat_id: chatId,
+              text: `✅ *Thank you for reaching out!*\n\n` +
+                `Your message has been forwarded to our human support desk. An executive will reply to you right here shortly.`,
+              parse_mode: 'Markdown',
+              reply_markup: TELEGRAM_BACK_KEYBOARD
+            });
+            return JSON_RES({ ok: true });
+          }
+
+          // Default fallback
+          await sendTelegramMessage(botToken, {
+            chat_id: chatId,
+            text: `👋 Thank you for contacting *NextTask Official Support*!\n\n` +
+              `Please choose from our quick menu options below:`,
+            parse_mode: 'Markdown',
+            reply_markup: TELEGRAM_MAIN_KEYBOARD
+          });
+
+          return JSON_RES({ ok: true });
+        }
+
+        return JSON_RES({ ok: true });
+      } catch (err) {
+        console.error('Telegram webhook error:', err);
+        return JSON_RES({ ok: false, error: err.message }, 500);
+      }
+    }
+
+    // 2.3 Set Telegram Webhook API (/api/telegram/set-webhook)
+    if (url.pathname === '/api/telegram/set-webhook' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const token = body.token;
+        if (!token) {
+          return JSON_RES({ success: false, error: 'Telegram Bot Token is required' }, 400);
+        }
+
+        const host = url.origin || 'https://nexttask.online';
+        const webhookUrl = body.webhookUrl || `${host}/api/telegram/webhook`;
+
+        const tgRes = await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
+        const tgJson = await tgRes.json();
+
+        return JSON_RES({
+          success: tgJson.ok,
+          telegramResponse: tgJson,
+          webhookUrl
+        });
+      } catch (err) {
+        return JSON_RES({ success: false, error: err.message }, 500);
+      }
+    }
+
+    // 2.4 Test Telegram Bot Message (/api/telegram/test-bot)
+    if (url.pathname === '/api/telegram/test-bot' && request.method === 'POST') {
+      try {
+        const body = await request.json();
+        const token = body.token;
+        const chatId = body.chatId;
+
+        if (!token || !chatId) {
+          return JSON_RES({ success: false, error: 'Bot Token and Chat ID are required' }, 400);
+        }
+
+        const tgRes = await sendTelegramMessage(token, {
+          chat_id: chatId,
+          text: `🎉 *NextTask 24/7 AI Support Bot is Online!*\n\n` +
+            `Your Telegram Bot has been configured successfully and is ready to auto-respond to users and forward live inquiries.`,
+          parse_mode: 'Markdown',
+          reply_markup: TELEGRAM_MAIN_KEYBOARD
+        });
+
+        return JSON_RES({
+          success: tgRes.ok,
+          telegramResponse: tgRes
+        });
+      } catch (err) {
+        return JSON_RES({ success: false, error: err.message }, 500);
+      }
     }
 
     // 3. Health Check API (/api/health)

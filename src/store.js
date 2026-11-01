@@ -73,7 +73,11 @@ export const DEFAULT_SETTINGS = {
   minDeposit: 10.0,
   telegramSupport: '@NextTask_Support',
   floatingSupportEnabled: true,
-  supportExecutiveAvatar: ''
+  supportExecutiveAvatar: '',
+  telegramBotToken: '',
+  telegramBotUsername: '@NextTask_HelpBot',
+  telegramAdminChatId: '',
+  telegramBotAutoReply: true
 };
 
 export const getPaymentLogo = (pm) => {
