@@ -232,6 +232,18 @@ export default function App() {
         if (freshUser && (!freshUser.lastLoginIp || freshUser.lastLoginIp === 'Pending')) {
           recordUserLoginAudit(freshUser);
         }
+      } else {
+        // If logged-in account was deleted or no longer exists in D1 database, invalidate stale session immediately
+        if (cur.email !== 'admin@nexttask.online') {
+          try {
+            localStorage.removeItem('nt_currentUser');
+          } catch (e) {}
+          setCurrentUser(null);
+          setIsLoggedIn(false);
+          setBalance(0);
+          setRechargeTotal(0);
+          setUserVip('VIP0');
+        }
       }
     } catch (err) {
       console.warn('Realtime sync error:', err);
