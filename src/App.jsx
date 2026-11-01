@@ -3841,38 +3841,38 @@ export default function App() {
                           runningTasks.map((taskIdx) => (
                             <div
                               key={taskIdx}
-                              className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between transition hover:shadow-md"
+                              className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between gap-3 transition hover:shadow-md"
                             >
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-900">
-                                    {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
-                                  </span>
-                                  <span className="flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full border border-amber-200">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                    Running
-                                  </span>
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <div className="text-xs font-bold text-slate-900 truncate">
+                                  {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
                                 </div>
                                 <div className="text-[11px] text-slate-500">
                                   Daily Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
                                 </div>
                               </div>
 
-                              <button
-                                type="button"
-                                disabled={taskProcessingIdx !== null}
-                                onClick={() => handleCompleteTask(taskIdx, rewardPerTask)}
-                                className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {taskProcessingIdx === taskIdx ? (
-                                  <>
-                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                    <span>Verifying ({taskCountdown}s)...</span>
-                                  </>
-                                ) : (
-                                  <span>Complete</span>
-                                )}
-                              </button>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 font-bold px-2.5 py-1.5 rounded-full border border-amber-200">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                  Running
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={taskProcessingIdx !== null}
+                                  onClick={() => handleCompleteTask(taskIdx, rewardPerTask)}
+                                  className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-md active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {taskProcessingIdx === taskIdx ? (
+                                    <>
+                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                      <span>Verifying ({taskCountdown}s)...</span>
+                                    </>
+                                  ) : (
+                                    <span>Complete</span>
+                                  )}
+                                </button>
+                              </div>
                             </div>
                           ))
                         )
@@ -3886,24 +3886,22 @@ export default function App() {
                           finishedTasks.map((taskIdx) => (
                             <div
                               key={taskIdx}
-                              className="bg-white/80 rounded-2xl p-4 border border-emerald-100 flex items-center justify-between"
+                              className="bg-white/80 rounded-2xl p-4 border border-emerald-100 flex items-center justify-between gap-3"
                             >
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-700">
-                                    {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
-                                  </span>
-                                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                                    <Check className="w-3 h-3" />
-                                    Completed
-                                  </span>
+                              <div className="space-y-1 min-w-0 flex-1">
+                                <div className="text-xs font-bold text-slate-700 truncate">
+                                  {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
                                 </div>
                                 <div className="text-[11px] text-slate-500">
                                   Credited: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
                                 </div>
                               </div>
 
-                              <div className="text-right">
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-full border border-emerald-200">
+                                  <Check className="w-3 h-3 text-emerald-600" />
+                                  Completed
+                                </span>
                                 <span className="text-xs font-black text-emerald-600">
                                   +৳{rewardPerTask.toFixed(2)}
                                 </span>
