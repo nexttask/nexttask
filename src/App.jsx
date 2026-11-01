@@ -2776,8 +2776,8 @@ export default function App() {
                     <input
                       type="text"
                       value={regInviteCode}
-                      onChange={(e) => setRegInviteCode(e.target.value.toUpperCase())}
-                      placeholder="Invitation code (e.g. NT1001)"
+                      onChange={(e) => setRegInviteCode(e.target.value.toUpperCase().trim())}
+                      placeholder="Invitation code (optional)"
                       className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition font-mono tracking-wider font-bold"
                     />
                   </div>
@@ -3160,21 +3160,21 @@ export default function App() {
                   <div className="px-4 space-y-3">
                     <h3 className="font-extrabold text-base text-slate-900 tracking-tight">{t('taskHall')}</h3>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {vipTiers.map((vip) => {
                         const isStarter = parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || String(vip.level).toLowerCase().includes('starter');
                         return (
                           <div
                             key={vip.level}
                             onClick={() => handleUnlockVip(vip)}
-                            className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition cursor-pointer active:scale-[0.99]"
+                            className="bg-white rounded-xl p-2.5 shadow-2xs border border-slate-100 flex items-center gap-3 hover:shadow-xs transition cursor-pointer active:scale-[0.99]"
                           >
                             {/* Left: Official Matching Badge */}
-                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0c0d11] to-[#161822] border border-amber-500/30 flex items-center justify-center p-1.5 relative shadow-inner overflow-hidden shrink-0">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0c0d11] to-[#161822] border border-amber-500/30 flex items-center justify-center p-1 relative shadow-inner overflow-hidden shrink-0">
                               <img
                                 src={getPackageLogo(vip)}
                                 alt={vip.level}
-                                className="w-12 h-12 object-contain rounded-xl"
+                                className="w-9 h-9 object-contain rounded-lg"
                                 loading="lazy"
                                 decoding="async"
                               />
@@ -3182,25 +3182,32 @@ export default function App() {
 
                             {/* Right: Unlock Amount & Level */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-xs text-slate-400 font-medium">{t('unlockAmount')}</div>
-                              <div className="text-lg font-black text-slate-900 tracking-tight mt-0.5">
-                                {isStarter ? (
-                                  <span className="text-emerald-600">Free (৳0.00)</span>
-                                ) : (
-                                  <span>৳{vip.deposit}</span>
-                                )}
+                              <div className="flex justify-between items-baseline">
+                                <div className="text-[10px] text-slate-400 font-medium leading-none">{t('unlockAmount')}</div>
+                                <span className="text-[10px] font-bold text-cyan-700">
+                                  +৳{vip.daily}/d
+                                </span>
                               </div>
-                              <div className="text-xs font-bold text-slate-700 mt-0.5 flex items-center gap-1.5 truncate">
-                                <span>{vip.level}</span>
-                                {isStarter && (
-                                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.2 rounded-full">
-                                    FREE PLAN
-                                  </span>
-                                )}
+                              <div className="flex justify-between items-center mt-0.5">
+                                <div className="text-sm font-black text-slate-900 tracking-tight leading-tight">
+                                  {isStarter ? (
+                                    <span className="text-emerald-600 font-extrabold">Free (৳0.00)</span>
+                                  ) : (
+                                    <span>৳{vip.deposit}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  {isStarter && (
+                                    <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase">
+                                      FREE
+                                    </span>
+                                  )}
+                                  <ChevronsRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                </div>
                               </div>
-                              <div className="mt-1 flex items-center justify-between text-[11px] text-cyan-700 font-bold">
-                                <span>+৳{vip.daily} / Day (10 Tasks)</span>
-                                <ChevronsRight className="w-4 h-4 text-slate-400 shrink-0" />
+                              <div className="text-[11px] font-bold text-slate-700 mt-0.5 truncate flex items-center justify-between">
+                                <span className="truncate">{vip.level}</span>
+                                <span className="text-[9px] text-slate-400 font-normal shrink-0">10 Tasks</span>
                               </div>
                             </div>
                           </div>

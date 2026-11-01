@@ -614,15 +614,16 @@ export const getInviteCodeFromUrl = () => {
   const match = href.match(/[?&#](?:i|ref|code|invite)=([A-Za-z0-9_-]+)/i);
   if (match && match[1]) {
     const code = match[1].trim().toUpperCase();
-    try {
-      sessionStorage.setItem('nt_referral_code', code);
-      localStorage.setItem('nt_referral_code', code);
-    } catch {}
-    return code;
+    if (code) {
+      try {
+        sessionStorage.setItem('nt_referral_code', code);
+      } catch {}
+      return code;
+    }
   }
   try {
-    const stored = sessionStorage.getItem('nt_referral_code') || localStorage.getItem('nt_referral_code');
-    if (stored) return stored.trim().toUpperCase();
+    const sessionCode = sessionStorage.getItem('nt_referral_code');
+    if (sessionCode && sessionCode !== 'NT1001') return sessionCode.trim().toUpperCase();
   } catch {}
   return '';
 };
