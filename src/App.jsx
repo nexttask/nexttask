@@ -3062,7 +3062,7 @@ export default function App() {
 
               {/* ================= TAB 2: VIP ================= */}
               {activeTab === 'vip' && (
-                <div className="p-4 space-y-6 pt-5">
+                <div className="px-3.5 py-3 space-y-3.5">
                   {(() => {
                     const vipOrder = ['VIP0', ...vipTiers.map((v) => v.level)];
                     const curVipIdx = vipOrder.indexOf(userVip || 'VIP0');
@@ -3072,139 +3072,130 @@ export default function App() {
                       const isCurrentUnlocked = curVipIdx > 0 && thisTierIdx === curVipIdx;
                       const isPastUnlocked = curVipIdx > 0 && thisTierIdx < curVipIdx;
                       const isHigherTier = thisTierIdx > curVipIdx;
+                      const vipName = getVipDisplayName(vip.level, vipTiers);
 
-                      // Card styling based on unlock status
+                      // Compact Card styling based on unlock status
                       const cardClass = isCurrentUnlocked
-                        ? "bg-gradient-to-br from-emerald-50/60 via-white to-teal-50/40 rounded-3xl p-4 shadow-md border-2 border-emerald-500 relative pt-6 ring-2 ring-emerald-500/20 transition-all"
+                        ? "bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 rounded-2xl p-3 shadow-sm border-2 border-emerald-500 relative pt-4 ring-2 ring-emerald-500/10 transition-all"
                         : isPastUnlocked
-                        ? "bg-slate-50/70 rounded-3xl p-4 shadow-xs border border-slate-200/80 relative pt-6 opacity-85 transition-all"
-                        : "bg-white rounded-3xl p-4 shadow-sm border border-slate-100 relative pt-6 transition-all";
+                        ? "bg-slate-50/75 rounded-2xl p-3 shadow-xs border border-slate-200/80 relative pt-4 opacity-80 transition-all"
+                        : "bg-white rounded-2xl p-3 shadow-sm border border-slate-100/90 relative pt-4 hover:shadow-md transition-all";
 
                       return (
-                        <div key={vip.level} className={cardClass}>
-                          {/* Top badge */}
+                        <div key={vip.level || vip.id} className={cardClass}>
+                          {/* Sleek Top badge */}
                           {isCurrentUnlocked ? (
-                            <div className="absolute -top-3 left-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white text-xs font-black px-3.5 py-1 rounded-full flex items-center gap-1.5 shadow-md">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                              <span>{vip.level} • {t('unlocked')}</span>
+                            <div className="absolute -top-2.5 left-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                              <CheckCircle2 className="w-3 h-3 text-white" />
+                              <span>{vipName} • {t('unlocked')}</span>
                             </div>
                           ) : isPastUnlocked ? (
-                            <div className="absolute -top-3 left-4 bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
-                              <Check className="w-3 h-3 text-emerald-600" />
-                              <span>{vip.level}</span>
+                            <div className="absolute -top-2.5 left-3 bg-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                              <Check className="w-2.5 h-2.5 text-emerald-600" />
+                              <span>{vipName}</span>
                             </div>
                           ) : (
-                            <div className="absolute -top-3 left-4 bg-gradient-to-r from-[#fbd6a5] to-[#fbc286] text-slate-900 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-                              <Crown className="w-3.5 h-3.5 fill-amber-600 text-amber-700" />
-                              <span>{vip.level}</span>
+                            <div className="absolute -top-2.5 left-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                              <Crown className="w-3 h-3 fill-slate-950 text-slate-950" />
+                              <span>{vipName}</span>
                             </div>
                           )}
 
-                          <div className="flex gap-3 items-stretch">
-                            {/* Left Badge Box */}
-                            <div className={`w-24 h-24 rounded-2xl flex flex-col items-center justify-center p-2 relative shadow-inner overflow-hidden shrink-0 ${
+                          <div className="flex gap-2.5 items-center">
+                            {/* Left Badge Box (Compact & Balanced for Mobile) */}
+                            <div className={`w-16 h-16 rounded-xl flex flex-col items-center justify-center p-1 relative shadow-inner overflow-hidden shrink-0 ${
                               isCurrentUnlocked
-                                ? "bg-gradient-to-br from-[#064e3b] via-[#022c22] to-[#043328] border border-emerald-400/50 shadow-emerald-950/20 shadow-md"
+                                ? "bg-gradient-to-br from-[#064e3b] via-[#022c22] to-[#043328] border border-emerald-400/50 shadow-emerald-950/20"
                                 : "bg-[#0c0d11] border border-amber-500/30"
                             }`}>
                               {vip.logo ? (
-                                <div className="relative flex flex-col items-center justify-center w-full h-full">
-                                  <img
-                                    src={vip.logo}
-                                    alt={vip.level}
-                                    className="w-16 h-16 object-contain rounded-xl drop-shadow"
-                                    loading="lazy"
-                                    decoding="async"
-                                  />
-                                  {isCurrentUnlocked && (
-                                    <div className="absolute bottom-0 text-[7px] uppercase tracking-wider text-emerald-100 font-extrabold bg-emerald-800/90 px-1 py-0.2 rounded shadow-xs">
-                                      UNLOCKED
-                                    </div>
-                                  )}
-                                </div>
+                                <img
+                                  src={vip.logo}
+                                  alt={vipName}
+                                  className="w-11 h-11 object-contain rounded-lg drop-shadow"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
                               ) : isCurrentUnlocked ? (
-                                <>
-                                  <Crown className="w-5 h-5 text-emerald-300 mb-0.5 fill-emerald-300 drop-shadow" />
-                                  <div className="text-base font-black tracking-wider text-emerald-300">
-                                    VIP
-                                  </div>
-                                  <div className="text-[8px] uppercase tracking-wider text-emerald-100 font-extrabold bg-emerald-800/90 px-1.5 py-0.5 rounded mt-0.5 shadow-xs">
-                                    UNLOCKED
-                                  </div>
-                                </>
+                                <Crown className="w-7 h-7 text-emerald-300 fill-emerald-300 drop-shadow" />
                               ) : (
                                 <>
-                                  <Crown className="w-5 h-5 text-amber-400 mb-0.5 fill-amber-400 drop-shadow" />
-                                  <div className="text-base font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500">
+                                  <Crown className="w-5 h-5 text-amber-400 fill-amber-400 drop-shadow" />
+                                  <div className="text-[10px] font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400">
                                     VIP
-                                  </div>
-                                  <div className="text-[8px] uppercase tracking-tighter text-amber-300/80 mt-0.5">
-                                    member only
                                   </div>
                                 </>
                               )}
                             </div>
 
-                            {/* Middle Specs */}
-                            <div className={`flex-1 rounded-2xl p-3 flex flex-col justify-between text-xs space-y-1.5 ${
-                              isCurrentUnlocked
-                                ? "bg-emerald-50/70 border border-emerald-100/70"
-                                : "bg-[#ebf0f8]/80"
-                            }`}>
-                              <div className="flex justify-between items-center text-slate-600">
-                                <span>{t('dailyTasks')}</span>
-                                <span className="font-semibold text-slate-800">{vip.tasks} Tasks</span>
-                              </div>
-                              <div className="flex justify-between items-center text-slate-600">
-                                <span>Validity</span>
-                                <span className="font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md text-[11px]">{vip.days || 20} Days</span>
-                              </div>
-                              <div className="flex justify-between items-center text-slate-600">
-                                <span>{t('dailyProfit')}</span>
-                                <span className="font-bold text-cyan-700">+{vip.daily} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
-                              </div>
-                              <div className="flex justify-between items-center text-slate-600">
-                                <span>Total Return ({vip.profitPercent || 80}%)</span>
-                                <span className="font-black text-emerald-600">{vip.total} <span className="text-[10px] text-slate-500 font-normal">USDT</span></span>
-                              </div>
-                              <div className="pt-1 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
-                                <span className="text-slate-500">Capital Status</span>
-                                <span className="text-emerald-700 font-bold bg-emerald-100/70 px-1.5 py-0.5 rounded">
-                                  Auto-release on expiry
+                            {/* Middle & Right Specs (Crisp 2x2 Grid) */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="font-extrabold text-xs text-slate-900 truncate">
+                                  {vipName}
                                 </span>
+                                <span className="font-black text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  Deposit: <b className="text-indigo-600">${vip.deposit}</b>
+                                </span>
+                              </div>
+
+                              <div className={`grid grid-cols-2 gap-1.5 p-2 rounded-xl text-[11px] ${
+                                isCurrentUnlocked ? "bg-emerald-50/80 border border-emerald-100" : "bg-[#f1f5fa]"
+                              }`}>
+                                <div>
+                                  <span className="text-[9px] text-slate-500 block leading-tight">Daily Income</span>
+                                  <b className="text-cyan-700 font-extrabold">+{vip.daily} <span className="text-[8px] font-normal text-slate-400">USDT</span></b>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-500 block leading-tight">Total Return ({vip.profitPercent || 80}%)</span>
+                                  <b className="text-emerald-600 font-extrabold">{vip.total} <span className="text-[8px] font-normal text-slate-400">USDT</span></b>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-500 block leading-tight">Missions / Day</span>
+                                  <b className="text-slate-700">{vip.tasks} Tasks / Day</b>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-500 block leading-tight">Package Validity</span>
+                                  <b className="text-amber-700">{vip.days || 20} Days</b>
+                                </div>
                               </div>
                             </div>
                           </div>
 
-                          {/* Action Button */}
-                          <div className="flex justify-end mt-3">
+                          {/* Action Button Bottom Bar */}
+                          <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100">
+                            <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                              <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                              <span>Capital auto-released in {vip.days || 20}d</span>
+                            </span>
+
                             {isCurrentUnlocked ? (
-                              <div className="bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-md">
-                                <CheckCircle2 className="w-4 h-4 text-white" />
-                                <span>{t('unlocked')}</span>
+                              <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
+                                <CheckCircle2 className="w-3 h-3 text-white" />
+                                <span>Active Plan</span>
                               </div>
                             ) : isPastUnlocked ? (
-                              <div className="bg-slate-200 text-slate-600 text-xs font-semibold px-4 py-2 rounded-full flex items-center gap-1.5">
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <div className="bg-slate-200 text-slate-600 text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600" />
                                 <span>Unlocked</span>
                               </div>
                             ) : curVipIdx > 0 && isHigherTier ? (
                               <button
+                                type="button"
                                 onClick={() => handleUnlockVip(vip)}
-                                className="bg-[#05132d] hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-2.5 shadow-md active:scale-95 transition cursor-pointer"
+                                className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                               >
-                                <span>{vip.deposit} USDT</span>
-                                <span className="font-semibold text-cyan-300 border-l border-white/20 pl-2">
-                                  {t('upgradeTo')} {vip.level}
-                                </span>
+                                <span>Upgrade</span>
+                                <span className="text-cyan-300 font-extrabold">${vip.deposit}</span>
                               </button>
                             ) : (
                               <button
+                                type="button"
                                 onClick={() => handleUnlockVip(vip)}
-                                className="bg-[#05132d] hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full flex items-center gap-3 shadow-md active:scale-95 transition cursor-pointer"
+                                className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                               >
-                                <span>{vip.deposit} USDT</span>
-                                <span className="font-normal text-slate-300 border-l border-white/20 pl-2">{t('unlockNow')}</span>
+                                <span>Unlock</span>
+                                <span className="text-cyan-300 font-extrabold">${vip.deposit}</span>
                               </button>
                             )}
                           </div>
@@ -4055,203 +4046,281 @@ export default function App() {
 
         {/* ================= RECHARGE / DEPOSIT MODAL (bKash / Nagad / Rocket / USDT) ================= */}
         {showRechargeModal && (
-          <div className="absolute inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-3">
-            <div className="bg-white rounded-3xl w-full p-5 space-y-4 max-h-[92%] overflow-y-auto animate-slide-up shadow-2xl border border-slate-100">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                    <ArrowDownLeft className="w-4 h-4" />
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden max-h-[92%] flex flex-col animate-slide-up shadow-2xl border border-slate-100">
+              
+              {/* Luxury Midnight Header */}
+              <div className="relative bg-gradient-to-r from-[#071739] via-[#0b2457] to-[#05132d] p-4 text-white shrink-0 overflow-hidden">
+                <div className="absolute -right-8 -top-8 w-28 h-28 bg-cyan-500/20 rounded-full blur-2xl pointer-events-none" />
+                <div className="relative flex justify-between items-center">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+                      <ArrowDownLeft className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-extrabold text-white text-base tracking-tight">Deposit Funds</h3>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                          Instant
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 font-medium">Safe & Encrypted Cloud Settlement</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-slate-800 text-base leading-tight">Recharge</h3>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRechargeModal(false)}
+                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowRechargeModal(false)}
-                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-sm"
-                >
-                  ✕
-                </button>
-              </div>
 
-              {/* Deposit Amount Field */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-semibold text-slate-600">
-                    Recharge Amount (USDT)
-                  </label>
-                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                    Min: {typeof settings?.minDeposit === 'number' && settings.minDeposit > 0 ? settings.minDeposit : (parseFloat(settings?.minDeposit) || 10.0)} USDT
+                {/* Balance bar chip */}
+                <div className="mt-3 flex items-center justify-between bg-white/10 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-300">
+                    <Wallet className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Current Balance:</span>
+                  </div>
+                  <span className="font-extrabold text-cyan-300 tracking-wide font-mono">
+                    ${(currentUser?.balance || 0).toFixed(2)} USDT
                   </span>
                 </div>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">$</span>
-                  <input
-                    type="text"
-                    value={rechargeAmount}
-                    onChange={(e) => setRechargeAmount(e.target.value)}
-                    placeholder="10.00"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-sm font-black text-slate-800 outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                {/* Quick Amount Selectors */}
-                <div className="grid grid-cols-4 gap-1.5 mt-2">
-                  {['10.00', '70.00', '170.00', '370.00', '770.00', '1,570.00', '3,570.00', '7,770.00'].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => setRechargeAmount(amt)}
-                      className={`py-1 rounded-lg text-xs font-bold transition border ${
-                        rechargeAmount === amt
-                          ? 'bg-[#05132d] text-white border-[#05132d]'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      ${amt.split('.')[0]}
-                    </button>
-                  ))}
-                </div>
               </div>
 
-              {/* Payment Methods Selection Tabs (Active ones from Admin) */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                  Select Payment Gateway
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {paymentMethods.filter((p) => p.active).map((pm) => {
-                    const isSelected = selectedPaymentMethod?.id === pm.id;
-                    const isBkash = pm.method.toLowerCase().includes('bkash');
-                    const isNagad = pm.method.toLowerCase().includes('nagad');
-                    const isRocket = pm.method.toLowerCase().includes('rocket');
+              {/* Scrollable Body */}
+              <div className="p-4 space-y-4 overflow-y-auto">
 
-                    return (
-                      <button
-                        key={pm.id}
-                        type="button"
-                        onClick={() => setSelectedPaymentMethod(pm)}
-                        className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition cursor-pointer ${
-                          isSelected
-                            ? 'border-indigo-600 bg-indigo-50/50 shadow-sm'
-                            : 'border-slate-200 hover:border-slate-300 bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={getPaymentLogo(pm)}
-                            alt={pm.method}
-                            className="w-7 h-7 rounded-lg object-contain bg-slate-50 border border-slate-200/80 p-0.5 shrink-0 shadow-sm"
-                            loading="eager"
-                            decoding="async"
-                            onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
-                          />
-                          <div>
-                            <div className="font-bold text-xs text-slate-800">{pm.method}</div>
-                            <div className="text-[10px] text-slate-500 font-medium">{pm.type}</div>
-                          </div>
-                        </div>
-                        {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Payment Instructions & Account Card */}
-              {selectedPaymentMethod && (
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2.5">
-                      <img
-                        src={getPaymentLogo(selectedPaymentMethod)}
-                        alt={selectedPaymentMethod.method}
-                        className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200 p-0.5 shrink-0 shadow-sm"
-                        loading="eager"
-                        decoding="async"
-                        onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
-                      />
-                      <div>
-                        <span className="text-[11px] font-bold text-slate-500 uppercase">
-                          {selectedPaymentMethod.method} ({selectedPaymentMethod.type})
-                        </span>
-                        <div className="font-mono text-sm font-black text-slate-900 break-all select-all mt-0.5">
-                          {selectedPaymentMethod.number}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(selectedPaymentMethod.number, `${selectedPaymentMethod.method} number`)}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shrink-0 ml-2 shadow cursor-pointer transition active:scale-95"
-                    >
-                      <Copy className="w-3 h-3" />
-                      Copy
-                    </button>
+                {/* Deposit Amount Field */}
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      <Coins className="w-3.5 h-3.5 text-blue-600" />
+                      Recharge Amount (USDT)
+                    </label>
+                    <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Min: {typeof settings?.minDeposit === 'number' && settings.minDeposit > 0 ? settings.minDeposit : (parseFloat(settings?.minDeposit) || 10.0)} USDT
+                    </span>
                   </div>
 
-                  {/* Rate conversion for BDT methods */}
-                  {selectedPaymentMethod.rate > 1 && (
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
-                      <span className="text-slate-500 font-medium">Payable Amount:</span>
-                      <div className="text-right">
-                        <span className="font-black text-emerald-600 text-sm">
-                          ৳{( (parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0) * selectedPaymentMethod.rate ).toLocaleString()} BDT
-                        </span>
-                        <div className="text-[10px] text-slate-400">
-                          Rate: 1 USD = {selectedPaymentMethod.rate} ৳
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-base">$</span>
+                    <input
+                      type="text"
+                      value={rechargeAmount}
+                      onChange={(e) => setRechargeAmount(e.target.value)}
+                      placeholder="10.00"
+                      className="w-full bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-cyan-600 rounded-2xl pl-8 pr-16 py-2.5 text-base font-black text-slate-900 outline-none transition shadow-inner font-mono"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                      USDT
+                    </span>
+                  </div>
+
+                  {/* Quick Amount Selectors */}
+                  <div className="grid grid-cols-4 gap-1.5 mt-2">
+                    {['10.00', '70.00', '170.00', '370.00', '770.00', '1,570.00', '3,570.00', '7,770.00'].map((amt) => {
+                      const isActive = rechargeAmount === amt;
+                      return (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setRechargeAmount(amt)}
+                          className={`py-1.5 rounded-xl text-xs font-extrabold transition border cursor-pointer active:scale-95 ${
+                            isActive
+                              ? 'bg-gradient-to-r from-[#071739] to-blue-900 text-cyan-300 border-cyan-400/50 shadow-md ring-1 ring-cyan-400/30'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                          }`}
+                        >
+                          ${amt.split('.')[0]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Payment Methods Selection Tabs */}
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                      <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                      Select Payment Gateway
+                    </label>
+                    <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Active Channels
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {paymentMethods.filter((p) => p && p.active !== false).map((pm) => {
+                      const isSelected = selectedPaymentMethod?.id === pm.id;
+                      return (
+                        <button
+                          key={pm.id}
+                          type="button"
+                          onClick={() => setSelectedPaymentMethod(pm)}
+                          className={`p-2.5 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer relative overflow-hidden ${
+                            isSelected
+                              ? 'border-cyan-600 bg-gradient-to-br from-cyan-50/80 via-blue-50/40 to-white shadow-sm ring-2 ring-cyan-500/20'
+                              : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={getPaymentLogo(pm)}
+                              alt={pm.method}
+                              className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200/90 p-0.5 shrink-0 shadow-sm"
+                              loading="eager"
+                              decoding="async"
+                              onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                            />
+                            <div className="min-w-0">
+                              <div className="font-extrabold text-xs text-slate-800 truncate">{pm.method}</div>
+                              <div className="text-[10px] text-slate-500 font-semibold">{pm.type}</div>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div className="w-4 h-4 rounded-full bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Official Receiver Luxury Card */}
+                {selectedPaymentMethod && (
+                  <div className="relative overflow-hidden bg-gradient-to-br from-[#0c1424] via-[#09152e] to-[#040c1a] border border-cyan-500/30 rounded-2xl p-3.5 text-white shadow-xl space-y-3">
+                    <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
+
+                    <div className="flex justify-between items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <img
+                          src={getPaymentLogo(selectedPaymentMethod)}
+                          alt={selectedPaymentMethod.method}
+                          className="w-8 h-8 rounded-xl object-contain bg-white/95 border border-white/20 p-0.5 shrink-0 shadow-md"
+                          loading="eager"
+                          decoding="async"
+                          onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-black text-white truncate">
+                              {selectedPaymentMethod.method}
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+                              {selectedPaymentMethod.type}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-300 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                            Official Receiving Account
+                          </div>
                         </div>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(selectedPaymentMethod.number, `${selectedPaymentMethod.method} account`)}
+                        className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-[11px] font-black px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shrink-0 shadow-md shadow-cyan-500/25 active:scale-95 transition cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        Copy
+                      </button>
                     </div>
-                  )}
 
-                  {selectedPaymentMethod.instructions && (
-                    <p className="text-[11px] text-amber-700 bg-amber-50/80 p-2 rounded-xl border border-amber-200 font-medium">
-                      ⚠️ {selectedPaymentMethod.instructions.includes('করুন') || selectedPaymentMethod.instructions.includes('নিচে দিন')
-                        ? (selectedPaymentMethod.method === 'USDT (TRC20)' ? 'Transfer USDT via TRC20 network and submit TxID below' : 'Please Send Money and enter TrxID below')
-                        : selectedPaymentMethod.instructions}
-                    </p>
-                  )}
-                </div>
-              )}
+                    {/* Prominent Number display */}
+                    <div className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                      <div className="font-mono text-xs sm:text-sm font-black text-cyan-300 break-all select-all tracking-wider">
+                        {selectedPaymentMethod.number}
+                      </div>
+                    </div>
 
-              {/* User Payment Submission Form */}
-              <form onSubmit={handleSubmitRecharge} className="space-y-3 pt-1">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Your Sender Phone / Account Number
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={senderAccount}
-                    onChange={(e) => setSenderAccount(e.target.value)}
-                    placeholder="e.g. 017XXXXXXXX"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none focus:border-indigo-500"
-                  />
-                </div>
+                    {/* Rate conversion for BDT methods */}
+                    {selectedPaymentMethod.rate > 1 && (
+                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                        <div className="space-y-0.5">
+                          <div className="text-slate-300 text-[11px] font-medium">Payable in BDT:</div>
+                          <div className="text-[10px] text-cyan-300 font-mono">
+                            Rate: 1 USDT = {selectedPaymentMethod.rate} ৳
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-black text-emerald-400 text-sm tracking-tight font-mono">
+                            ৳{( (parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0) * selectedPaymentMethod.rate ).toLocaleString()} BDT
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Transaction ID (TrxID)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value)}
-                    placeholder="e.g. 9B7X2K4A90"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono outline-none focus:border-indigo-500"
-                  />
-                </div>
+                    {/* Custom instruction notice */}
+                    {selectedPaymentMethod.instructions ? (
+                      <div className="text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/30 p-2 rounded-xl flex items-start gap-1.5">
+                        <span className="shrink-0 text-amber-400 font-bold">ℹ️</span>
+                        <span>
+                          {selectedPaymentMethod.instructions.includes('করুন') || selectedPaymentMethod.instructions.includes('নিচে দিন')
+                            ? (selectedPaymentMethod.method === 'USDT (TRC20)' ? 'Transfer USDT via TRC20 network and submit TxID below' : 'Please Send Money to above number and enter TrxID below')
+                            : selectedPaymentMethod.instructions}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-300 bg-white/5 border border-white/5 p-2 rounded-xl text-center">
+                        1. Send Money to above account • 2. Copy TrxID • 3. Submit below
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                <button
-                  type="submit"
-                  className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-3 rounded-full text-xs shadow-lg active:scale-95 transition"
-                >
-                  Submit Deposit Request
-                </button>
-              </form>
+                {/* User Payment Submission Form */}
+                <form onSubmit={handleSubmitRecharge} className="space-y-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Sender Account / Phone Number</span>
+                      <span className="text-[10px] font-semibold text-slate-400">Required</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={senderAccount}
+                      onChange={(e) => setSenderAccount(e.target.value)}
+                      placeholder="e.g. 017XXXXXXXX or Wallet address"
+                      className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none transition font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Transaction ID (TrxID / Hash)</span>
+                      <span className="text-[10px] font-semibold text-slate-400">Required</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={transactionId}
+                      onChange={(e) => setTransactionId(e.target.value)}
+                      placeholder="e.g. 9B7X2K4A90 or 0x..."
+                      className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono outline-none transition uppercase"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-700 hover:brightness-110 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer mt-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-cyan-300" />
+                    Submit Deposit Request
+                  </button>
+
+                  <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400 pt-0.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />
+                    <span>256-Bit Encrypted • Verified by NextTask Financial Desk</span>
+                  </div>
+                </form>
+              </div>
+
             </div>
           </div>
         )}
