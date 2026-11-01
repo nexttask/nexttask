@@ -981,6 +981,7 @@ export default function App() {
   // Modals & Popups
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [rechargeStep, setRechargeStep] = useState(1); // 1 = Amount Selection & Pay Now | 2 = Checkout with Gateways & TrxID
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [verificationCountdown, setVerificationCountdown] = useState(12);
   const [verificationStage, setVerificationStage] = useState('scanning'); // 'scanning' | 'success' | 'queued'
@@ -2069,6 +2070,9 @@ export default function App() {
     setSelectedPaymentMethod(activeList[0] || null);
     if (amount) {
       setRechargeAmount(amount);
+      setRechargeStep(2);
+    } else {
+      setRechargeStep(1);
     }
     setShowRechargeModal(true);
   };
@@ -4864,9 +4868,15 @@ export default function App() {
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <h3 className="font-extrabold text-white text-base tracking-tight">Recharge</h3>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
-                          Instant
+                        <h3 className="font-extrabold text-white text-base tracking-tight">
+                          {rechargeStep === 1 ? 'Recharge Deposit' : 'Payment Checkout'}
+                        </h3>
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
+                          settings?.paymentGatewayMode === 'automated'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
+                            : 'bg-cyan-400/20 text-cyan-300 border-cyan-400/30'
+                        }`}>
+                          {settings?.paymentGatewayMode === 'automated' ? '⚡ P2P Auto Gateway' : 'Standard Deposit'}
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-300 font-medium">Safe & Encrypted Cloud Settlement</p>
@@ -4893,238 +4903,282 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Scrollable Body */}
-              <div className="p-4 space-y-4 overflow-y-auto">
-
-                {/* Deposit Amount Field */}
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                      <Coins className="w-3.5 h-3.5 text-blue-600" />
-                      Recharge Amount (BDT)
-                    </label>
-                    <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      Min: ৳{typeof settings?.minDeposit === 'number' && settings.minDeposit > 0 ? settings.minDeposit : (parseFloat(settings?.minDeposit) || 500)} BDT
-                    </span>
-                  </div>
-
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-base">৳</span>
-                    <input
-                      type="text"
-                      value={rechargeAmount}
-                      onChange={(e) => setRechargeAmount(e.target.value)}
-                      placeholder="Amount"
-                      className="w-full bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-cyan-600 rounded-2xl pl-8 pr-16 py-2.5 text-base font-black text-slate-900 outline-none transition shadow-inner font-mono"
-                    />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      BDT
-                    </span>
-                  </div>
-
-                  {/* Quick Amount Selectors */}
-                  <div className="grid grid-cols-4 gap-1.5 mt-2">
-                    {['1,000.00', '5,000.00', '15,000.00', '35,000.00', '75,000.00', '150,000.00', '350,000.00', '750,000.00'].map((amt) => {
-                      const isActive = rechargeAmount === amt;
-                      return (
-                        <button
-                          key={amt}
-                          type="button"
-                          onClick={() => setRechargeAmount(amt)}
-                          className={`py-1.5 rounded-xl text-xs font-extrabold transition border cursor-pointer active:scale-95 ${
-                            isActive
-                              ? 'bg-gradient-to-r from-[#071739] to-blue-900 text-cyan-300 border-cyan-400/50 shadow-md ring-1 ring-cyan-400/30'
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
-                          }`}
-                        >
-                          ৳{amt.split('.')[0]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Payment Methods Selection Tabs */}
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                      <CreditCard className="w-3.5 h-3.5 text-blue-600" />
-                      Select Payment Gateway
-                    </label>
-                    <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Active Channels
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {paymentMethods.filter((p) => p && p.active !== false).map((pm) => {
-                      const isSelected = selectedPaymentMethod?.id === pm.id;
-                      return (
-                        <button
-                          key={pm.id}
-                          type="button"
-                          onClick={() => setSelectedPaymentMethod(pm)}
-                          className={`p-2.5 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer relative overflow-hidden ${
-                            isSelected
-                              ? 'border-cyan-600 bg-gradient-to-br from-cyan-50/80 via-blue-50/40 to-white shadow-sm ring-2 ring-cyan-500/20'
-                              : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <img
-                              src={getPaymentLogo(pm)}
-                              alt={pm.method}
-                              className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200/90 p-0.5 shrink-0 shadow-sm"
-                              loading="eager"
-                              decoding="async"
-                              onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
-                            />
-                            <div className="min-w-0">
-                              <div className="font-extrabold text-xs text-slate-800 truncate">{pm.method}</div>
-                              <div className="text-[10px] text-slate-500 font-semibold">{pm.type}</div>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <div className="w-4 h-4 rounded-full bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Official Receiver Luxury Card */}
-                {selectedPaymentMethod && (
-                  <div className="relative overflow-hidden bg-gradient-to-br from-[#0c1424] via-[#09152e] to-[#040c1a] border border-cyan-500/30 rounded-2xl p-3.5 text-white shadow-xl space-y-3">
-                    <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
-
-                    <div className="flex justify-between items-center gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <img
-                          src={getPaymentLogo(selectedPaymentMethod)}
-                          alt={selectedPaymentMethod.method}
-                          className="w-8 h-8 rounded-xl object-contain bg-white/95 border border-white/20 p-0.5 shrink-0 shadow-md"
-                          loading="eager"
-                          decoding="async"
-                          onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
-                        />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-black text-white truncate">
-                              {selectedPaymentMethod.method}
-                            </span>
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 shrink-0">
-                              {selectedPaymentMethod.type}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-300 flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                            Official Receiving Account
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(selectedPaymentMethod.number, `${selectedPaymentMethod.method} account`)}
-                        className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-[11px] font-black px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shrink-0 shadow-md shadow-cyan-500/25 active:scale-95 transition cursor-pointer"
-                      >
-                        <Copy className="w-3 h-3" />
-                        Copy
-                      </button>
+              {/* Scrollable Body: Step 1 vs Step 2 */}
+              {rechargeStep === 1 ? (
+                /* ================= STEP 1: AMOUNT SELECTION & PAY NOW ================= */
+                <div className="p-4 sm:p-5 space-y-5 overflow-y-auto animate-fade-in">
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                        <Coins className="w-3.5 h-3.5 text-blue-600" />
+                        Recharge Amount (BDT)
+                      </label>
+                      <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Min: ৳{typeof settings?.minDeposit === 'number' && settings.minDeposit > 0 ? settings.minDeposit : (parseFloat(settings?.minDeposit) || 500)} BDT
+                      </span>
                     </div>
 
-                    {/* Prominent Number display */}
-                    <div className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
-                      <div className="font-mono text-xs sm:text-sm font-black text-cyan-300 break-all select-all tracking-wider">
-                        {selectedPaymentMethod.number}
-                      </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-black text-slate-400 text-lg">৳</span>
+                      <input
+                        type="text"
+                        value={rechargeAmount}
+                        onChange={(e) => setRechargeAmount(e.target.value)}
+                        placeholder="Amount"
+                        className="w-full bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-cyan-600 rounded-2xl pl-8 pr-16 py-3 text-lg font-black text-slate-900 outline-none transition shadow-inner font-mono"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        BDT
+                      </span>
                     </div>
 
-                    {/* Rate conversion for BDT methods */}
-                    {selectedPaymentMethod.rate > 1 && (
-                      <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex justify-between items-center text-xs">
-                        <div className="space-y-0.5">
-                          <div className="text-slate-300 text-[11px] font-medium">Payable in BDT:</div>
-                          <div className="text-[10px] text-cyan-300 font-mono">
-                            Rate: 1 USDT = {selectedPaymentMethod.rate} BDT
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-black text-emerald-400 text-sm tracking-tight font-mono">
-                            {( (parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0) * selectedPaymentMethod.rate ).toLocaleString()} BDT
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Custom instruction notice */}
-                    {selectedPaymentMethod.instructions ? (
-                      <div className="text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/30 p-2 rounded-xl flex items-start gap-1.5">
-                        <span className="shrink-0 text-amber-400 font-bold">ℹ️</span>
-                        <span>
-                          {lang !== 'bn' && /[\u0980-\u09FF]/.test(selectedPaymentMethod.instructions)
-                            ? (selectedPaymentMethod.method === 'USDT (TRC20)' ? 'Transfer USDT via TRC20 network and submit TxID below' : 'Please Send Money to the official number above and enter Sender Number & TrxID below.')
-                            : selectedPaymentMethod.instructions}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-slate-300 bg-white/5 border border-white/5 p-2 rounded-xl text-center">
-                        1. Send Money to above account • 2. Copy TrxID • 3. Submit below
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* User Payment Submission Form */}
-                <form onSubmit={handleSubmitRecharge} className="space-y-3 pt-1">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                      <span>Sender Account Number</span>
-                      <span className="text-[10px] font-semibold text-slate-400">Required</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={senderAccount}
-                      onChange={(e) => setSenderAccount(e.target.value)}
-                      placeholder="Sender Account Number"
-                      className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none transition font-medium"
-                    />
+                    {/* Quick Amount Selectors */}
+                    <div className="grid grid-cols-4 gap-1.5 mt-2.5">
+                      {['1,000.00', '5,000.00', '15,000.00', '35,000.00', '75,000.00', '150,000.00', '350,000.00', '750,000.00'].map((amt) => {
+                        const isActive = rechargeAmount === amt;
+                        return (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setRechargeAmount(amt)}
+                            className={`py-2 rounded-xl text-xs font-extrabold transition border cursor-pointer active:scale-95 ${
+                              isActive
+                                ? 'bg-gradient-to-r from-[#071739] to-blue-900 text-cyan-300 border-cyan-400/50 shadow-md ring-1 ring-cyan-400/30'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                            }`}
+                          >
+                            ৳{amt.split('.')[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                      <span>Transaction ID (TrxID)</span>
-                      <span className="text-[10px] font-semibold text-slate-400">Required</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={transactionId}
-                      onChange={(e) => setTransactionId(e.target.value)}
-                      placeholder="Transaction ID"
-                      className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono outline-none transition uppercase"
-                    />
-                  </div>
-
+                  {/* Big 'Pay Now' Button */}
                   <button
-                    type="submit"
-                    className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-700 hover:brightness-110 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer mt-2"
+                    type="button"
+                    onClick={() => {
+                      const num = parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0;
+                      const minDep = typeof settings?.minDeposit === 'number' && settings.minDeposit > 0
+                        ? settings.minDeposit
+                        : (parseFloat(settings?.minDeposit) || 500);
+                      if (num < minDep) {
+                        showToast(`Minimum recharge is ৳${minDep} BDT`);
+                        return;
+                      }
+                      setRechargeStep(2);
+                    }}
+                    className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-600 hover:brightness-110 text-white font-black py-4 rounded-2xl text-sm uppercase tracking-wider shadow-xl shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer"
                   >
-                    <CheckCircle2 className="w-4 h-4 text-cyan-300" />
-                    Submit Recharge Request
+                    <span>Pay Now</span>
+                    <span className="text-cyan-300 font-mono">
+                      (৳{(parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0).toLocaleString()} BDT)
+                    </span>
+                    <ChevronRight className="w-5 h-5 text-cyan-300" />
                   </button>
 
-                  <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-400 pt-0.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-cyan-600" />
-                    <span>256-Bit Encrypted • Verified by NextTask Financial Desk</span>
+                  <div className="flex items-center justify-center gap-2 text-[11px] font-semibold text-slate-400">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <span>
+                      {settings?.paymentGatewayMode === 'automated'
+                        ? 'Automated P2P Live Verification Network'
+                        : 'Official 256-Bit Encrypted Security'}
+                    </span>
                   </div>
-                </form>
-              </div>
+                </div>
+              ) : (
+                /* ================= STEP 2: CHECKOUT (GATEWAYS, NUMBER COPY, TRXID) ================= */
+                <div className="p-4 space-y-4 overflow-y-auto animate-fade-in">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setRechargeStep(1)}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition"
+                    >
+                      <span>← Change Amount</span>
+                    </button>
+                    <div className="text-xs font-black text-slate-800 font-mono">
+                      Payable: <span className="text-emerald-600 font-extrabold text-sm">৳{(parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0).toLocaleString()} BDT</span>
+                    </div>
+                  </div>
+
+                  {/* Payment Methods Selection Tabs */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                        <CreditCard className="w-3.5 h-3.5 text-blue-600" />
+                        Select Payment Gateway
+                      </label>
+                      <span className="text-[10px] font-bold text-blue-600 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Active Channels
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {paymentMethods.filter((p) => p && p.active !== false).map((pm) => {
+                        const isSelected = selectedPaymentMethod?.id === pm.id;
+                        return (
+                          <button
+                            key={pm.id}
+                            type="button"
+                            onClick={() => setSelectedPaymentMethod(pm)}
+                            className={`p-2.5 rounded-2xl border text-left flex items-center justify-between transition cursor-pointer relative overflow-hidden ${
+                              isSelected
+                                ? 'border-cyan-600 bg-gradient-to-br from-cyan-50/80 via-blue-50/40 to-white shadow-sm ring-2 ring-cyan-500/20'
+                                : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={getPaymentLogo(pm)}
+                                alt={pm.method}
+                                className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200/90 p-0.5 shrink-0 shadow-sm"
+                                loading="eager"
+                                decoding="async"
+                                onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                              />
+                              <div className="min-w-0">
+                                <div className="font-extrabold text-xs text-slate-800 truncate">{pm.method}</div>
+                                <div className="text-[10px] text-slate-500 font-semibold">{pm.type}</div>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="w-4 h-4 rounded-full bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Official Receiver Luxury Card */}
+                  {selectedPaymentMethod && (
+                    <div className="relative overflow-hidden bg-gradient-to-br from-[#0c1424] via-[#09152e] to-[#040c1a] border border-cyan-500/30 rounded-2xl p-3.5 text-white shadow-xl space-y-3">
+                      <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
+
+                      <div className="flex justify-between items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <img
+                            src={getPaymentLogo(selectedPaymentMethod)}
+                            alt={selectedPaymentMethod.method}
+                            className="w-8 h-8 rounded-xl object-contain bg-white/95 border border-white/20 p-0.5 shrink-0 shadow-md"
+                            loading="eager"
+                            decoding="async"
+                            onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-black text-white truncate">
+                                {selectedPaymentMethod.method}
+                              </span>
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 shrink-0">
+                                {selectedPaymentMethod.type}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-300 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                              Official Receiving Account
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(selectedPaymentMethod.number, `${selectedPaymentMethod.method} account`)}
+                          className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-[11px] font-black px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shrink-0 shadow-md shadow-cyan-500/25 active:scale-95 transition cursor-pointer"
+                        >
+                          <Copy className="w-3 h-3" />
+                          Copy
+                        </button>
+                      </div>
+
+                      {/* Prominent Number display */}
+                      <div className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-300 break-all select-all tracking-wider">
+                          {selectedPaymentMethod.number}
+                        </div>
+                      </div>
+
+                      {/* Rate conversion for BDT methods */}
+                      {selectedPaymentMethod.rate > 1 && (
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                          <div className="space-y-0.5">
+                            <div className="text-slate-300 text-[11px] font-medium">Payable in BDT:</div>
+                            <div className="text-[10px] text-cyan-300 font-mono">
+                              Rate: 1 USDT = {selectedPaymentMethod.rate} BDT
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-black text-emerald-400 text-sm tracking-tight font-mono">
+                              {( (parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0) * selectedPaymentMethod.rate ).toLocaleString()} BDT
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Custom instruction notice */}
+                      {selectedPaymentMethod.instructions ? (
+                        <div className="text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/30 p-2 rounded-xl flex items-start gap-1.5">
+                          <span className="shrink-0 text-amber-400 font-bold">ℹ️</span>
+                          <span>
+                            {lang !== 'bn' && /[\u0980-\u09FF]/.test(selectedPaymentMethod.instructions)
+                              ? (selectedPaymentMethod.method === 'USDT (TRC20)' ? 'Transfer USDT via TRC20 network and submit TxID below' : 'Please Send Money to the official number above and enter Sender Number & TrxID below.')
+                              : selectedPaymentMethod.instructions}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-300 bg-white/5 border border-white/5 p-2 rounded-xl text-center">
+                          1. Send Money to above account • 2. Copy TrxID • 3. Submit below
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* User Payment Submission Form */}
+                  <form onSubmit={handleSubmitRecharge} className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Sender Account Number</span>
+                        <span className="text-[10px] font-semibold text-slate-400">Required</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={senderAccount}
+                        onChange={(e) => setSenderAccount(e.target.value)}
+                        placeholder="Sender Account Number"
+                        className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none transition font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
+                        <span>Transaction ID (TrxID)</span>
+                        <span className="text-[10px] font-semibold text-slate-400">Required</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value)}
+                        placeholder="Transaction ID"
+                        className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono outline-none transition uppercase"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-700 hover:brightness-110 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer mt-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-cyan-300" />
+                      {settings?.paymentGatewayMode === 'automated' ? 'Submit & Auto-Verify Payment' : 'Submit Recharge Request'}
+                    </button>
+                  </form>
+                </div>
+              )}
 
             </div>
           </div>
