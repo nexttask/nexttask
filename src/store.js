@@ -207,6 +207,30 @@ export const getStoredData = (key, fallback) => {
   }
 };
 
+// Calculate real withdrawable task balance for a user (VIP package deposit is locked)
+export const getUserWithdrawableBalance = (user) => {
+  if (!user) return 0;
+  if (user.email === 'admin@nexttask.online') {
+    return typeof user.balance === 'number' ? user.balance : 99999.00;
+  }
+  const allTasks = getStoredData('task_records', []);
+  const userTasks = allTasks.filter(t => t && (
+    (user.id && String(t.userId) === String(user.id)) ||
+    (user.email && String(t.user || '').toLowerCase() === user.email.toLowerCase()) ||
+    (user.phone && String(t.user || '') === user.phone)
+  ));
+  const earned = userTasks.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+  const allW = getStoredData('withdrawals', []);
+  const userW = allW.filter(w => w && (
+    (user.id && String(w.userId) === String(user.id)) ||
+    (user.email && String(w.user || '').toLowerCase() === user.email.toLowerCase()) ||
+    (user.phone && String(w.user || '') === user.phone)
+  ) && w.status !== 'rejected');
+  const withdrawn = userW.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+  const taskBal = Math.max(0, parseFloat((earned - withdrawn).toFixed(2)));
+  return taskBal;
+};
+
 export const getAdminToken = () => {
   if (typeof window === 'undefined') return '';
   return localStorage.getItem('nt_admin_token') || sessionStorage.getItem('nt_admin_token') || '';

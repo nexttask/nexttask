@@ -748,7 +748,6 @@ export default function AdminPanel({ onNavigateToApp }) {
 
       if (isMatch) {
         const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
-        const newBalance = parseFloat(((u.balance || 0) + rec.amount).toFixed(2));
 
         let newVip = u.vip || 'VIP0';
         for (const tier of vipTiers) {
@@ -760,7 +759,6 @@ export default function AdminPanel({ onNavigateToApp }) {
 
         return {
           ...u,
-          balance: newBalance,
           recharge: newRecharge,
           vip: newVip
         };
@@ -768,7 +766,7 @@ export default function AdminPanel({ onNavigateToApp }) {
       return u;
     });
     updateUsers(updatedUsers);
-    addNotification(rec.userId || rec.user, 'Recharge Approved', `Your recharge of ${rec.amount} USDT has been approved and credited to your balance.`, 'recharge');
+    addNotification(rec.userId || rec.user, 'Recharge & VIP Activated', `Your recharge of ${rec.amount} USDT has been approved and added to Recharge Amount. VIP status is active with deposit locked as principal capital. Complete daily tasks to earn withdrawable profit!`, 'recharge');
     showToast(`Recharge of ${rec.amount} approved for ${rec.user}!`);
   };
 

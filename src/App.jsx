@@ -59,6 +59,7 @@ import {
   DEFAULT_RECHARGES,
   DEFAULT_WITHDRAWALS,
   DEFAULT_TASK_RECORDS,
+  getUserWithdrawableBalance,
   getPaymentLogo
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
@@ -171,11 +172,12 @@ export default function App() {
             try {
               localStorage.setItem('nt_currentUser', JSON.stringify(freshUser));
             } catch (e) {}
-            setBalance(typeof freshUser.balance === 'number' ? freshUser.balance : (parseFloat(freshUser.balance) || 0));
+            const withBal = getUserWithdrawableBalance(freshUser);
+            setBalance(withBal);
             setRechargeTotal(typeof freshUser.recharge === 'number' ? freshUser.recharge : (parseFloat(freshUser.recharge) || 0));
             const sanitizedVip = (freshUser.email !== 'admin@nexttask.online' && (!freshUser.recharge || freshUser.recharge === 0) && freshUser.vip === 'VIP1') ? 'VIP0' : (freshUser.vip || 'VIP0');
             setUserVip(sanitizedVip);
-            return { ...freshUser, vip: sanitizedVip };
+            return { ...freshUser, balance: withBal, vip: sanitizedVip };
           }
           return prev;
         });
@@ -366,7 +368,7 @@ export default function App() {
   const [balance, setBalance] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('nt_currentUser'));
-      return typeof u?.balance === 'number' ? u.balance : 0.00;
+      return getUserWithdrawableBalance(u);
     } catch {
       return 0.00;
     }
@@ -900,7 +902,7 @@ export default function App() {
       return;
     }
     if (num > balance) {
-      showToast('Insufficient balance!');
+      showToast('Insufficient withdrawable task earnings! VIP deposit is locked.');
       return;
     }
     const minWth = typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0
@@ -1583,7 +1585,9 @@ export default function App() {
     // Check if user has enough balance in account
     if (balance >= reqDeposit && reqDeposit > 0) {
       const newBalance = parseFloat((balance - reqDeposit).toFixed(2));
+      const newRecharge = parseFloat(((currentUser?.recharge || rechargeTotal || 0) + reqDeposit).toFixed(2));
       setBalance(newBalance);
+      setRechargeTotal(newRecharge);
       setUserVip(selectedVipForUnlock.level);
 
       const allUsers = getStoredData('users', DEFAULT_USERS);
@@ -1598,7 +1602,7 @@ export default function App() {
           (u.email && u.email.toLowerCase() === emailOrPhone.toLowerCase()) ||
           (u.phone && u.phone === emailOrPhone)
         ) {
-          return { ...u, vip: selectedVipForUnlock.level, balance: newBalance };
+          return { ...u, vip: selectedVipForUnlock.level, balance: newBalance, recharge: newRecharge };
         }
 
         // Credit the referrer
@@ -2513,13 +2517,17 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-center">
-                      <div>
-                        <div className="text-[11px] text-slate-400 mb-1">{t('totalBalance')}</div>
-                        <div className="text-2xl font-bold tracking-tight">{balance.toFixed(2)}</div>
+                      <div className="bg-white/5 py-2 px-3 rounded-2xl border border-white/10">
+                        <div className="text-[11px] text-slate-300 font-medium mb-0.5">{t('totalBalance')}</div>
+                        <div className="text-2xl font-black tracking-tight text-emerald-400">${balance.toFixed(2)}</div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight block mt-0.5">Withdrawable Profit</span>
                       </div>
-                      <div>
-                        <div className="text-[11px] text-slate-400 mb-1">{t('rechargeAmount')}</div>
-                        <div className="text-2xl font-bold tracking-tight">{rechargeTotal.toFixed(2)}</div>
+                      <div className="bg-white/5 py-2 px-3 rounded-2xl border border-white/10">
+                        <div className="text-[11px] text-slate-300 font-medium mb-0.5">{t('rechargeAmount')}</div>
+                        <div className="text-2xl font-black tracking-tight text-amber-300">${rechargeTotal.toFixed(2)}</div>
+                        <span className="text-[9px] font-bold text-amber-400 uppercase tracking-tight block mt-0.5">
+                          {userVip && userVip !== 'VIP0' ? `Locked (${userVip})` : 'Recharge'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -3813,17 +3821,32 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 flex justify-between items-center">
-                <div>
-                  <div className="text-[10px] text-slate-500 font-bold uppercase">Available Balance</div>
-                  <div className="text-xl font-black text-slate-900">{balance.toFixed(2)} USDT</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] text-slate-400 font-medium">Min Withdrawal</div>
-                  <div className="text-xs font-bold text-indigo-600">
-                    {(typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0 ? settings.minWithdrawal : (parseFloat(settings?.minWithdrawal) || 10.0)).toFixed(2)} USDT
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1.5">
+                      <span>Available Balance</span>
+                      <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded-full font-bold">Task Earnings</span>
+                    </div>
+                    <div className="text-xl font-black text-slate-900 mt-0.5">{balance.toFixed(2)} USDT</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] text-slate-400 font-medium">Min Withdrawal</div>
+                    <div className="text-xs font-bold text-indigo-600">
+                      {(typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0 ? settings.minWithdrawal : (parseFloat(settings?.minWithdrawal) || 10.0)).toFixed(2)} USDT
+                    </div>
                   </div>
                 </div>
+
+                {rechargeTotal > 0 && userVip && userVip !== 'VIP0' && (
+                  <div className="text-[10px] text-slate-500 bg-amber-50/70 border border-amber-200/60 rounded-xl p-2 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-amber-600 shrink-0" />
+                      <span>Locked VIP ({userVip}) Capital:</span>
+                    </span>
+                    <strong className="text-amber-800 font-bold">${rechargeTotal.toFixed(2)} USDT</strong>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Account Verification & Method Selector */}
