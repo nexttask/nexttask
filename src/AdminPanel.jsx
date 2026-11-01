@@ -1531,7 +1531,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
                   <div className="grid grid-cols-4 gap-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/60 text-center">
                     <div>
-                      <div className="text-[9px] text-slate-400 uppercase font-bold">Validity (মেয়াদ)</div>
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Validity</div>
                       <div className="text-xs font-black text-amber-300 mt-0.5">{vip.days || 20} Days</div>
                     </div>
                     <div>
@@ -1585,7 +1585,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <tr>
                     <th className="py-3 px-4">Level</th>
                     <th className="py-3 px-4">Deposit (USDT)</th>
-                    <th className="py-3 px-4">Validity (মেয়াদ)</th>
+                    <th className="py-3 px-4">Validity</th>
                     <th className="py-3 px-4">Daily Tasks</th>
                     <th className="py-3 px-4">Task Reward</th>
                     <th className="py-3 px-4">Daily Profit</th>
@@ -2770,7 +2770,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Package Validity (Days / মেয়াদ)</label>
+                  <label className="block text-slate-400 mb-1">Package Validity (Days)</label>
                   <input
                     type="number"
                     value={vipForm.days || 20}
@@ -2831,10 +2831,10 @@ export default function AdminPanel({ onNavigateToApp }) {
               <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/20 text-[11px] text-blue-200/90 leading-relaxed space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-blue-300">
                   <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>স্মার্ট মেয়াদ ও মূল ক্যাপিটাল রিলিজ পলিসি:</span>
+                  <span>Smart Validity & Principal Capital Release Policy:</span>
                 </div>
                 <p>
-                  প্যাকেজ মূল্যের সাথে <b>{vipForm.profitPercent || 80}% লাভ</b> যুক্ত হয়ে মোট রিটার্ন <b>{vipForm.days || 20} দিনের মেয়াদে</b> প্রতিদিনের টাস্ক আয়ে পরিণত হয়। মেয়াদ শেষ হওয়ার সাথে সাথে ইউজারের <b>লকড মূল ক্যাপিটাল স্বয়ংক্রিয়ভাবে উত্তোলনের জন্য রিলিজ</b> হয়ে যাবে।
+                  A <b>{vipForm.profitPercent || 80}% profit</b> is added to the deposit, distributed as daily tasks over <b>{vipForm.days || 20} days validity</b>. When the package validity expires, the user's <b>principal capital is automatically unlocked and released for withdrawal</b>.
                 </p>
               </div>
 

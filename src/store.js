@@ -248,7 +248,7 @@ export const getUserWithdrawableBalance = (user) => {
   // 2. Referral commissions
   const refEarned = typeof user.referralEarnings === 'number' ? user.referralEarnings : 0;
 
-  // 3. Capital release check (when package validity / মেয়াদ ends)
+  // 3. Capital release check (when package validity ends)
   const isExpired = !!(user.vipExpiresAt && Date.now() >= user.vipExpiresAt);
   const isCapitalReleased = user.capitalReleased === true || isExpired;
   const capitalBonus = isCapitalReleased ? (parseFloat(user.recharge || user.lockedCapital || 0)) : 0;

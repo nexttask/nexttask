@@ -2897,7 +2897,7 @@ export default function App() {
                                 <span className="font-semibold text-slate-800">{vip.tasks} Tasks</span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
-                                <span>Validity (মেয়াদ)</span>
+                                <span>Validity</span>
                                 <span className="font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md text-[11px]">{vip.days || 20} Days</span>
                               </div>
                               <div className="flex justify-between items-center text-slate-600">
@@ -3274,13 +3274,13 @@ export default function App() {
                             </span>
                             {userVip && userVip !== 'VIP0' && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs">
-                                <span>⏳ মেয়াদ:</span>
+                                <span>⏳ Validity:</span>
                                 <b>
                                   {currentUser?.capitalReleased || (currentUser?.vipExpiresAt && Date.now() >= currentUser.vipExpiresAt)
-                                    ? 'মেয়াদ শেষ (ক্যাপিটাল রিলিজ হয়েছে)'
+                                    ? 'Expired (Capital Released)'
                                     : currentUser?.vipExpiresAt
-                                    ? `${Math.max(1, Math.ceil((currentUser.vipExpiresAt - Date.now()) / 86400000))} দিন বাকি`
-                                    : `${currentVipTier?.days || 20} দিন`}
+                                    ? `${Math.max(1, Math.ceil((currentUser.vipExpiresAt - Date.now()) / 86400000))} Days left`
+                                    : `${currentVipTier?.days || 20} Days`}
                                 </b>
                               </span>
                             )}
