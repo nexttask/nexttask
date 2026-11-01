@@ -34,7 +34,11 @@ import {
   X,
   ChevronRight,
   Copy,
-  Crown
+  Crown,
+  Headphones,
+  MessageCircle,
+  Send,
+  Check
 } from 'lucide-react';
 import {
   getStoredData,
@@ -46,6 +50,8 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
+  DEFAULT_SUPPORT_CHANNELS,
+  DEFAULT_SUPPORT_AVATAR,
   getPaymentLogo
 } from './store';
 
@@ -97,6 +103,10 @@ export default function AdminPanel({ onNavigateToApp }) {
   const [recharges, setRecharges] = useState(() => getStoredData('recharges', DEFAULT_RECHARGES));
   const [withdrawals, setWithdrawals] = useState(() => getStoredData('withdrawals', DEFAULT_WITHDRAWALS));
   const [settings, setSettings] = useState(() => getStoredData('settings', DEFAULT_SETTINGS));
+  const [supportChannels, setSupportChannels] = useState(() => getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [editingSupportChannel, setEditingSupportChannel] = useState(null);
+  const [supportForm, setSupportForm] = useState({ name: '', type: 'telegram', link: '', active: true });
 
   // Auto-sync with storage whenever currentTab changes or storage event fires
   const syncData = () => {
@@ -109,6 +119,7 @@ export default function AdminPanel({ onNavigateToApp }) {
     setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
     setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
     setSlides(getStoredData('slides', DEFAULT_SLIDES));
+    setSupportChannels(getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
   };
 
   useEffect(() => {
@@ -468,6 +479,85 @@ export default function AdminPanel({ onNavigateToApp }) {
     setStoredData('payments', newMethods);
   };
 
+  const updateSupportChannels = (newChannels) => {
+    setSupportChannels(newChannels);
+    setStoredData('support_channels', newChannels);
+  };
+
+  const handleOpenAddSupportChannel = () => {
+    setEditingSupportChannel(null);
+    setSupportForm({ name: '', type: 'telegram', link: '', active: true });
+    setShowSupportModal(true);
+  };
+
+  const handleOpenEditSupportChannel = (ch) => {
+    setEditingSupportChannel(ch);
+    setSupportForm({ name: ch.name || '', type: ch.type || 'telegram', link: ch.link || '', active: ch.active !== false });
+    setShowSupportModal(true);
+  };
+
+  const handleSaveSupportChannel = (e) => {
+    e.preventDefault();
+    if (!supportForm.name.trim() || !supportForm.link.trim()) {
+      showToast('Please provide channel name and link or number', 'error');
+      return;
+    }
+    if (editingSupportChannel) {
+      const updated = supportChannels.map((c) => (c.id === editingSupportChannel.id ? { ...c, ...supportForm } : c));
+      updateSupportChannels(updated);
+      showToast('Support channel updated successfully!');
+    } else {
+      const newCh = {
+        id: 'sup_' + Date.now(),
+        ...supportForm
+      };
+      updateSupportChannels([...supportChannels, newCh]);
+      showToast('Support channel added successfully!');
+    }
+    setShowSupportModal(false);
+  };
+
+  const handleDeleteSupportChannel = (id, name) => {
+    if (window.confirm(`Delete support channel "${name}"?`)) {
+      const filtered = supportChannels.filter((c) => c.id !== id);
+      updateSupportChannels(filtered);
+      showToast('Support channel removed');
+    }
+  };
+
+  const handleToggleSupportChannel = (id) => {
+    const updated = supportChannels.map((c) => (c.id === id ? { ...c, active: !c.active } : c));
+    updateSupportChannels(updated);
+    const target = updated.find((c) => c.id === id);
+    showToast(`Channel "${target.name}" is now ${target.active ? 'Active' : 'Inactive'}`);
+  };
+
+  const handleExecutiveAvatarUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('Image size must be under 2MB', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target.result;
+        const newSettings = { ...settings, supportExecutiveAvatar: dataUrl };
+        setSettings(newSettings);
+        updateSettings(newSettings);
+        showToast('Support executive avatar updated successfully!');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRestoreDefaultSupportAvatar = () => {
+    const newSettings = { ...settings, supportExecutiveAvatar: '' };
+    setSettings(newSettings);
+    updateSettings(newSettings);
+    showToast('Default call center executive avatar restored!');
+  };
+
   // --- PAYMENT METHOD HANDLERS (bKash / Nagad / Rocket / USDT) ---
   const handleTogglePaymentActive = (id) => {
     const updated = paymentMethods.map((pm) => {
@@ -712,9 +802,42 @@ export default function AdminPanel({ onNavigateToApp }) {
     };
 
     if (editingVip) {
-      const updated = vipTiers.map((v) => (v.id === editingVip.id ? { ...payload, id: v.id } : v));
+      const oldLevel = editingVip.level;
+      const newLevel = (vipForm.level || '').trim();
+
+      // If the VIP level name has changed (e.g. VIP1 -> Google), auto-update everywhere:
+      if (oldLevel && newLevel && oldLevel !== newLevel) {
+        // 1. Update all users whose vip === oldLevel
+        const allUsers = getStoredData('users', DEFAULT_USERS);
+        const updatedUsers = allUsers.map((u) => (u.vip === oldLevel ? { ...u, vip: newLevel } : u));
+        updateUsers(updatedUsers);
+
+        // 2. Update currentUser in localStorage
+        try {
+          const rawCur = localStorage.getItem('nt_currentUser');
+          if (rawCur) {
+            const cur = JSON.parse(rawCur);
+            if (cur && cur.vip === oldLevel) {
+              cur.vip = newLevel;
+              localStorage.setItem('nt_currentUser', JSON.stringify(cur));
+            }
+          }
+        } catch (e) {}
+
+        // 3. Update recharges notes
+        const allRecharges = getStoredData('recharges', []);
+        const updatedRecs = allRecharges.map((r) => {
+          if (r.note && r.note.includes(oldLevel)) {
+            return { ...r, note: r.note.replace(new RegExp(oldLevel, 'g'), newLevel) };
+          }
+          return r;
+        });
+        setStoredData('recharges', updatedRecs);
+      }
+
+      const updated = vipTiers.map((v) => (v.id === editingVip.id ? { ...payload, id: v.id, level: newLevel } : v));
       updateVips(updated);
-      showToast(`${vipForm.level} updated successfully (${days} Days, ${profitPercent}% Profit)`);
+      showToast(`${newLevel} updated successfully! Name auto-updated across all users and pages.`);
     } else {
       const newVip = {
         ...payload,
@@ -2741,6 +2864,244 @@ export default function AdminPanel({ onNavigateToApp }) {
                 </div>
               </div>
             </div>
+
+            {/* 24/7 Live Customer Support & Floating Help Desk Card */}
+            <div className="relative overflow-hidden bg-gradient-to-b from-slate-900/90 to-slate-950/95 border border-slate-800/80 rounded-2xl p-6 sm:p-7 shadow-2xl shadow-indigo-950/30 backdrop-blur-xl before:absolute before:inset-x-0 before:top-0 before:h-[2px] before:bg-gradient-to-r before:from-transparent before:via-emerald-500/60 before:to-transparent">
+              <div className="flex items-center justify-between pb-5 border-b border-slate-800/80 mb-6">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-inner">
+                    <Headphones className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-white text-base tracking-tight flex items-center gap-2">
+                      24/7 Live Support & Floating Help Desk
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Floating button, call center executive avatar, and Telegram / WhatsApp channels
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddSupportChannel}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Channel</span>
+                </button>
+              </div>
+
+              <div className="space-y-5 text-xs">
+                {/* Floating Support Button Master Switch */}
+                <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-slate-200 font-bold text-xs flex items-center gap-2">
+                      <span>Show Floating Support Button on Website</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        settings.floatingSupportEnabled !== false
+                          ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {settings.floatingSupportEnabled !== false ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Renders a call center executive floating button at the bottom-right corner for fast 1-click support.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = settings.floatingSupportEnabled === false ? true : false;
+                      const newSettings = { ...settings, floatingSupportEnabled: next };
+                      setSettings(newSettings);
+                      updateSettings(newSettings);
+                      showToast(`Floating Support Button is now ${next ? 'Enabled' : 'Disabled'}`);
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      settings.floatingSupportEnabled !== false ? 'bg-emerald-600' : 'bg-slate-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        settings.floatingSupportEnabled !== false ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Call Center Executive Avatar Management */}
+                <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-300 font-bold flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-emerald-400" />
+                      <span>Call Center Executive Avatar</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400">Shown in floating button & contact dialogs</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-900/80 border border-slate-800 p-3 rounded-xl">
+                    <div className="relative w-14 h-14 rounded-full overflow-hidden bg-slate-800 border-2 border-emerald-500 shadow-md shrink-0 flex items-center justify-center">
+                      <img
+                        src={settings.supportExecutiveAvatar || DEFAULT_SUPPORT_AVATAR}
+                        alt="Support Executive"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full" />
+                    </div>
+
+                    <div className="flex-1 space-y-1 text-center sm:text-left">
+                      <p className="font-semibold text-slate-200 text-xs">
+                        {settings.supportExecutiveAvatar ? 'Custom Executive Photo Active' : 'Default Call Center Avatar (Headset)'}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        Upload real customer executive photo or brand icon (PNG, JPG, SVG up to 2MB).
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <label className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer transition">
+                        <span>Upload Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleExecutiveAvatarUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      {settings.supportExecutiveAvatar && (
+                        <button
+                          type="button"
+                          onClick={handleRestoreDefaultSupportAvatar}
+                          className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border border-amber-800/40 transition cursor-pointer"
+                          title="Restore default avatar"
+                        >
+                          Restore Default
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Support Channels List (Telegram, WhatsApp) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-slate-300 font-bold flex items-center gap-2">
+                      <Headphones className="w-4 h-4 text-emerald-400" />
+                      <span>Connected Support Channels ({supportChannels.length})</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400">Telegram & WhatsApp links</span>
+                  </div>
+
+                  {supportChannels.length === 0 ? (
+                    <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-xl p-6 text-center text-slate-400 text-xs">
+                      <p>No support channels configured yet.</p>
+                      <button
+                        type="button"
+                        onClick={handleOpenAddSupportChannel}
+                        className="mt-2 text-emerald-400 hover:text-emerald-300 font-semibold underline"
+                      >
+                        Add Telegram or WhatsApp channel now
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {supportChannels.map((channel) => {
+                        const isTg = channel.type === 'telegram';
+                        const isWa = channel.type === 'whatsapp';
+                        return (
+                          <div
+                            key={channel.id}
+                            className={`p-3.5 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                              channel.active !== false
+                                ? 'bg-slate-950/70 border-slate-800 hover:border-slate-700'
+                                : 'bg-slate-950/30 border-slate-800/40 opacity-60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                  isTg
+                                    ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
+                                    : isWa
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                                }`}
+                              >
+                                {isTg ? <Send className="w-4 h-4" /> : isWa ? <MessageCircle className="w-4 h-4" /> : <Headphones className="w-4 h-4" />}
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="font-bold text-slate-100 text-xs truncate">{channel.name}</h4>
+                                  <span
+                                    className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded tracking-wide ${
+                                      isTg
+                                        ? 'bg-sky-950 text-sky-400 border border-sky-800/50'
+                                        : isWa
+                                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/50'
+                                        : 'bg-slate-800 text-slate-300'
+                                    }`}
+                                  >
+                                    {channel.type}
+                                  </span>
+                                  {channel.active !== false ? (
+                                    <span className="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-slate-500 font-semibold">Inactive</span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-mono truncate max-w-xs sm:max-w-md mt-0.5">
+                                  {channel.link}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                              {/* Toggle Active Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleSupportChannel(channel.id)}
+                                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition cursor-pointer ${
+                                  channel.active !== false
+                                    ? 'bg-emerald-950/60 border-emerald-800/60 text-emerald-400 hover:bg-emerald-900/60'
+                                    : 'bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                {channel.active !== false ? 'Active' : 'Inactive'}
+                              </button>
+
+                              {/* Edit Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditSupportChannel(channel)}
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+                                title="Edit Channel"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Delete Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSupportChannel(channel.id, channel.name)}
+                                className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-800/30 transition cursor-pointer"
+                                title="Delete Channel"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </main>
@@ -3515,6 +3876,116 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <span>Download PDF Report</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: ADD / EDIT SUPPORT CHANNEL ================= */}
+      {showSupportModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 text-xs text-slate-100 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Headphones className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-bold text-white text-sm">
+                  {editingSupportChannel ? 'Edit Support Channel' : 'Add New Support Channel'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSupportModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSupportChannel} className="space-y-3.5">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Channel Name</label>
+                <input
+                  type="text"
+                  value={supportForm.name}
+                  onChange={(e) => setSupportForm({ ...supportForm, name: e.target.value })}
+                  placeholder="e.g. Official WhatsApp Support or 24/7 Telegram Desk"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-emerald-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Channel Platform Type</label>
+                <select
+                  value={supportForm.type}
+                  onChange={(e) => setSupportForm({ ...supportForm, type: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-emerald-500"
+                >
+                  <option value="telegram">Telegram (@username or link)</option>
+                  <option value="whatsapp">WhatsApp (Phone number or wa.me link)</option>
+                  <option value="direct">Direct Web Link (URL)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  {supportForm.type === 'telegram'
+                    ? 'Telegram Username or Full Link'
+                    : supportForm.type === 'whatsapp'
+                    ? 'WhatsApp Phone Number or Link'
+                    : 'Target Support URL'}
+                </label>
+                <input
+                  type="text"
+                  value={supportForm.link}
+                  onChange={(e) => setSupportForm({ ...supportForm, link: e.target.value })}
+                  placeholder={
+                    supportForm.type === 'telegram'
+                      ? '@NextTask_Support or https://t.me/NextTask_Support'
+                      : supportForm.type === 'whatsapp'
+                      ? '+8801700000000 or https://wa.me/8801700000000'
+                      : 'https://example.com/support'
+                  }
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-emerald-500 font-mono"
+                  required
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {supportForm.type === 'whatsapp'
+                    ? 'Enter phone with country code (e.g. +880...) or full https://wa.me/... link'
+                    : supportForm.type === 'telegram'
+                    ? 'Enter @handle or full https://t.me/... link'
+                    : 'Enter standard web URL'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="supActive"
+                  checked={supportForm.active}
+                  onChange={(e) => setSupportForm({ ...supportForm, active: e.target.checked })}
+                  className="rounded bg-slate-950 border-slate-800 text-emerald-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="supActive" className="text-slate-300 font-semibold cursor-pointer">
+                  Channel is Active (Users can contact immediately)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowSupportModal(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold shadow-lg shadow-emerald-600/30 cursor-pointer"
+                >
+                  {editingSupportChannel ? 'Save Changes' : 'Add Channel'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

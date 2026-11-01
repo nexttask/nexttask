@@ -47,12 +47,33 @@ export const DEFAULT_WITHDRAWALS = [];
 
 export const DEFAULT_TASK_RECORDS = [];
 
+export const DEFAULT_SUPPORT_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="bgG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%230f172a"/><stop offset="100%" stop-color="%231e3a8a"/></linearGradient><linearGradient id="sk" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="%23fed7aa"/><stop offset="100%" stop-color="%23fba96b"/></linearGradient></defs><circle cx="50" cy="50" r="50" fill="url(%23bgG)"/><circle cx="50" cy="50" r="47" fill="none" stroke="%2338bdf8" stroke-width="2.5"/><path d="M22,86 C22,66 38,62 50,62 C62,62 78,66 78,86 Z" fill="%232563eb"/><path d="M44,62 L50,74 L56,62 Z" fill="%23ffffff"/><polygon points="50,68 47,82 53,82" fill="%23f59e0b"/><circle cx="50" cy="42" r="20" fill="url(%23sk)"/><path d="M30,36 C30,22 70,22 70,36 C70,29 64,22 50,22 C36,22 30,29 30,36 Z" fill="%231e293b"/><circle cx="43" cy="40" r="2.5" fill="%230f172a"/><circle cx="57" cy="40" r="2.5" fill="%230f172a"/><path d="M44,48 Q50,54 56,48" fill="none" stroke="%23ea580c" stroke-width="2" stroke-linecap="round"/><path d="M28,42 A22,22 0 0,1 72,42" fill="none" stroke="%2338bdf8" stroke-width="4" stroke-linecap="round"/><rect x="25" y="36" width="6" height="12" rx="3" fill="%230284c7"/><rect x="69" y="36" width="6" height="12" rx="3" fill="%230284c7"/><path d="M72,46 L76,55 L67,57" fill="none" stroke="%2338bdf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="66" cy="57" r="3.5" fill="%23ef4444"/></svg>`;
+
+export const DEFAULT_SUPPORT_CHANNELS = [
+  {
+    id: 'sup_tg',
+    name: 'Telegram Live Support',
+    type: 'telegram',
+    link: 'https://t.me/NextTask_Support',
+    active: true
+  },
+  {
+    id: 'sup_wa',
+    name: 'WhatsApp Customer Service',
+    type: 'whatsapp',
+    link: 'https://wa.me/1234567890',
+    active: true
+  }
+];
+
 export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
   minWithdrawal: 10.0,
   minDeposit: 10.0,
   telegramSupport: '@NextTask_Support',
+  floatingSupportEnabled: true,
+  supportExecutiveAvatar: ''
 };
 
 export const getPaymentLogo = (pm) => {

@@ -40,7 +40,11 @@ import {
   Calendar,
   Check,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Headphones,
+  MessageCircle,
+  Send,
+  X
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import {
@@ -59,6 +63,8 @@ import {
   DEFAULT_RECHARGES,
   DEFAULT_WITHDRAWALS,
   DEFAULT_TASK_RECORDS,
+  DEFAULT_SUPPORT_CHANNELS,
+  DEFAULT_SUPPORT_AVATAR,
   getUserWithdrawableBalance,
   getPaymentLogo
 } from './store';
@@ -221,7 +227,50 @@ export default function App() {
   const [vipTiers, setVipTiers] = useState(() => getStoredData('vips', DEFAULT_VIP_TIERS));
   const [settings, setSettings] = useState(() => getStoredData('settings', DEFAULT_SETTINGS));
   const [slides, setSlides] = useState(() => getStoredData('slides', DEFAULT_SLIDES));
+  const [supportChannels, setSupportChannels] = useState(() => getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
+  const [showSupportChoiceModal, setShowSupportChoiceModal] = useState(false);
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
+
+  const formatSupportUrl = (channel) => {
+    if (!channel || !channel.link) return '';
+    const raw = channel.link.trim();
+    if (channel.type === 'telegram') {
+      if (raw.startsWith('@')) return `https://t.me/${raw.slice(1)}`;
+      if (!raw.startsWith('http')) return `https://t.me/${raw}`;
+      return raw;
+    }
+    if (channel.type === 'whatsapp') {
+      if (raw.startsWith('http')) return raw;
+      const cleanNum = raw.replace(/[^\d+]/g, '').replace(/^\+/, '');
+      return `https://wa.me/${cleanNum}`;
+    }
+    if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
+      return `https://${raw}`;
+    }
+    return raw;
+  };
+
+  const handleFloatingSupportClick = () => {
+    const activeList = (supportChannels || []).filter((c) => c.active !== false);
+    if (activeList.length === 0) {
+      if (settings?.telegramSupport) {
+        const tg = settings.telegramSupport.trim();
+        const url = tg.startsWith('http') ? tg : `https://t.me/${tg.replace(/^@/, '')}`;
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      showToast('Support is currently offline. Please try again later.');
+      return;
+    }
+    if (activeList.length === 1) {
+      const url = formatSupportUrl(activeList[0]);
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+    setShowSupportChoiceModal(true);
+  };
 
   useEffect(() => {
     if (slides.length <= 1) return;
@@ -257,6 +306,7 @@ export default function App() {
       setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
       setSettings(getStoredData('settings', DEFAULT_SETTINGS));
       setSlides(getStoredData('slides', DEFAULT_SLIDES));
+      setSupportChannels(getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
       syncCurrentUserData();
     };
 
@@ -2832,7 +2882,7 @@ export default function App() {
               {activeTab === 'vip' && (
                 <div className="p-4 space-y-6 pt-5">
                   {(() => {
-                    const vipOrder = ['VIP0', 'VIP1', 'VIP2', 'VIP3', 'VIP4', 'VIP5', 'VIP6', 'VIP7', 'VIP8', 'VIP9', 'VIP10'];
+                    const vipOrder = ['VIP0', ...vipTiers.map((v) => v.level)];
                     const curVipIdx = vipOrder.indexOf(userVip || 'VIP0');
 
                     return vipTiers.map((vip) => {
@@ -3583,7 +3633,117 @@ export default function App() {
           })}
         </div>
 
+        {/* ================= FLOATING 24/7 CUSTOMER SUPPORT BUTTON ================= */}
+        {!isAdminRoute && settings?.floatingSupportEnabled !== false && (
+          <div className="absolute bottom-20 right-4 z-40">
+            <button
+              type="button"
+              onClick={handleFloatingSupportClick}
+              aria-label="24/7 Live Customer Support"
+              className="group relative flex items-center justify-center cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
+            >
+              {/* Outer pulsing ring */}
+              <span className="absolute -inset-1 rounded-full bg-emerald-400/40 animate-ping opacity-75 duration-1000"></span>
+
+              {/* Avatar circle */}
+              <div className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full p-[2px] bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 shadow-[0_8px_25px_rgba(16,185,129,0.45)] border border-white/50 overflow-hidden flex items-center justify-center">
+                <img
+                  src={settings?.supportExecutiveAvatar || DEFAULT_SUPPORT_AVATAR}
+                  alt="24/7 Customer Support"
+                  className="w-full h-full object-cover rounded-full bg-slate-900"
+                />
+              </div>
+
+              {/* Online indicator badge */}
+              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm flex items-center justify-center">
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              </span>
+
+              {/* Tooltip on hover */}
+              <span className="pointer-events-none absolute -top-8 right-0 bg-slate-900/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-slate-700/80 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                24/7 Live Support
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* ================= MODALS ================= */}
+        {/* Support Channels Choice Modal (Telegram / WhatsApp) */}
+        {showSupportChoiceModal && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[340px] p-5 space-y-4 shadow-2xl border border-slate-100 animate-fade-in">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-emerald-500 shrink-0">
+                    <img
+                      src={settings?.supportExecutiveAvatar || DEFAULT_SUPPORT_AVATAR}
+                      alt="Customer Support Executive"
+                      className="w-full h-full object-cover bg-slate-900"
+                    />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border border-white rounded-full"></span>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                      <span>24/7 Live Help Desk</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-400">Choose your preferred support channel</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSupportChoiceModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2.5">
+                {(supportChannels || [])
+                  .filter((c) => c.active !== false)
+                  .map((channel) => {
+                    const isWa = channel.type === 'whatsapp';
+                    const isTg = channel.type === 'telegram';
+                    const url = formatSupportUrl(channel);
+
+                    return (
+                      <a
+                        key={channel.id}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setShowSupportChoiceModal(false)}
+                        className={`w-full p-3 rounded-2xl flex items-center justify-between gap-3 text-white transition active:scale-[0.98] shadow-md cursor-pointer ${
+                          isWa
+                            ? 'bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 shadow-emerald-500/25'
+                            : isTg
+                            ? 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 shadow-sky-500/25'
+                            : 'bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 shadow-slate-900/25'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
+                            {isWa ? <MessageCircle className="w-5 h-5 text-white" /> : isTg ? <Send className="w-5 h-5 text-white" /> : <Headphones className="w-5 h-5 text-white" />}
+                          </div>
+                          <div className="text-left">
+                            <h4 className="font-bold text-xs tracking-tight leading-tight">{channel.name}</h4>
+                            <span className="text-[10px] text-white/80 font-medium capitalize">
+                              {channel.type === 'whatsapp' ? 'WhatsApp Direct Chat' : channel.type === 'telegram' ? 'Telegram Official Support' : 'Live Agent Desk'}
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-white/80 shrink-0" />
+                      </a>
+                    );
+                  })}
+              </div>
+
+              <p className="text-center text-[10px] text-slate-400 pt-1">
+                Average executive response time: &lt; 2 minutes
+              </p>
+            </div>
+          </div>
+        )}
         {/* Company Profile Modal */}
         {showCompanyProfileModal && (
           <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
