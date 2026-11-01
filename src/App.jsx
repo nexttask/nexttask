@@ -75,6 +75,7 @@ import {
   getPaymentLogo,
   getPackageLogo,
   getVipDisplayName,
+  getLocalDateStr,
   recordUserLoginAudit
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
@@ -744,20 +745,20 @@ export default function App() {
   const [taskProcessingIdx, setTaskProcessingIdx] = useState(null);
   const [taskCountdown, setTaskCountdown] = useState(0);
   const taskTimerRef = useRef(null);
-  const [todayDateStr, setTodayDateStr] = useState(() => new Date().toISOString().slice(0, 10));
+  const [todayDateStr, setTodayDateStr] = useState(() => getLocalDateStr());
   const [timeUntilReset, setTimeUntilReset] = useState('');
 
-  // Auto-detect 24h midnight rollover & live countdown clock
+  // Auto-detect 24h midnight rollover (daily raat 12ta) & live countdown clock
   useEffect(() => {
     const updateResetCountdown = () => {
       const now = new Date();
-      const nowStr = now.toISOString().slice(0, 10);
-      if (nowStr !== todayDateStr) {
-        setTodayDateStr(nowStr);
+      const currentLocalDate = getLocalDateStr();
+      if (currentLocalDate !== todayDateStr) {
+        setTodayDateStr(currentLocalDate);
       }
 
-      const nextMidnight = new Date();
-      nextMidnight.setUTCHours(24, 0, 0, 0);
+      // Next local midnight (raat 12ta)
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
       const diffMs = Math.max(0, nextMidnight.getTime() - now.getTime());
       const hours = String(Math.floor(diffMs / (1000 * 60 * 60))).padStart(2, '0');
       const minutes = String(Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
@@ -3055,11 +3056,19 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Dynamic Promotional Banner Carousel (Admin Managed) */}
+                  {/* Dynamic Promotional Banner Carousel (Admin Managed & Language Filtered) */}
                   {slides.length > 0 && (
                     <div className="mx-4 relative">
                       {(() => {
-                        const activeSlide = slides[currentSlideIdx % slides.length] || slides[0];
+                        const filteredSlides = slides.filter((s) => {
+                          if (lang === 'bn') {
+                            return s.id?.startsWith('s_bn') || /[\u0980-\u09FF]/.test(s.subtitle || '') || (s.image && s.image.includes('_bn_'));
+                          } else {
+                            return !s.id?.startsWith('s_bn') && !/[\u0980-\u09FF]/.test(s.subtitle || '') && !(s.image && s.image.includes('_bn_'));
+                          }
+                        });
+                        const slideList = filteredSlides.length > 0 ? filteredSlides : slides;
+                        const activeSlide = slideList[currentSlideIdx % slideList.length] || slideList[0];
                         if (activeSlide.image) {
                           const isDefaultTheme = !activeSlide.gradient || activeSlide.gradient === 'default' || activeSlide.gradient === 'none';
                           const showTextOverlay = !isDefaultTheme && (activeSlide.subtitle || activeSlide.badge);
@@ -3090,12 +3099,12 @@ export default function App() {
                               )}
                               {/* Carousel indicator dots */}
                               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
-                                {slides.map((_, i) => (
+                                {slideList.map((_, i) => (
                                   <button
                                     key={i}
                                     onClick={() => setCurrentSlideIdx(i)}
                                     className={`h-1.5 rounded-full transition-all ${
-                                      (currentSlideIdx % slides.length) === i
+                                      (currentSlideIdx % slideList.length) === i
                                         ? 'w-5 bg-white'
                                         : 'w-2 bg-white/50 hover:bg-white'
                                     }`}
@@ -3719,12 +3728,12 @@ export default function App() {
                             </span>
                             <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
                           </div>
-                          <h2 className="text-base font-black text-white mt-1.5 tracking-tight">AI & Blockchain Node Tasks</h2>
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <span className="text-[11px] text-slate-300">
+                          
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className="text-xs text-slate-200">
                               {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+৳{rewardPerTask.toFixed(2)}</b>
                             </span>
-                            {userVip && userVip !== 'VIP0' && (
+                            {userVip && userVip !== 'VIP0' && parseFloat(String(currentVipTier?.deposit || '0').replace(/,/g, '')) > 0 && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs">
                                 <span>⏳ Validity:</span>
                                 <b>
@@ -3747,7 +3756,7 @@ export default function App() {
 
                         <div className="text-right">
                           <div className="text-[10px] text-slate-300 uppercase font-bold">{t('todaysProgress')}</div>
-                          <div className="text-xl font-black text-white mt-0.5">
+                          <div className="text-2xl font-black text-white mt-0.5">
                             {completedTaskIndices.length} <span className="text-xs text-slate-400 font-medium">/ {maxTasks}</span>
                           </div>
                         </div>
@@ -3877,9 +3886,11 @@ export default function App() {
                                 </div>
                               </div>
 
-                              <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                                Done ✓
-                              </span>
+                              <div className="text-right">
+                                <span className="text-xs font-black text-emerald-600">
+                                  +৳{rewardPerTask.toFixed(2)}
+                                </span>
+                              </div>
                             </div>
                           ))
                         )
@@ -4918,8 +4929,8 @@ export default function App() {
                       <div className="text-[11px] text-amber-200 bg-amber-500/10 border border-amber-500/30 p-2 rounded-xl flex items-start gap-1.5">
                         <span className="shrink-0 text-amber-400 font-bold">ℹ️</span>
                         <span>
-                          {selectedPaymentMethod.instructions.includes('করুন') || selectedPaymentMethod.instructions.includes('নিচে দিন')
-                            ? (selectedPaymentMethod.method === 'USDT (TRC20)' ? 'Transfer USDT via TRC20 network and submit TxID below' : 'Please Send Money to above number and enter TrxID below')
+                          {lang !== 'bn' && /[\u0980-\u09FF]/.test(selectedPaymentMethod.instructions)
+                            ? (selectedPaymentMethod.method === 'USDT (TRC20)' ? 'Transfer USDT via TRC20 network and submit TxID below' : 'Please Send Money to the official number above and enter Sender Number & TrxID below.')
                             : selectedPaymentMethod.instructions}
                         </span>
                       </div>
@@ -4989,7 +5000,7 @@ export default function App() {
               <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                 <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                   <ArrowUpRight className="w-5 h-5 text-amber-500" />
-                  Withdraw Funds (টাকা উত্তোলন)
+                  Withdraw Funds
                 </h3>
                 <button
                   type="button"
@@ -5178,7 +5189,7 @@ export default function App() {
                       onClick={handleWithdrawSubmit}
                       className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3.5 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
                     >
-                      Confirm Withdrawal (উত্তোলন নিশ্চিত করুন)
+                      Confirm Withdrawal
                     </button>
                   </>
                 );
