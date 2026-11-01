@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
+  Edit,
   Edit3,
   CheckCircle,
   Ban,

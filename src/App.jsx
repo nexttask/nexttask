@@ -273,6 +273,127 @@ export default function App() {
     setShowSupportChoiceModal(true);
   };
 
+  // Draggable Floating Support Button State & Handlers
+  const appFrameRef = useRef(null);
+  const [supportPos, setSupportPos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nt_support_btn_pos');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+
+  const isDraggingSupport = useRef(false);
+  const supportDragData = useRef({ startX: 0, startY: 0, initX: 0, initY: 0, moved: false });
+
+  const handleSupportDragStart = (clientX, clientY) => {
+    if (!appFrameRef.current) return;
+    const parentRect = appFrameRef.current.getBoundingClientRect();
+    const btnEl = document.getElementById('floating-support-btn-wrapper');
+    if (!btnEl) return;
+    const btnRect = btnEl.getBoundingClientRect();
+
+    const currentLeft = btnRect.left - parentRect.left;
+    const currentTop = btnRect.top - parentRect.top;
+
+    isDraggingSupport.current = true;
+    supportDragData.current = {
+      startX: clientX,
+      startY: clientY,
+      initX: currentLeft,
+      initY: currentTop,
+      moved: false
+    };
+  };
+
+  const handleSupportDragMove = (clientX, clientY) => {
+    if (!isDraggingSupport.current || !appFrameRef.current) return;
+    const dx = clientX - supportDragData.current.startX;
+    const dy = clientY - supportDragData.current.startY;
+
+    if (Math.hypot(dx, dy) > 4) {
+      supportDragData.current.moved = true;
+    }
+
+    const parentRect = appFrameRef.current.getBoundingClientRect();
+    const btnWidth = 56;
+    const btnHeight = 56;
+
+    let newX = supportDragData.current.initX + dx;
+    let newY = supportDragData.current.initY + dy;
+
+    const minX = 8;
+    const maxX = parentRect.width - btnWidth - 8;
+    const minY = 8;
+    const maxY = parentRect.height - btnHeight - 8;
+
+    newX = Math.max(minX, Math.min(newX, maxX));
+    newY = Math.max(minY, Math.min(newY, maxY));
+
+    setSupportPos({ x: newX, y: newY });
+  };
+
+  const handleSupportDragEnd = () => {
+    if (!isDraggingSupport.current) return;
+    isDraggingSupport.current = false;
+    if (supportDragData.current.moved) {
+      setSupportPos((pos) => {
+        if (pos) {
+          try {
+            localStorage.setItem('nt_support_btn_pos', JSON.stringify(pos));
+          } catch {}
+        }
+        return pos;
+      });
+    }
+  };
+
+  const onMouseDownSupport = (e) => {
+    e.preventDefault();
+    handleSupportDragStart(e.clientX, e.clientY);
+
+    const onMouseMove = (moveEvent) => {
+      handleSupportDragMove(moveEvent.clientX, moveEvent.clientY);
+    };
+
+    const onMouseUp = () => {
+      handleSupportDragEnd();
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const onTouchStartSupport = (e) => {
+    const touch = e.touches[0];
+    if (touch) {
+      handleSupportDragStart(touch.clientX, touch.clientY);
+    }
+  };
+
+  const onTouchMoveSupport = (e) => {
+    const touch = e.touches[0];
+    if (touch) {
+      handleSupportDragMove(touch.clientX, touch.clientY);
+    }
+  };
+
+  const onTouchEndSupport = () => {
+    handleSupportDragEnd();
+  };
+
+  const handleSupportClickWrapped = (e) => {
+    if (supportDragData.current.moved) {
+      e.preventDefault();
+      e.stopPropagation();
+      supportDragData.current.moved = false;
+      return;
+    }
+    handleFloatingSupportClick();
+  };
+
   useEffect(() => {
     if (slides.length <= 1) return;
     const timer = setInterval(() => {
@@ -1865,7 +1986,7 @@ export default function App() {
   return (
     <div className="h-[100dvh] w-full bg-slate-950 flex justify-center items-center overflow-hidden sm:p-2">
       {/* Mobile App Viewport Frame - Always fixed height with internal scrolling */}
-      <div dir={currentLangObj.dir} className="w-full max-w-md bg-[#f4f7fb] h-full sm:h-[840px] sm:max-h-[96dvh] flex flex-col relative sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-800">
+      <div ref={appFrameRef} dir={currentLangObj.dir} className="w-full max-w-md bg-[#f4f7fb] h-full sm:h-[840px] sm:max-h-[96dvh] flex flex-col relative sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-800">
         
         {/* Toast Alert */}
         {toastMessage && (
@@ -3682,29 +3803,54 @@ export default function App() {
           })}
         </div>
 
-        {/* ================= FLOATING 24/7 CUSTOMER SUPPORT BUTTON ================= */}
+        {/* ================= DRAGGABLE FLOATING 24/7 CUSTOMER SUPPORT BUTTON ================= */}
         {!isAdminRoute && settings?.floatingSupportEnabled !== false && (
-          <div className="absolute bottom-20 right-4 z-40">
+          <div
+            id="floating-support-btn-wrapper"
+            style={
+              supportPos
+                ? {
+                    left: `${supportPos.x}px`,
+                    top: `${supportPos.y}px`,
+                    position: 'absolute',
+                    zIndex: 40,
+                    touchAction: 'none'
+                  }
+                : {
+                    bottom: '80px',
+                    right: '16px',
+                    position: 'absolute',
+                    zIndex: 40,
+                    touchAction: 'none'
+                  }
+            }
+            onMouseDown={onMouseDownSupport}
+            onTouchStart={onTouchStartSupport}
+            onTouchMove={onTouchMoveSupport}
+            onTouchEnd={onTouchEndSupport}
+            className="cursor-grab active:cursor-grabbing select-none"
+          >
             <button
               type="button"
-              onClick={handleFloatingSupportClick}
+              onClick={handleSupportClickWrapped}
               aria-label="24/7 Live Customer Support"
               className="group relative flex items-center justify-center cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
             >
               {/* Outer pulsing ring */}
-              <span className="absolute -inset-1 rounded-full bg-emerald-400/40 animate-ping opacity-75 duration-1000"></span>
+              <span className="absolute -inset-1 rounded-full bg-emerald-400/40 animate-ping opacity-75 duration-1000 pointer-events-none"></span>
 
               {/* Avatar circle */}
-              <div className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full p-[2px] bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 shadow-[0_8px_25px_rgba(16,185,129,0.45)] border border-white/50 overflow-hidden flex items-center justify-center">
+              <div className="relative w-13 h-13 sm:w-14 sm:h-14 rounded-full p-[2px] bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 shadow-[0_8px_25px_rgba(16,185,129,0.45)] border border-white/50 overflow-hidden flex items-center justify-center pointer-events-none">
                 <img
                   src={settings?.supportExecutiveAvatar || DEFAULT_SUPPORT_AVATAR}
                   alt="24/7 Customer Support"
-                  className="w-full h-full object-cover rounded-full bg-slate-900"
+                  className="w-full h-full object-cover rounded-full bg-slate-900 pointer-events-none"
+                  draggable={false}
                 />
               </div>
 
               {/* Online indicator badge */}
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm flex items-center justify-center">
+              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm flex items-center justify-center pointer-events-none">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
               </span>
 
