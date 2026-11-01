@@ -58,6 +58,7 @@ import {
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_RECHARGES,
   DEFAULT_WITHDRAWALS,
+  DEFAULT_TASK_RECORDS,
   getPaymentLogo
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
@@ -406,8 +407,8 @@ export default function App() {
   const [profileBankAccount, setProfileBankAccount] = useState('');
   const [profileBankHolder, setProfileBankHolder] = useState('');
 
-  // Financial Records State (Deposited vs Withdrawn)
-  const [recordsTab, setRecordsTab] = useState('deposit'); // 'deposit' | 'withdraw'
+  // Financial Records State (Task Income vs Deposited vs Withdrawn)
+  const [recordsTab, setRecordsTab] = useState('task'); // 'task' | 'deposit' | 'withdraw'
 
   // Withdraw Modal State
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -1032,6 +1033,30 @@ export default function App() {
           }
           return newBal;
         });
+
+        // Add to Financial Record (Task Earnings)
+        try {
+          const now = new Date();
+          const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+          const newTaskRecord = {
+            id: `TSK-${Date.now()}-${taskIndex + 1}`,
+            userId: currentUser?.id,
+            user: currentUser?.email || currentUser?.phone || currentUser?.name || `User-${currentUser?.id}`,
+            missionNo: taskIndex + 1,
+            taskIndex: taskIndex,
+            taskName: `VIP Mission #${taskIndex + 1}`,
+            vipLevel: userVip || 'VIP1',
+            amount: parseFloat(reward.toFixed(2)),
+            status: 'completed',
+            date: formattedDate,
+            timestamp: Date.now()
+          };
+
+          const currentTaskRecords = getStoredData('task_records', DEFAULT_TASK_RECORDS);
+          setStoredData('task_records', [newTaskRecord, ...currentTaskRecords]);
+        } catch (err) {
+          console.error('Error saving task financial record:', err);
+        }
 
         setTaskProcessingIdx(null);
         showToast(`🎉 Mission #${taskIndex + 1} completed! +$${reward.toFixed(2)} USDT added.`);
@@ -3929,6 +3954,7 @@ export default function App() {
         {showRecordsModal && (() => {
           const allRecharges = getStoredData('recharges', DEFAULT_RECHARGES);
           const allWithdrawals = getStoredData('withdrawals', DEFAULT_WITHDRAWALS);
+          const allTaskRecords = getStoredData('task_records', DEFAULT_TASK_RECORDS);
 
           const userRecharges = allRecharges.filter(r => 
             r && (
@@ -3946,12 +3972,54 @@ export default function App() {
             )
           );
 
+          let userTaskRecords = allTaskRecords.filter(t => 
+            t && (
+              (currentUser?.id && String(t.userId) === String(currentUser.id)) ||
+              (currentUser?.email && String(t.user || '').toLowerCase() === currentUser.email.toLowerCase()) ||
+              (currentUser?.phone && String(t.user || '') === currentUser.phone)
+            )
+          );
+
+          // Auto-sync any completed tasks from today if they weren't saved in task_records previously
+          if (currentUser && completedTaskIndices && completedTaskIndices.length > 0) {
+            const currentVipTier = vipTiers.find((v) => v.level === userVip) || vipTiers[0];
+            const maxTasks = currentVipTier?.tasks || 10;
+            const rewardPerTask = parseFloat(currentVipTier?.interest || (parseFloat(currentVipTier?.daily || '7.00') / maxTasks).toFixed(2)) || 0.70;
+
+            const existingTodayTaskIndices = new Set(
+              userTaskRecords
+                .filter(t => t.date && t.date.startsWith(todayDateStr))
+                .map(t => t.taskIndex)
+            );
+
+            const missingIndices = completedTaskIndices.filter(idx => !existingTodayTaskIndices.has(idx));
+            if (missingIndices.length > 0) {
+              const backfillRecords = missingIndices.map(idx => ({
+                id: `TSK-${Date.now()}-${idx + 1}`,
+                userId: currentUser.id,
+                user: currentUser.email || currentUser.phone || currentUser.name || `User-${currentUser.id}`,
+                missionNo: idx + 1,
+                taskIndex: idx,
+                taskName: `VIP Mission #${idx + 1}`,
+                vipLevel: userVip || 'VIP1',
+                amount: parseFloat(rewardPerTask.toFixed(2)),
+                status: 'completed',
+                date: `${todayDateStr} ${String(12 + Math.floor(idx / 6)).padStart(2, '0')}:${String((idx * 5) % 60).padStart(2, '0')}:00`,
+                timestamp: Date.now() - ((10 - idx) * 60000)
+              }));
+
+              userTaskRecords = [...backfillRecords, ...userTaskRecords];
+              setStoredData('task_records', [...backfillRecords, ...allTaskRecords]);
+            }
+          }
+
           const totalDeposited = userRecharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
           const totalWithdrawn = userWithdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+          const totalTaskIncome = userTaskRecords.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
           return (
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-              <div className="bg-white rounded-3xl w-full max-w-[370px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[88%] flex flex-col">
+              <div className="bg-white rounded-3xl w-full max-w-[400px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[88%] flex flex-col">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
                   <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                     <FileText className="w-5 h-5 text-indigo-600" />
@@ -3960,56 +4028,77 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setShowRecordsModal(false)}
-                    className="text-slate-400 hover:text-slate-600 p-1"
+                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
                   >
                     ✕
                   </button>
                 </div>
 
-                {/* 2-Side Summary: Left = Deposited, Right = Withdrawn */}
-                <div className="grid grid-cols-2 gap-2.5 shrink-0">
-                  {/* Left Column: Deposited Amount */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-3.5 text-center shadow-xs">
-                    <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-emerald-800 uppercase tracking-tight">
-                      <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
-                      Total Deposited
+                {/* 3-Summary Grid: Task Income, Deposited, Withdrawn */}
+                <div className="grid grid-cols-3 gap-2 shrink-0">
+                  {/* Task Earnings */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-2.5 text-center shadow-xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-blue-900 uppercase tracking-tight">
+                      <Coins className="w-3 h-3 text-blue-600" />
+                      <span>Tasks</span>
                     </div>
-                    <div className="text-lg font-black text-emerald-700 mt-1">
+                    <div className="text-sm font-black text-blue-700 mt-1 truncate">
+                      +${totalTaskIncome.toFixed(2)}
+                    </div>
+                    <div className="text-[9px] text-blue-600/90 font-semibold mt-0.5 truncate">
+                      {userTaskRecords.length} Tasks
+                    </div>
+                  </div>
+
+                  {/* Left Column: Deposited Amount */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 rounded-2xl p-2.5 text-center shadow-xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-emerald-800 uppercase tracking-tight">
+                      <ArrowDownLeft className="w-3 h-3 text-emerald-600" />
+                      <span>Deposited</span>
+                    </div>
+                    <div className="text-sm font-black text-emerald-700 mt-1 truncate">
                       ${totalDeposited.toFixed(2)}
                     </div>
-                    <div className="text-[10px] text-emerald-600/90 font-semibold mt-0.5">
+                    <div className="text-[9px] text-emerald-600/90 font-semibold mt-0.5 truncate">
                       {userRecharges.length} Deposits
                     </div>
                   </div>
 
                   {/* Right Column: Withdrawn Amount */}
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 text-center shadow-xs">
-                    <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-amber-800 uppercase tracking-tight">
-                      <ArrowUpRight className="w-3.5 h-3.5 text-amber-600" />
-                      Total Withdrawn
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-2.5 text-center shadow-xs">
+                    <div className="flex items-center justify-center gap-1 text-[10px] font-bold text-amber-800 uppercase tracking-tight">
+                      <ArrowUpRight className="w-3 h-3 text-amber-600" />
+                      <span>Withdrawn</span>
                     </div>
-                    <div className="text-lg font-black text-amber-700 mt-1">
+                    <div className="text-sm font-black text-amber-700 mt-1 truncate">
                       ${totalWithdrawn.toFixed(2)}
                     </div>
-                    <div className="text-[10px] text-amber-600/90 font-semibold mt-0.5">
-                      {userWithdrawals.length} Withdrawals
+                    <div className="text-[9px] text-amber-600/90 font-semibold mt-0.5 truncate">
+                      {userWithdrawals.length} Payouts
                     </div>
                   </div>
                 </div>
 
                 {/* Filter Tabs */}
-                <div className="flex bg-[#eef3fb] p-1 rounded-2xl text-xs font-bold text-slate-600 shrink-0">
+                <div className="flex bg-[#eef3fb] p-1 rounded-2xl text-[11px] font-bold text-slate-600 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRecordsTab('task')}
+                    className={`flex-1 py-2 rounded-xl transition cursor-pointer text-center ${recordsTab === 'task' ? 'bg-white text-blue-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                  >
+                    Tasks ({userTaskRecords.length})
+                  </button>
                   <button
                     type="button"
                     onClick={() => setRecordsTab('deposit')}
-                    className={`flex-1 py-2 rounded-xl transition cursor-pointer ${recordsTab === 'deposit' ? 'bg-white text-emerald-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                    className={`flex-1 py-2 rounded-xl transition cursor-pointer text-center ${recordsTab === 'deposit' ? 'bg-white text-emerald-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
                   >
                     Deposits ({userRecharges.length})
                   </button>
                   <button
                     type="button"
                     onClick={() => setRecordsTab('withdraw')}
-                    className={`flex-1 py-2 rounded-xl transition cursor-pointer ${recordsTab === 'withdraw' ? 'bg-white text-amber-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                    className={`flex-1 py-2 rounded-xl transition cursor-pointer text-center ${recordsTab === 'withdraw' ? 'bg-white text-amber-700 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
                   >
                     Withdrawals ({userWithdrawals.length})
                   </button>
@@ -4017,7 +4106,41 @@ export default function App() {
 
                 {/* Real Transactions List */}
                 <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
-                  {recordsTab === 'deposit' ? (
+                  {recordsTab === 'task' ? (
+                    userTaskRecords.length === 0 ? (
+                      <div className="text-center py-10 text-slate-400 space-y-1">
+                        <CheckCircle2 className="w-8 h-8 mx-auto text-slate-300" />
+                        <p className="text-xs font-semibold">No task earnings yet.</p>
+                        <p className="text-[10px] text-slate-400">Complete daily VIP tasks to see income records here in real time.</p>
+                      </div>
+                    ) : (
+                      userTaskRecords.map((t, idx) => (
+                        <div key={t.id || idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                              <span className="flex items-center gap-1">
+                                <Coins className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <span>{t.taskName || `VIP Mission #${t.missionNo || t.taskIndex + 1 || idx + 1}`}</span>
+                              </span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full uppercase bg-blue-100 text-blue-700">
+                                Completed
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              Ref: {t.id}
+                            </div>
+                            <div className="text-[10px] text-slate-400">{t.date}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-black text-emerald-600">
+                              +${parseFloat(t.amount).toFixed(2)}
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">USDT</div>
+                          </div>
+                        </div>
+                      ))
+                    )
+                  ) : recordsTab === 'deposit' ? (
                     userRecharges.length === 0 ? (
                       <div className="text-center py-10 text-slate-400 space-y-1">
                         <ArrowDownLeft className="w-8 h-8 mx-auto text-slate-300" />

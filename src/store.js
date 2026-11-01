@@ -45,6 +45,8 @@ export const DEFAULT_RECHARGES = [];
 
 export const DEFAULT_WITHDRAWALS = [];
 
+export const DEFAULT_TASK_RECORDS = [];
+
 export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
