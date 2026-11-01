@@ -2560,17 +2560,13 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="bg-white/5 py-2 px-3 rounded-2xl border border-white/10">
+                      <div className="bg-white/5 py-2.5 px-3 rounded-2xl border border-white/10">
                         <div className="text-[11px] text-slate-300 font-medium mb-0.5">{t('totalBalance')}</div>
                         <div className="text-2xl font-black tracking-tight text-emerald-400">${balance.toFixed(2)}</div>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight block mt-0.5">Withdrawable Profit</span>
                       </div>
-                      <div className="bg-white/5 py-2 px-3 rounded-2xl border border-white/10">
+                      <div className="bg-white/5 py-2.5 px-3 rounded-2xl border border-white/10">
                         <div className="text-[11px] text-slate-300 font-medium mb-0.5">{t('rechargeAmount')}</div>
                         <div className="text-2xl font-black tracking-tight text-amber-300">${rechargeTotal.toFixed(2)}</div>
-                        <span className="text-[9px] font-bold text-amber-400 uppercase tracking-tight block mt-0.5">
-                          {userVip && userVip !== 'VIP0' ? `Locked (${userVip})` : 'Recharge'}
-                        </span>
                       </div>
                     </div>
                   </div>
