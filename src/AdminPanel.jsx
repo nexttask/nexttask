@@ -2174,17 +2174,6 @@ export default function AdminPanel({ onNavigateToApp }) {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <a
-                  href="/nexttask_promo_1080x1080.mp4"
-                  target="_blank"
-                  rel="noreferrer"
-                  download="NextTask_Official_Promo_1080x1080.mp4"
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
-                  title="Download square ratio 1080x1080 promo video for Facebook/Instagram ads"
-                >
-                  <Video className="w-4 h-4 text-emerald-200" />
-                  <span>Download Ad Video (1080x1080)</span>
-                </a>
                 <button
                   onClick={handleOpenAddSlide}
                   className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-600/30 transition cursor-pointer"
@@ -3421,17 +3410,16 @@ export default function AdminPanel({ onNavigateToApp }) {
                 {/* Bot Token Input */}
                 <div className="bg-slate-950/60 border border-slate-800/80 p-3.5 rounded-xl space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="text-slate-300 font-bold">Telegram HTTP Bot API Token (from @BotFather)</label>
+                    <label className="text-slate-300 font-bold">Telegram Bot API Token</label>
                     <span className="text-[10px] text-amber-400 font-semibold">Secret Key</span>
                   </div>
                   <input
                     type="password"
                     value={settings.telegramBotToken || ''}
                     onChange={(e) => setSettings({ ...settings, telegramBotToken: e.target.value })}
-                    placeholder="e.g. 123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ..."
+                    placeholder="Enter Telegram bot API token"
                     className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-sky-400"
                   />
-                  <p className="text-[10px] text-slate-500">Created via @BotFather in Telegram. Keep this token private.</p>
                 </div>
 
                 {/* Status notice */}
@@ -3471,21 +3459,6 @@ export default function AdminPanel({ onNavigateToApp }) {
                   >
                     <span>Save Bot Settings</span>
                   </button>
-                </div>
-
-                {/* Step-by-Step Guide Accordion */}
-                <div className="bg-sky-950/20 border border-sky-800/40 p-4 rounded-xl space-y-2 text-[11px] text-slate-300">
-                  <div className="font-bold text-sky-400 flex items-center gap-1.5 text-xs">
-                    <span>💡 How to Create your Telegram Bot in 2 minutes:</span>
-                  </div>
-                  <ol className="list-decimal list-inside space-y-1 text-slate-300/90 leading-relaxed">
-                    <li>Open Telegram and search for <b className="text-white">@BotFather</b></li>
-                    <li>Send the message <code className="bg-slate-900 px-1 py-0.5 rounded text-sky-300 font-mono">/newbot</code></li>
-                    <li>Choose a display name (e.g. <b className="text-white">NextTask Live Support</b>)</li>
-                    <li>Choose a unique username ending in "bot" (e.g. <b className="text-white">NextTask_HelpBot</b>)</li>
-                    <li>BotFather will reply with your <b className="text-amber-400">HTTP API Token</b>. Copy and paste it above!</li>
-                    <li>Click <b className="text-sky-400">Connect Webhook</b> above — your automated AI bot is instantly live 24/7!</li>
-                  </ol>
                 </div>
               </div>
             </div>

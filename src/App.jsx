@@ -2692,7 +2692,7 @@ export default function App() {
                         setAccountInput(e.target.value);
                         setUserPhone(e.target.value);
                       }}
-                      placeholder="Phone (e.g. 017XXXXXXXX)"
+                      placeholder="Phone"
                       className="w-full bg-transparent text-slate-800 text-sm py-2 outline-none font-medium"
                     />
                   </div>
@@ -3067,7 +3067,12 @@ export default function App() {
                             return !s.id?.startsWith('s_bn') && !/[\u0980-\u09FF]/.test(s.subtitle || '') && !(s.image && s.image.includes('_bn_'));
                           }
                         });
-                        const slideList = filteredSlides.length > 0 ? filteredSlides : slides;
+                        let slideList = filteredSlides;
+                        if (!slideList || slideList.length < 5) {
+                          slideList = lang === 'bn'
+                            ? DEFAULT_SLIDES.filter((s) => s.id?.startsWith('s_bn'))
+                            : DEFAULT_SLIDES.filter((s) => !s.id?.startsWith('s_bn'));
+                        }
                         const activeSlide = slideList[currentSlideIdx % slideList.length] || slideList[0];
                         if (activeSlide.image) {
                           const isDefaultTheme = !activeSlide.gradient || activeSlide.gradient === 'default' || activeSlide.gradient === 'none';
@@ -5220,46 +5225,36 @@ export default function App() {
             )
           );
 
-          let userTaskRecords = allTaskRecords.filter(t => 
-            t && (
-              (currentUser?.id && String(t.userId) === String(currentUser.id)) ||
+          const currentVipTier = vipTiers.find((v) => v.level === userVip) || vipTiers[0];
+          const maxTasks = currentVipTier?.tasks || 10;
+          const dailyProfit = parseFloat(currentVipTier?.daily || '50.00') || 50.00;
+          const rewardPerTask = parseFloat((dailyProfit / maxTasks).toFixed(2));
+
+          // Real task records: Exactly matches active completedTaskIndices for today
+          const todayRecords = (completedTaskIndices || []).map((idx) => ({
+            id: `TSK-${todayDateStr}-${idx + 1}`,
+            userId: currentUser?.id,
+            missionNo: idx + 1,
+            taskIndex: idx,
+            taskName: `${getVipDisplayName(userVip, vipTiers)} Mission #${idx + 1}`,
+            vipLevel: userVip || 'Starter Package',
+            amount: rewardPerTask,
+            status: 'completed',
+            date: `${todayDateStr} ${String(10 + Math.floor(idx / 2)).padStart(2, '0')}:${String((idx * 6) % 60).padStart(2, '0')}`
+          }));
+
+          // Valid past task records from previous dates
+          const pastTaskRecords = allTaskRecords.filter((t) => {
+            if (!t) return false;
+            const isUser = (currentUser?.id && String(t.userId) === String(currentUser.id)) ||
               (currentUser?.email && String(t.user || '').toLowerCase() === currentUser.email.toLowerCase()) ||
-              (currentUser?.phone && String(t.user || '') === currentUser.phone)
-            )
-          );
+              (currentUser?.phone && String(t.user || '') === currentUser.phone);
+            if (!isUser) return false;
+            const tDate = t.date ? String(t.date).slice(0, 10) : '';
+            return tDate && tDate !== todayDateStr;
+          });
 
-          // Auto-sync any completed tasks from today if they weren't saved in task_records previously
-          if (currentUser && completedTaskIndices && completedTaskIndices.length > 0) {
-            const currentVipTier = vipTiers.find((v) => v.level === userVip) || vipTiers[0];
-            const maxTasks = currentVipTier?.tasks || 10;
-            const rewardPerTask = parseFloat(currentVipTier?.interest || (parseFloat(currentVipTier?.daily || '7.00') / maxTasks).toFixed(2)) || 0.70;
-
-            const existingTodayTaskIndices = new Set(
-              userTaskRecords
-                .filter(t => t.date && t.date.startsWith(todayDateStr))
-                .map(t => t.taskIndex)
-            );
-
-            const missingIndices = completedTaskIndices.filter(idx => !existingTodayTaskIndices.has(idx));
-            if (missingIndices.length > 0) {
-              const backfillRecords = missingIndices.map(idx => ({
-                id: `TSK-${Date.now()}-${idx + 1}`,
-                userId: currentUser.id,
-                user: currentUser.email || currentUser.phone || currentUser.name || `User-${currentUser.id}`,
-                missionNo: idx + 1,
-                taskIndex: idx,
-                taskName: `VIP Mission #${idx + 1}`,
-                vipLevel: userVip || 'VIP1',
-                amount: parseFloat(rewardPerTask.toFixed(2)),
-                status: 'completed',
-                date: `${todayDateStr} ${String(12 + Math.floor(idx / 6)).padStart(2, '0')}:${String((idx * 5) % 60).padStart(2, '0')}:00`,
-                timestamp: Date.now() - ((10 - idx) * 60000)
-              }));
-
-              userTaskRecords = [...backfillRecords, ...userTaskRecords];
-              setStoredData('task_records', [...backfillRecords, ...allTaskRecords]);
-            }
-          }
+          const userTaskRecords = [...todayRecords, ...pastTaskRecords];
 
           const totalDeposited = userRecharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
           const totalWithdrawn = userWithdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);

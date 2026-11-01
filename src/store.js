@@ -331,6 +331,14 @@ export const getStoredData = (key, fallback) => {
       return parsed;
     }
 
+    // Ensure all official banners are present in slides
+    if (key === 'slides') {
+      if (!Array.isArray(parsed) || parsed.length < 5) {
+        return DEFAULT_SLIDES;
+      }
+      return parsed;
+    }
+
     // Clean out mock recharges from previous sessions
     if (key === 'recharges' && Array.isArray(parsed)) {
       return parsed.filter((r) => r && !['REC-900', 'REC-901', 'REC-902'].includes(String(r.id || '')) && !String(r.user || '').toLowerCase().includes('demo'));
@@ -622,17 +630,10 @@ export const getInviteCodeFromUrl = () => {
   const match = href.match(/[?&#](?:i|ref|code|invite)=([A-Za-z0-9_-]+)/i);
   if (match && match[1]) {
     const code = match[1].trim().toUpperCase();
-    if (code) {
-      try {
-        sessionStorage.setItem('nt_referral_code', code);
-      } catch {}
+    if (code && code !== 'NT1001') {
       return code;
     }
   }
-  try {
-    const sessionCode = sessionStorage.getItem('nt_referral_code');
-    if (sessionCode && sessionCode !== 'NT1001') return sessionCode.trim().toUpperCase();
-  } catch {}
   return '';
 };
 
