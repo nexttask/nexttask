@@ -701,7 +701,32 @@ export default function App() {
   const [taskProcessingIdx, setTaskProcessingIdx] = useState(null);
   const [taskCountdown, setTaskCountdown] = useState(0);
   const taskTimerRef = useRef(null);
-  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const [todayDateStr, setTodayDateStr] = useState(() => new Date().toISOString().slice(0, 10));
+  const [timeUntilReset, setTimeUntilReset] = useState('');
+
+  // Auto-detect 24h midnight rollover & live countdown clock
+  useEffect(() => {
+    const updateResetCountdown = () => {
+      const now = new Date();
+      const nowStr = now.toISOString().slice(0, 10);
+      if (nowStr !== todayDateStr) {
+        setTodayDateStr(nowStr);
+      }
+
+      const nextMidnight = new Date();
+      nextMidnight.setUTCHours(24, 0, 0, 0);
+      const diffMs = Math.max(0, nextMidnight.getTime() - now.getTime());
+      const hours = String(Math.floor(diffMs / (1000 * 60 * 60))).padStart(2, '0');
+      const minutes = String(Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+      const seconds = String(Math.floor((diffMs % (1000 * 60)) / 1000)).padStart(2, '0');
+      setTimeUntilReset(`${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateResetCountdown();
+    const interval = setInterval(updateResetCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [todayDateStr]);
+
   const getUserTasksKey = (u) => {
     const uid = u?.id || u?.email || u?.phone || 'guest';
     return `nt_completed_tasks_${uid}_${todayDateStr}`;
@@ -749,10 +774,10 @@ export default function App() {
     }
   });
 
-  // Ensure completed tasks reload whenever currentUser changes (Login / Logout / Switch account) or tasks update
+  // Ensure completed tasks reload whenever currentUser changes or date rolls over
   useEffect(() => {
     reloadCompletedTasks(currentUser);
-  }, [currentUser?.id, currentUser?.email, currentUser?.phone, currentUser?.completedTasks]);
+  }, [currentUser?.id, currentUser?.email, currentUser?.phone, currentUser?.completedTasks, todayDateStr]);
 
   useEffect(() => {
     return () => {
@@ -3573,6 +3598,12 @@ export default function App() {
                                 </b>
                               </span>
                             )}
+                            {timeUntilReset && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-xs">
+                                <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                                <span>Reset: <b>{timeUntilReset}</b></span>
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -3639,7 +3670,7 @@ export default function App() {
                             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
                             <h3 className="text-sm font-bold text-slate-900">All tasks completed today!</h3>
                             <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                              You have finished all {maxTasks} daily tasks for {getVipDisplayName(userVip, vipTiers)}. Daily tasks reset every 24 hours.
+                              You have finished all {maxTasks} daily tasks for {getVipDisplayName(userVip, vipTiers)}. Next daily tasks unlock in <b className="text-cyan-600">{timeUntilReset}</b>.
                             </p>
                           </div>
                         ) : (
