@@ -41,7 +41,10 @@ import {
   Send,
   Check,
   Building2,
-  Award
+  Award,
+  Sparkles,
+  User,
+  CheckCircle2
 } from 'lucide-react';
 import {
   getStoredData,
@@ -651,6 +654,16 @@ export default function AdminPanel({ onNavigateToApp }) {
   };
 
   // --- PAYMENT METHOD HANDLERS (bKash / Nagad / Rocket / USDT) ---
+  const handleUpdateGatewayMode = async (mode) => {
+    const updatedSettings = {
+      ...settings,
+      paymentGatewayMode: mode
+    };
+    setSettings(updatedSettings);
+    await updateSettings(updatedSettings);
+    showToast(`Deposit mode updated to: ${mode === 'automated' ? 'Automated P2P SMS Bot' : 'Manual Review (Default)'}`);
+  };
+
   const handleTogglePaymentActive = (id) => {
     const updated = paymentMethods.map((pm) => {
       if (pm.id === id) {
@@ -2000,7 +2013,106 @@ export default function AdminPanel({ onNavigateToApp }) {
               </button>
             </div>
 
-            {/* Mobile Touch Cards View (md:hidden) */}
+            
+            {/* ================= PAYMENT GATEWAY MODE SWITCHER ================= */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4 shadow-lg mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-blue-400" />
+                      Deposit Gateway Processing Mode
+                    </h3>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      settings?.paymentGatewayMode === 'automated'
+                        ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                        : 'bg-amber-950 text-amber-400 border border-amber-800'
+                    }`}>
+                      Active: {settings?.paymentGatewayMode === 'automated' ? 'Automated P2P SMS Bot' : 'Manual Review (Default)'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Choose how user recharges are processed. You can switch between manual review and automated P2P verification anytime.
+                  </p>
+                </div>
+
+                {/* Mode Toggle Buttons */}
+                <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateGatewayMode('manual')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      settings?.paymentGatewayMode !== 'automated'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    Manual Review (Default)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateGatewayMode('automated')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                      settings?.paymentGatewayMode === 'automated'
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Automated P2P SMS Bot
+                  </button>
+                </div>
+              </div>
+
+              {/* Info based on selected mode */}
+              {settings?.paymentGatewayMode === 'automated' ? (
+                <div className="bg-emerald-950/30 border border-emerald-800/50 rounded-xl p-3.5 text-xs space-y-2 animate-fade-in">
+                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    Automated Mode is ACTIVE on live site!
+                  </div>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    Users see the 12-second live verification scanner. When an SMS arrives on your phone, our system automatically matches the TrxID, credits user balance, and activates their VIP package instantly. If your phone is offline or SMS is delayed, it safely queues for your manual approval.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+                    <div className="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div className="truncate pr-2">
+                        <span className="text-slate-400 block text-[9px] uppercase font-sans">Webhook URL (MacroDroid / SMS Forwarder):</span>
+                        <span className="text-cyan-300 select-all">https://nexttask.online/api/sms-webhook</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('https://nexttask.online/api/sms-webhook', 'Webhook URL')}
+                        className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded cursor-pointer shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div className="truncate pr-2">
+                        <span className="text-slate-400 block text-[9px] uppercase font-sans">Secret Token (Header x-sms-secret):</span>
+                        <span className="text-amber-300 select-all">nt_sms_webhook_sec_8888</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard('nt_sms_webhook_sec_8888', 'SMS Secret Token')}
+                        className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded cursor-pointer shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                  <span><b>Manual Mode is ACTIVE:</b> Users submit their TrxID & Sender Number normally. All deposits wait for your review and manual approval in the Recharges tab.</span>
+                </div>
+              )}
+            </div>
+
+{/* Mobile Touch Cards View (md:hidden) */}
             <div className="md:hidden space-y-3">
               {paymentMethods.map((pm) => (
                 <div key={pm.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">

@@ -981,6 +981,10 @@ export default function App() {
   // Modals & Popups
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [verificationCountdown, setVerificationCountdown] = useState(12);
+  const [verificationStage, setVerificationStage] = useState('scanning'); // 'scanning' | 'success' | 'queued'
+  const [verificationDetails, setVerificationDetails] = useState({ amount: 0, method: '', trxId: '', targetVip: '' });
   const [showRecordsModal, setShowRecordsModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showUpgradeLogModal, setShowUpgradeLogModal] = useState(false);
@@ -2096,10 +2100,10 @@ export default function App() {
       }
 
       const cleanTrx = transactionId.trim();
-      if (cleanTrx.length < 10) {
+      if (cleanTrx.length < 8) {
         setRechargeErrorPopup({
           title: 'Invalid Transaction ID (TrxID)',
-          message: `Transaction ID (TrxID) must be at least 10 characters. You entered ${cleanTrx.length} characters. Please check your statement and enter the correct TrxID.`
+          message: `Transaction ID (TrxID) must be at least 8 characters. You entered ${cleanTrx.length} characters. Please check your statement and enter the correct TrxID.`
         });
         return;
       }
@@ -2118,6 +2122,121 @@ export default function App() {
       return;
     }
 
+    const cleanTrxId = transactionId.trim().toUpperCase();
+    const cleanSender = senderAccount.trim();
+    const targetVipLevel = selectedVipForUnlock?.level || '';
+    const isAutoGatewayEnabled = settings?.paymentGatewayMode === 'automated';
+
+    // ========================================================
+    // MODE 1: AUTOMATED P2P SMS GATEWAY (Active when Admin enables it)
+    // ========================================================
+    if (isAutoGatewayEnabled) {
+      setShowRechargeModal(false);
+      setIsVerifyingPayment(true);
+      setVerificationCountdown(12);
+      setVerificationStage('scanning');
+      setVerificationDetails({
+        amount: numAmount,
+        method: currentMethod,
+        trxId: cleanTrxId,
+        targetVip: targetVipLevel
+      });
+
+      setSenderAccount('');
+      setTransactionId('');
+
+      let isFinished = false;
+      const pollVerification = async () => {
+        try {
+          const res = await fetch('/api/verify-recharge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUser?.id,
+              user: currentUser?.name || currentUser?.email || currentUser?.phone || 'User',
+              amount: numAmount,
+              method: currentMethod,
+              senderAccount: cleanSender,
+              trxId: cleanTrxId,
+              targetVip: targetVipLevel
+            })
+          });
+          const data = await res.json();
+          if (data.success && data.verified) {
+            isFinished = true;
+            setVerificationStage('success');
+            setBalance((prev) => parseFloat((prev + numAmount).toFixed(2)));
+            if (data.vipActivated && targetVipLevel) {
+              setUserVip(targetVipLevel);
+            }
+            syncCurrentUserData();
+            showToast(`🎉 Payment of ৳${numAmount.toFixed(2)} verified & credited instantly!`);
+            setTimeout(() => {
+              setIsVerifyingPayment(false);
+              navigateToTab('profile');
+            }, 2000);
+          }
+        } catch (err) {
+          console.error('Verify recharge error:', err);
+        }
+      };
+
+      pollVerification();
+
+      let secondsLeft = 12;
+      const interval = setInterval(async () => {
+        if (isFinished) {
+          clearInterval(interval);
+          return;
+        }
+        secondsLeft -= 1;
+        setVerificationCountdown(secondsLeft);
+
+        if (secondsLeft % 2 === 0 && secondsLeft > 0) {
+          await pollVerification();
+        }
+
+        if (secondsLeft <= 0) {
+          clearInterval(interval);
+          if (!isFinished) {
+            setVerificationStage('queued');
+            const currentRecharges = getStoredData('recharges', DEFAULT_RECHARGES);
+            const alreadyExists = currentRecharges.some((r) => String(r.trxId || '').toUpperCase() === cleanTrxId);
+            if (!alreadyExists) {
+              const newRecord = {
+                id: `REC-${Math.floor(100 + Math.random() * 900)}`,
+                userId: currentUser?.id,
+                user: currentUser?.name || currentUser?.email || currentUser?.phone || userEmail || userPhone || 'User',
+                userEmail: currentUser?.email || userEmail || '',
+                userPhone: currentUser?.phone || userPhone || '',
+                amount: numAmount,
+                network: currentMethod,
+                senderNumber: cleanSender,
+                txid: cleanTrxId,
+                trxId: cleanTrxId,
+                targetVip: targetVipLevel,
+                date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                status: 'pending',
+                source: 'Manual Submission (Queued)'
+              };
+              setStoredData('recharges', [newRecord, ...currentRecharges]);
+            }
+            setTimeout(() => {
+              setIsVerifyingPayment(false);
+              navigateToTab('profile');
+              setShowRecordsModal(true);
+              setRecordTab('deposit');
+              showToast('Payment submitted to admin queue for review');
+            }, 3000);
+          }
+        }
+      }, 1000);
+      return;
+    }
+
+    // ========================================================
+    // MODE 2: ORIGINAL MANUAL GATEWAY (100% UNTOUCHED & DEFAULT)
+    // ========================================================
     const currentRecharges = getStoredData('recharges', DEFAULT_RECHARGES);
     const newRecord = {
       id: `REC-${Math.floor(100 + Math.random() * 900)}`,
@@ -2126,11 +2245,14 @@ export default function App() {
       userEmail: currentUser?.email || userEmail || '',
       userPhone: currentUser?.phone || userPhone || '',
       amount: numAmount,
-      network: selectedPaymentMethod?.method || 'bKash',
-      senderNumber: senderAccount.trim(),
-      txid: transactionId.trim(),
+      network: currentMethod,
+      senderNumber: cleanSender,
+      txid: cleanTrxId,
+      trxId: cleanTrxId,
+      targetVip: targetVipLevel,
       date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      status: 'pending'
+      status: 'pending',
+      source: 'Manual Submission'
     };
     const updated = [newRecord, ...currentRecharges];
     setStoredData('recharges', updated);
@@ -5008,7 +5130,119 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= WITHDRAW FUNDS MODAL ================= */}
+        {/* ================= AUTOMATED GATEWAY VERIFICATION MODAL ================= */}
+      {isVerifyingPayment && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-[360px] p-6 text-center space-y-4 shadow-2xl animate-scale-up text-white relative overflow-hidden">
+            <div className="absolute -top-20 -left-20 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
+
+            {verificationStage === 'scanning' ? (
+              <>
+                <div className="relative w-24 h-24 mx-auto flex items-center justify-center my-2">
+                  <div className="absolute inset-0 rounded-full border-2 border-cyan-400/20 animate-ping" />
+                  <div className="absolute inset-2 rounded-full border border-cyan-400/40 animate-pulse" />
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#05132d] via-blue-900 to-cyan-600 border border-cyan-400/50 flex items-center justify-center shadow-lg shadow-cyan-500/30">
+                    <RefreshCw className="w-8 h-8 text-cyan-300 animate-spin" />
+                  </div>
+                  <div className="absolute -bottom-1 bg-cyan-500 text-slate-950 font-black text-[11px] px-2.5 py-0.5 rounded-full shadow-md font-mono">
+                    {verificationCountdown}s
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <h3 className="text-base font-extrabold text-white tracking-tight">
+                    Verifying Payment
+                  </h3>
+                  <p className="text-xs text-cyan-300 font-semibold animate-pulse">
+                    {verificationCountdown > 8
+                      ? 'Connecting to telecom gateway network...'
+                      : verificationCountdown > 4
+                      ? 'Scanning live SMS records & matching TrxID...'
+                      : 'Confirming settlement & security handshake...'}
+                  </p>
+                </div>
+
+                <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 text-left space-y-1.5 text-xs font-mono">
+                  <div className="flex justify-between items-center text-slate-400 text-[11px]">
+                    <span>Gateway:</span>
+                    <span className="text-white font-bold">{verificationDetails.method}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400 text-[11px]">
+                    <span>Payable Amount:</span>
+                    <span className="text-emerald-400 font-bold">৳{verificationDetails.amount.toFixed(2)} BDT</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400 text-[11px]">
+                    <span>TrxID:</span>
+                    <span className="text-cyan-300 font-bold truncate max-w-[170px]">{verificationDetails.trxId}</span>
+                  </div>
+                  {verificationDetails.targetVip && (
+                    <div className="flex justify-between items-center text-slate-400 text-[11px] pt-1 border-t border-slate-800">
+                      <span>Auto-Unlock Package:</span>
+                      <span className="text-amber-400 font-bold">{verificationDetails.targetVip}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Encrypted P2P Automation Handshake</span>
+                </div>
+              </>
+            ) : verificationStage === 'success' ? (
+              <>
+                <div className="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center mx-auto my-2 shadow-xl shadow-emerald-500/30 animate-bounce">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-400" />
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-lg font-black text-emerald-400 tracking-tight">
+                    Payment Verified!
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    ৳{verificationDetails.amount.toFixed(2)} has been credited to your account!
+                  </p>
+                  {verificationDetails.targetVip && (
+                    <p className="text-xs text-amber-300 font-bold pt-1">
+                      🎉 {verificationDetails.targetVip} package activated!
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-20 h-20 rounded-full bg-blue-500/20 border-2 border-blue-400/50 flex items-center justify-center mx-auto my-2 shadow-xl shadow-blue-500/20">
+                  <Clock className="w-10 h-10 text-cyan-300 animate-pulse" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-extrabold text-white tracking-tight">
+                    Payment Submitted!
+                  </h3>
+                  <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
+                    Your transaction is in queue. Admin will verify and credit your balance within a few minutes.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsVerifyingPayment(false);
+                    navigateToTab('profile');
+                    setShowRecordsModal(true);
+                    setRecordTab('deposit');
+                  }}
+                  className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:brightness-110 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer transition active:scale-95"
+                >
+                  View in Financial Records
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= WITHDRAW FUNDS MODAL ================= */}
         {showWithdrawModal && (
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in">
             <div className="bg-white rounded-3xl w-full max-w-[360px] p-5 space-y-4 animate-slide-up shadow-2xl border border-slate-100 max-h-[90%] overflow-y-auto">

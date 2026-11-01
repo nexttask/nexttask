@@ -119,6 +119,8 @@ export const DEFAULT_SETTINGS = {
   telegramBotUsername: '@NextTask_SupportBot',
   telegramAdminChatId: '',
   telegramBotAutoReply: true,
+  paymentGatewayMode: 'manual',
+  smsWebhookSecret: 'nt_sms_webhook_sec_8888',
   companyProfile: DEFAULT_COMPANY_PROFILE
 };
 

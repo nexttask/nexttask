@@ -2,11 +2,58 @@
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-admin-token',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-admin-token, x-sms-secret',
   'Content-Type': 'application/json'
 };
 
 const ADMIN_SECRET = 'nt_sec_9999_master_admin_verified';
+const SMS_WEBHOOK_SECRET = 'nt_sms_webhook_sec_8888';
+
+function parsePaymentSms(body, sender = '') {
+  if (!body) return null;
+  const text = String(body);
+
+  // 1. Extract TrxID / TxnId
+  let trxId = '';
+  const trxMatch = text.match(/(?:TrxID|TxnId|TxID|Trx ID|Transaction ID)[:\s]+([A-Za-z0-9]+)/i);
+  if (trxMatch) {
+    trxId = trxMatch[1].trim().toUpperCase();
+  }
+
+  // 2. Extract Amount
+  let amount = 0;
+  const amtMatch = text.match(/(?:received|deposited|Tk\.?|BDT)\s*(?:Tk\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i) ||
+                   text.match(/Tk\.?\s*([\d,]+(?:\.\d{1,2})?)/i);
+  if (amtMatch) {
+    amount = parseFloat(amtMatch[1].replace(/,/g, '')) || 0;
+  }
+
+  // 3. Extract Sender Number
+  let senderNumber = '';
+  const senderMatch = text.match(/(?:from|sender)[:\s]+([+]?[\d]{10,14})/i);
+  if (senderMatch) {
+    senderNumber = senderMatch[1].trim();
+  }
+
+  // 4. Gateway Method
+  let method = 'bKash';
+  const lower = (text + ' ' + sender).toLowerCase();
+  if (lower.includes('nagad') || sender.includes('16167')) method = 'Nagad';
+  else if (lower.includes('rocket') || sender.includes('16216')) method = 'Rocket';
+  else if (lower.includes('upay') || sender.includes('16268')) method = 'Upay';
+  else if (lower.includes('bkash') || sender.includes('16247')) method = 'bKash';
+
+  if (!trxId && !amount) return null;
+
+  return {
+    trxId,
+    amount,
+    senderNumber,
+    method,
+    rawText: text,
+    timestamp: Date.now()
+  };
+}
 
 const JSON_RES = (body, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -597,6 +644,386 @@ export default {
         return JSON_RES({
           success: true,
           user: safeUser
+        });
+      } catch (err) {
+        return JSON_RES({ success: false, error: err.message }, 500);
+      }
+    }
+
+    // 4.1 P2P SMS Automated Gateway Webhook (/api/sms-webhook)
+    if (url.pathname === '/api/sms-webhook') {
+      if (!env || !env.DB) {
+        return JSON_RES({ success: false, error: 'Database service unavailable' }, 503);
+      }
+
+      await ensureTable(env.DB);
+
+      // GET: View SMS Logs (Admin or Secret authenticated)
+      if (request.method === 'GET') {
+        const authHeader = request.headers.get('x-sms-secret') || url.searchParams.get('secret') || '';
+        const isAdmin = isAdminRequest(request);
+        if (authHeader !== SMS_WEBHOOK_SECRET && !isAdmin) {
+          return JSON_RES({ success: false, error: 'Unauthorized' }, 401);
+        }
+        const smsRow = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('verified_sms_logs').first();
+        const logs = smsRow ? JSON.parse(smsRow.value) : [];
+        return JSON_RES({ success: true, count: Array.isArray(logs) ? logs.length : 0, data: logs });
+      }
+
+      // POST: Receive Inbound SMS from Android Forwarder / MacroDroid
+      if (request.method === 'POST') {
+        const authHeader = request.headers.get('x-sms-secret') || url.searchParams.get('secret') || '';
+        const isAdmin = isAdminRequest(request);
+        if (authHeader !== SMS_WEBHOOK_SECRET && !isAdmin) {
+          return JSON_RES({ success: false, error: 'Unauthorized: Invalid SMS secret token' }, 401);
+        }
+
+        try {
+          const payload = await request.json();
+          let parsed = null;
+          if (payload.trxId && payload.amount) {
+            parsed = {
+              trxId: String(payload.trxId).trim().toUpperCase(),
+              amount: parseFloat(payload.amount) || 0,
+              senderNumber: String(payload.sender || payload.senderNumber || '').trim(),
+              method: payload.method || 'bKash',
+              rawText: payload.rawText || payload.body || 'Direct Payload',
+              timestamp: payload.timestamp || Date.now()
+            };
+          } else {
+            parsed = parsePaymentSms(payload.body || payload.message || payload.text, payload.sender || payload.from || '');
+          }
+
+          if (!parsed || !parsed.trxId) {
+            return JSON_RES({ success: false, error: 'Could not extract TrxID from SMS', received: payload }, 400);
+          }
+
+          // Fetch verified_sms_logs
+          const smsRow = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('verified_sms_logs').first();
+          let smsLogs = smsRow ? JSON.parse(smsRow.value) : [];
+          if (!Array.isArray(smsLogs)) smsLogs = [];
+
+          // Add to SMS logs if not already logged
+          const existingSms = smsLogs.find(s => s.trxId === parsed.trxId);
+          if (!existingSms) {
+            smsLogs.unshift({
+              trxId: parsed.trxId,
+              amount: parsed.amount,
+              method: parsed.method,
+              senderNumber: parsed.senderNumber,
+              rawText: parsed.rawText,
+              timestamp: parsed.timestamp || Date.now(),
+              status: 'unclaimed'
+            });
+            if (smsLogs.length > 500) smsLogs = smsLogs.slice(0, 500);
+          }
+
+          // Check if there is an existing pending recharge matching this TrxID
+          const recRow = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('recharges').first();
+          let recharges = recRow ? JSON.parse(recRow.value) : [];
+          if (!Array.isArray(recharges)) recharges = [];
+
+          const pendingMatch = recharges.find(r => 
+            r && r.status === 'pending' && 
+            String(r.trxId || '').trim().toUpperCase() === parsed.trxId
+          );
+
+          let matched = false;
+          if (pendingMatch) {
+            const expectedAmt = parseFloat(pendingMatch.amount) || 0;
+            if (expectedAmt <= 0 || Math.abs(expectedAmt - parsed.amount) <= 1.0) {
+              pendingMatch.status = 'approved';
+              pendingMatch.autoVerified = true;
+              pendingMatch.verifiedAt = Date.now();
+              pendingMatch.source = 'Auto SMS Bot';
+
+              const logEntry = smsLogs.find(s => s.trxId === parsed.trxId);
+              if (logEntry) {
+                logEntry.status = 'claimed';
+                logEntry.claimedBy = pendingMatch.userId;
+              }
+
+              // Credit User Balance in users table
+              const userRow = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('users').first();
+              let users = userRow ? JSON.parse(userRow.value) : [];
+              if (Array.isArray(users)) {
+                const u = users.find(usr => 
+                  usr && (
+                    String(usr.id) === String(pendingMatch.userId) ||
+                    String(usr.email || '').toLowerCase() === String(pendingMatch.user || '').toLowerCase() ||
+                    String(usr.phone || '') === String(pendingMatch.user || '')
+                  )
+                );
+                if (u) {
+                  u.balance = parseFloat(((parseFloat(u.balance) || 0) + parsed.amount).toFixed(2));
+                  u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + parsed.amount).toFixed(2));
+
+                  // Auto activate target VIP package if specified
+                  if (pendingMatch.targetVip && pendingMatch.targetVip !== 'VIP0' && pendingMatch.targetVip !== u.vip) {
+                    u.vip = pendingMatch.targetVip;
+                    u.vipActivatedAt = Date.now();
+                    u.vipDurationDays = 20;
+                    u.vipExpiresAt = Date.now() + 20 * 86400000;
+                    u.capitalReleased = false;
+                  }
+
+                  // Credit Referrer Commission
+                  const settingsRow = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('settings').first();
+                  const settings = settingsRow ? JSON.parse(settingsRow.value) : {};
+                  const commRate = parseFloat(settings.referralCommissionRate) || 10;
+                  if (u.referredBy && commRate > 0) {
+                    const refCode = String(u.referredBy).trim().toUpperCase();
+                    const referrer = users.find(r => 
+                      r && (
+                        String(r.myInviteCode || '').toUpperCase() === refCode ||
+                        String(r.inviteCode || '').toUpperCase() === refCode ||
+                        String(r.id) === refCode
+                      )
+                    );
+                    if (referrer) {
+                      const commission = parseFloat(((parsed.amount * commRate) / 100).toFixed(2));
+                      referrer.balance = parseFloat(((parseFloat(referrer.balance) || 0) + commission).toFixed(2));
+                    }
+                  }
+
+                  await env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+                    .bind('users', JSON.stringify(users), Date.now())
+                    .run();
+                }
+              }
+
+              await env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+                .bind('recharges', JSON.stringify(recharges), Date.now())
+                .run();
+
+              matched = true;
+            }
+          }
+
+          // Save SMS logs
+          await env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+            .bind('verified_sms_logs', JSON.stringify(smsLogs), Date.now())
+            .run();
+
+          return JSON_RES({
+            success: true,
+            message: matched ? 'SMS logged and matching pending recharge auto-approved!' : 'SMS logged successfully. Waiting for user submission.',
+            parsed,
+            matched
+          });
+        } catch (err) {
+          return JSON_RES({ success: false, error: err.message }, 500);
+        }
+      }
+    }
+
+    // 4.2 Instant Verification & Auto-Activation API (/api/verify-recharge)
+    if (url.pathname === '/api/verify-recharge' && request.method === 'POST') {
+      if (!env || !env.DB) {
+        return JSON_RES({ success: false, error: 'Database service unavailable' }, 503);
+      }
+
+      try {
+        const body = await request.json();
+        const trxId = String(body.trxId || '').trim().toUpperCase();
+        const amount = parseFloat(body.amount) || 0;
+        const method = String(body.method || 'bKash').trim();
+        const senderAccount = String(body.senderAccount || body.sender || '').trim();
+        const userId = String(body.userId || '').trim();
+        const userIdentifier = String(body.user || body.email || body.phone || '').trim();
+        const targetVip = String(body.targetVip || '').trim();
+
+        if (!trxId || amount <= 0) {
+          return JSON_RES({ success: false, error: 'Transaction ID and valid amount are required' }, 400);
+        }
+
+        await ensureTable(env.DB);
+
+        // 1. Fetch SMS logs, recharges, users, settings
+        const [smsRow, recRow, userRow, settingsRow] = await Promise.all([
+          env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('verified_sms_logs').first(),
+          env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('recharges').first(),
+          env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('users').first(),
+          env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('settings').first()
+        ]);
+
+        let smsLogs = smsRow ? JSON.parse(smsRow.value) : [];
+        let recharges = recRow ? JSON.parse(recRow.value) : [];
+        let users = userRow ? JSON.parse(userRow.value) : [];
+        const settings = settingsRow ? JSON.parse(settingsRow.value) : {};
+
+        if (!Array.isArray(smsLogs)) smsLogs = [];
+        if (!Array.isArray(recharges)) recharges = [];
+        if (!Array.isArray(users)) users = [];
+
+        // 2. Check if this TrxID is ALREADY approved for another user
+        const existingApproved = recharges.find(r => 
+          r && r.status === 'approved' && 
+          String(r.trxId || '').trim().toUpperCase() === trxId
+        );
+        if (existingApproved) {
+          if (String(existingApproved.userId) === userId) {
+            return JSON_RES({
+              success: true,
+              verified: true,
+              alreadyCredited: true,
+              message: 'This transaction was already verified and credited to your account!'
+            });
+          }
+          return JSON_RES({
+            success: false,
+            verified: false,
+            error: 'This Transaction ID (TrxID) has already been used on another account!'
+          }, 400);
+        }
+
+        // 3. Check for matching inbound SMS in verified_sms_logs
+        const smsMatch = smsLogs.find(s => 
+          s && s.trxId === trxId && 
+          s.status !== 'claimed' &&
+          Math.abs(parseFloat(s.amount) - amount) <= 1.0
+        );
+
+        // 4. Also check Crypto USDT on-chain if TRC20
+        let cryptoVerified = false;
+        if (method.includes('USDT') && trxId.length >= 64) {
+          try {
+            const tronRes = await fetch(`https://api.trongrid.io/v1/transactions/${trxId}`);
+            if (tronRes.ok) {
+              const tronData = await tronRes.json();
+              if (tronData?.data?.[0]?.ret?.[0]?.contractRet === 'SUCCESS') {
+                cryptoVerified = true;
+              }
+            }
+          } catch {}
+        }
+
+        const isAutoVerified = Boolean(smsMatch || cryptoVerified);
+
+        // 5. If Auto-Verified:
+        if (isAutoVerified) {
+          if (smsMatch) {
+            smsMatch.status = 'claimed';
+            smsMatch.claimedBy = userId;
+          }
+
+          let recEntry = recharges.find(r => String(r.trxId || '').trim().toUpperCase() === trxId);
+          if (!recEntry) {
+            recEntry = {
+              id: `rec_${Date.now()}`,
+              userId,
+              user: userIdentifier,
+              amount,
+              method,
+              senderAccount,
+              trxId,
+              targetVip: targetVip || '',
+              status: 'approved',
+              autoVerified: true,
+              source: cryptoVerified ? 'Auto Crypto Blockchain' : 'Auto SMS Bot',
+              date: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            };
+            recharges.unshift(recEntry);
+          } else {
+            recEntry.status = 'approved';
+            recEntry.autoVerified = true;
+            recEntry.source = cryptoVerified ? 'Auto Crypto Blockchain' : 'Auto SMS Bot';
+          }
+
+          // Credit User balance & VIP activation
+          let updatedUser = null;
+          const u = users.find(usr => 
+            usr && (
+              String(usr.id) === userId ||
+              String(usr.email || '').toLowerCase() === userIdentifier.toLowerCase() ||
+              String(usr.phone || '') === userIdentifier
+            )
+          );
+
+          if (u) {
+            u.balance = parseFloat(((parseFloat(u.balance) || 0) + amount).toFixed(2));
+            u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + amount).toFixed(2));
+
+            let vipActivated = false;
+            if (targetVip && targetVip !== 'VIP0' && targetVip !== u.vip) {
+              u.vip = targetVip;
+              u.vipActivatedAt = Date.now();
+              u.vipDurationDays = 20;
+              u.vipExpiresAt = Date.now() + 20 * 86400000;
+              u.capitalReleased = false;
+              vipActivated = true;
+            }
+
+            const commRate = parseFloat(settings.referralCommissionRate) || 10;
+            if (u.referredBy && commRate > 0) {
+              const refCode = String(u.referredBy).trim().toUpperCase();
+              const referrer = users.find(r => 
+                r && (
+                  String(r.myInviteCode || '').toUpperCase() === refCode ||
+                  String(r.inviteCode || '').toUpperCase() === refCode ||
+                  String(r.id) === refCode
+                )
+              );
+              if (referrer) {
+                const commission = parseFloat(((amount * commRate) / 100).toFixed(2));
+                referrer.balance = parseFloat(((parseFloat(referrer.balance) || 0) + commission).toFixed(2));
+              }
+            }
+
+            updatedUser = u;
+          }
+
+          // Persist all updates to D1
+          await Promise.all([
+            env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+              .bind('recharges', JSON.stringify(recharges), Date.now()).run(),
+            env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+              .bind('verified_sms_logs', JSON.stringify(smsLogs), Date.now()).run(),
+            env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+              .bind('users', JSON.stringify(users), Date.now()).run()
+          ]);
+
+          return JSON_RES({
+            success: true,
+            verified: true,
+            autoApproved: true,
+            amount,
+            method,
+            user: updatedUser,
+            vipActivated: Boolean(targetVip),
+            message: 'Payment verified and credited to your account instantly!'
+          });
+        }
+
+        // 6. If Not Auto-Verified Yet: Queue as PENDING in recharges table for admin manual review
+        let existingPending = recharges.find(r => String(r.trxId || '').trim().toUpperCase() === trxId);
+        if (!existingPending) {
+          existingPending = {
+            id: `rec_${Date.now()}`,
+            userId,
+            user: userIdentifier,
+            amount,
+            method,
+            senderAccount,
+            trxId,
+            targetVip: targetVip || '',
+            status: 'pending',
+            autoVerified: false,
+            source: 'Manual Submission',
+            date: new Date().toISOString().slice(0, 19).replace('T', ' ')
+          };
+          recharges.unshift(existingPending);
+
+          await env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+            .bind('recharges', JSON.stringify(recharges), Date.now()).run();
+        }
+
+        return JSON_RES({
+          success: true,
+          verified: false,
+          pending: true,
+          rechargeId: existingPending.id,
+          message: 'Payment received. In verification queue.'
         });
       } catch (err) {
         return JSON_RES({ success: false, error: err.message }, 500);
