@@ -31,6 +31,7 @@ import {
   EyeOff,
   Mail,
   Upload,
+  Video,
   Menu,
   X,
   ChevronRight,
@@ -2172,13 +2173,26 @@ export default function AdminPanel({ onNavigateToApp }) {
                   Add, update, or remove promotional banners shown on the user app carousel
                 </p>
               </div>
-              <button
-                onClick={handleOpenAddSlide}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-600/30 transition"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add New Slide</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href="/nexttask_promo_1080x1080.mp4"
+                  target="_blank"
+                  rel="noreferrer"
+                  download="NextTask_Official_Promo_1080x1080.mp4"
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition cursor-pointer"
+                  title="Download square ratio 1080x1080 promo video for Facebook/Instagram ads"
+                >
+                  <Video className="w-4 h-4 text-emerald-200" />
+                  <span>Download Ad Video (1080x1080)</span>
+                </a>
+                <button
+                  onClick={handleOpenAddSlide}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-blue-600/30 transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Slide</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
