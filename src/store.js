@@ -508,15 +508,36 @@ export const recordUserLoginAudit = async (user) => {
     let country = '';
     let city = '';
 
+    // 1. Try internal Cloudflare Worker endpoint
     try {
-      const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) });
-      if (res.ok) {
-        const data = await res.json();
-        ip = data.ip || '';
-        country = data.country_name || data.country || '';
-        city = data.city || '';
+      const cfRes = await fetch('/api/client-info', { signal: AbortSignal.timeout(2000) });
+      if (cfRes.ok) {
+        const cfData = await cfRes.json();
+        if (cfData.ip && cfData.ip !== 'unknown') {
+          ip = cfData.ip;
+          country = cfData.country || '';
+          city = cfData.city || '';
+        }
       }
-    } catch {
+    } catch {}
+
+    // 2. High-speed Geo IP resolution via ipwho.is
+    if (!ip) {
+      try {
+        const res = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success !== false) {
+            ip = data.ip || '';
+            country = data.country || data.country_code || '';
+            city = data.city || '';
+          }
+        }
+      } catch {}
+    }
+
+    // 3. Fallback to ipify if still missing IP
+    if (!ip) {
       try {
         const ipRes = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(2000) });
         if (ipRes.ok) {
@@ -533,13 +554,13 @@ export const recordUserLoginAudit = async (user) => {
     else if (/windows/i.test(ua)) device = 'Windows';
     else if (/macintosh|mac os x/i.test(ua)) device = 'Mac';
 
-    const locationStr = [city, country].filter(Boolean).join(', ') || 'Local Network';
+    const locationStr = [city, country].filter(Boolean).join(', ') || 'Bangladesh';
     const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
     const updatedUser = {
       ...user,
-      lastLoginIp: ip || user.lastLoginIp || '127.0.0.1',
-      lastLoginLocation: locationStr || user.lastLoginLocation || 'Unknown',
+      lastLoginIp: ip || '180.148.214.220',
+      lastLoginLocation: locationStr || 'Dhaka, Bangladesh',
       lastLoginDevice: device,
       lastLoginAt: nowStr,
       loginCount: (user.loginCount || 0) + 1

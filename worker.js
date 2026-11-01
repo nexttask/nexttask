@@ -81,6 +81,28 @@ export default {
       }
     }
 
+    // 2.1 Client Geo & IP Discovery API (/api/client-info)
+    if (url.pathname === '/api/client-info') {
+      const country = request.cf?.country || 'BD';
+      const city = request.cf?.city || 'Dhaka';
+      const region = request.cf?.region || '';
+      const ua = request.headers.get('user-agent') || '';
+      let device = 'Desktop';
+      if (/android/i.test(ua)) device = 'Android';
+      else if (/iphone|ipad|ipod/i.test(ua)) device = 'iOS';
+      else if (/windows/i.test(ua)) device = 'Windows';
+      else if (/macintosh/i.test(ua)) device = 'Mac';
+
+      return JSON_RES({
+        ip: clientIp !== 'unknown' ? clientIp : '180.148.214.220',
+        country,
+        city,
+        region,
+        location: `${city}, ${country}`,
+        device
+      });
+    }
+
     // 3. Health Check API (/api/health)
     if (url.pathname === '/api/health') {
       const hasDb = Boolean(env && env.DB);

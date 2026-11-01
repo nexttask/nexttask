@@ -218,6 +218,11 @@ export default function App() {
           }
           return prev;
         });
+
+        // Auto-resolve IP & Location if missing or pending
+        if (freshUser && (!freshUser.lastLoginIp || freshUser.lastLoginIp === 'Pending')) {
+          recordUserLoginAudit(freshUser);
+        }
       }
     } catch (err) {
       console.warn('Realtime sync error:', err);

@@ -2210,7 +2210,11 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/60 text-[10px] space-y-1">
                       <div className="flex items-center justify-between text-slate-400">
                         <span>Last IP & Location:</span>
-                        <span className="font-mono text-cyan-400 font-semibold">{u.lastLoginIp || 'Pending'} ({u.lastLoginLocation || 'Local'})</span>
+                        {u.lastLoginIp && u.lastLoginIp !== 'Pending' ? (
+                          <span className="font-mono text-cyan-400 font-semibold">{u.lastLoginIp} ({u.lastLoginLocation || 'Bangladesh'})</span>
+                        ) : (
+                          <span className="text-amber-400/90 font-medium">Awaiting First Login</span>
+                        )}
                       </div>
                       <div className="flex items-center justify-between text-slate-400">
                         <span>Device & Activity:</span>
@@ -2310,7 +2314,13 @@ export default function AdminPanel({ onNavigateToApp }) {
                         <div className="font-bold text-white">{u.name || 'User'}</div>
                         <div className="text-[10px] text-slate-400 font-mono">{u.email}</div>
                         <div className="text-[9px] text-cyan-400 font-mono font-bold">UID: {u.id} | Code: {u.myInviteCode || u.inviteCode || 'N/A'}</div>
-                        <div className="text-[9px] text-slate-400 font-mono mt-0.5">IP: {u.lastLoginIp || 'Pending'} • {u.lastLoginLocation || 'Local'} ({u.lastLoginDevice || 'Mobile'})</div>
+                        <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                          {u.lastLoginIp && u.lastLoginIp !== 'Pending' ? (
+                            <span className="text-cyan-400 font-semibold">IP: {u.lastLoginIp} • {u.lastLoginLocation || 'Bangladesh'} ({u.lastLoginDevice || 'Mobile'})</span>
+                          ) : (
+                            <span className="text-amber-400/90 font-medium">IP: Awaiting Login (New Account)</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-slate-400">{u.phone || '-'}</td>
                       <td className="py-3 px-4">
