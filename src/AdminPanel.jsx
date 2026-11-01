@@ -58,6 +58,7 @@ import {
   DEFAULT_SLIDES,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_SUPPORT_CHANNELS,
+  getPackageLogo,
   DEFAULT_SUPPORT_AVATAR,
   getPaymentLogo,
   isReferredByUser
@@ -857,17 +858,17 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   const handleSaveVip = (e) => {
     e.preventDefault();
-    if (!vipForm.level || !vipForm.deposit) {
+    if (!vipForm.level || vipForm.deposit === undefined || vipForm.deposit === null || String(vipForm.deposit).trim() === '') {
       showToast('Level name and deposit amount are required');
       return;
     }
     const days = parseInt(vipForm.days) || 20;
-    const profitPercent = parseFloat(vipForm.profitPercent) || 80;
+    const profitPercent = parseFloat(vipForm.profitPercent) || 0;
     const tasks = parseInt(vipForm.tasks) || 10;
     const dep = parseFloat(String(vipForm.deposit).replace(/,/g, '')) || 0;
-    const total = vipForm.total || (dep * (1 + profitPercent / 100)).toFixed(2);
-    const daily = vipForm.daily || (parseFloat(total) / days).toFixed(2);
-    const interest = vipForm.interest || (parseFloat(daily) / tasks).toFixed(2);
+    const total = vipForm.total && String(vipForm.total).trim() ? vipForm.total : (dep * (1 + profitPercent / 100)).toFixed(2);
+    const daily = vipForm.daily && String(vipForm.daily).trim() ? vipForm.daily : (parseFloat(total) / days).toFixed(2);
+    const interest = vipForm.interest && String(vipForm.interest).trim() ? vipForm.interest : (parseFloat(daily) / tasks).toFixed(2);
 
     const payload = {
       ...vipForm,
@@ -877,14 +878,14 @@ export default function AdminPanel({ onNavigateToApp }) {
       total,
       daily,
       interest,
-      logo: vipForm.logo || ''
+      logo: vipForm.logo || (editingVip?.logo ? editingVip.logo : '')
     };
 
     if (editingVip) {
       const oldLevel = editingVip.level;
       const newLevel = (vipForm.level || '').trim();
 
-      // If the VIP level name has changed (e.g. VIP1 -> Google), auto-update everywhere:
+      // If the VIP level name has changed, auto-update everywhere:
       if (oldLevel && newLevel && oldLevel !== newLevel) {
         // 1. Update all users whose vip === oldLevel
         const allUsers = getStoredData('users', DEFAULT_USERS);
@@ -914,9 +915,14 @@ export default function AdminPanel({ onNavigateToApp }) {
         setStoredData('recharges', updatedRecs);
       }
 
-      const updated = vipTiers.map((v) => (v.id === editingVip.id ? { ...payload, id: v.id, level: newLevel } : v));
+      const updated = vipTiers.map((v) => {
+        if ((v.id && editingVip.id && String(v.id) === String(editingVip.id)) || v.level === editingVip.level) {
+          return { ...payload, id: v.id || editingVip.id || String(Date.now()), level: newLevel };
+        }
+        return v;
+      });
       updateVips(updated);
-      showToast(`${newLevel} updated successfully! Name auto-updated across all users and pages.`);
+      showToast(`${newLevel} updated successfully! Name, logo, and validity saved.`);
     } else {
       const newVip = {
         ...payload,
@@ -1070,18 +1076,35 @@ export default function AdminPanel({ onNavigateToApp }) {
       ))
     );
 
-    const commissionAmount = parseFloat(((rec.amount || 0) * 0.10).toFixed(2));
+    const commRate = typeof settings?.referralCommissionRate === 'number' && settings.referralCommissionRate >= 0
+      ? settings.referralCommissionRate
+      : (parseFloat(settings?.referralCommissionRate) || 10);
+    const commissionAmount = parseFloat(((rec.amount || 0) * (commRate / 100)).toFixed(2));
     let referrerCredited = false;
     let referrerName = '';
 
-    // 2. Credit user's balance and recharge total, auto-upgrade VIP level and credit referrer 10% commission
+    const isReferrerMatch = (child, parent) => {
+      if (!child || !parent || !child.referredBy) return false;
+      if (String(child.id) === String(parent.id)) return false;
+      const refClean = String(child.referredBy).trim().toUpperCase();
+      const parentCodes = [
+        parent.myInviteCode,
+        parent.inviteCode,
+        parent.id,
+        parent.phone,
+        parent.email
+      ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
+      return parentCodes.includes(refClean) || isReferredByUser(child, parent);
+    };
+
+    // 2. Credit user's balance and recharge total, auto-upgrade VIP level and credit referrer commission
     const updatedUsers = users.map((u) => {
       const isMatch = targetUser && String(u.id) === String(targetUser.id);
 
       if (isMatch) {
         const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
 
-        let newVip = u.vip || 'VIP0';
+        let newVip = u.vip || 'Starter Package';
         let matchedTier = null;
         for (const tier of vipTiers) {
           const reqDeposit = parseFloat(tier.deposit.toString().replace(/,/g, '')) || 0;
@@ -1106,9 +1129,9 @@ export default function AdminPanel({ onNavigateToApp }) {
       }
 
       // Check if this user is the referrer of targetUser
-      if (targetUser && isReferredByUser(targetUser, u) && commissionAmount > 0) {
+      if (targetUser && isReferrerMatch(targetUser, u) && commissionAmount > 0) {
         referrerCredited = true;
-        referrerName = u.name || u.email || u.myInviteCode || 'Referrer';
+        referrerName = u.name || u.phone || u.email || u.myInviteCode || 'Referrer';
         const prevB = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
         const prevEarn = typeof u.referralEarnings === 'number' ? u.referralEarnings : 0;
         return {
@@ -1121,6 +1144,12 @@ export default function AdminPanel({ onNavigateToApp }) {
       return u;
     });
     updateUsers(updatedUsers);
+
+    if (referrerCredited && commissionAmount > 0) {
+      showToast(`Recharge of ৳${rec.amount} approved! ৳${commissionAmount} (${commRate}%) commission credited to referrer ${referrerName}.`);
+    } else {
+      showToast(`Recharge of ৳${rec.amount} approved!`);
+    }
 
     // Record Upgrade Log if VIP tier changed
     if (targetUser) {
@@ -1805,13 +1834,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <div key={vip.id || vip.level} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
                     <div className="flex items-center gap-2">
-                      {vip.logo ? (
-                        <img src={vip.logo} alt={vip.level} className="w-8 h-8 rounded-xl object-contain bg-slate-900 border border-amber-500/30 p-0.5" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                          <Gem className="w-4 h-4" />
-                        </div>
-                      )}
+                      <img src={vip.logo || getPackageLogo(vip)} alt={vip.level} className="w-8 h-8 rounded-xl object-contain bg-slate-900 border border-amber-500/30 p-0.5" />
                       <div>
                         <span className="font-extrabold text-white text-sm">{vip.level}</span>
                         <div className="text-[10px] text-slate-400 font-mono">ID: {vip.id || vip.level}</div>
@@ -1892,14 +1915,10 @@ export default function AdminPanel({ onNavigateToApp }) {
                   {vipTiers.map((vip) => (
                     <tr key={vip.id || vip.level} className="hover:bg-slate-900/50 transition">
                       <td className="py-3 px-4 font-bold text-white flex items-center gap-2">
-                        {vip.logo ? (
-                          <img src={vip.logo} alt={vip.level} className="w-6 h-6 rounded-lg object-contain bg-slate-900 border border-amber-500/30 p-0.5" />
-                        ) : (
-                          <Gem className="w-3.5 h-3.5 text-amber-400" />
-                        )}
+                        <img src={vip.logo || getPackageLogo(vip)} alt={vip.level} className="w-6 h-6 rounded-lg object-contain bg-slate-900 border border-amber-500/30 p-0.5" />
                         {vip.level}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-200">${vip.deposit}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-200">৳{vip.deposit}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">
                           {vip.days || 20} Days
@@ -2976,18 +2995,18 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <p className="text-[10px] text-slate-500">This TRC20 wallet address is presented to users in the app when recharging via crypto.</p>
                 </div>
 
-                {/* Min Deposit & Min Withdrawal Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Min Deposit, Min Withdrawal & Referral Commission Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <label className="text-slate-300 font-bold">Minimum Deposit</label>
-                      <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-800/40">USDT</span>
+                      <label className="text-slate-300 font-bold">Minimum Recharge</label>
+                      <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-800/40">BDT</span>
                     </div>
                     <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">$</span>
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">৳</span>
                       <input
                         type="number"
-                        min="0.1"
+                        min="1"
                         step="any"
                         value={settings.minDeposit ?? ''}
                         onChange={(e) => {
@@ -2997,19 +3016,19 @@ export default function AdminPanel({ onNavigateToApp }) {
                         className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 transition shadow-inner"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500">Recharge modal will enforce this exact minimum threshold.</p>
+                    <p className="text-[10px] text-slate-500">Recharge modal will enforce this minimum (e.g. 500 BDT).</p>
                   </div>
 
                   <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
                     <div className="flex justify-between items-center">
                       <label className="text-slate-300 font-bold">Minimum Withdrawal</label>
-                      <span className="text-[10px] font-bold text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-800/40">USDT</span>
+                      <span className="text-[10px] font-bold text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-800/40">BDT</span>
                     </div>
                     <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">$</span>
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">৳</span>
                       <input
                         type="number"
-                        min="0.1"
+                        min="1"
                         step="any"
                         value={settings.minWithdrawal ?? ''}
                         onChange={(e) => {
@@ -3019,7 +3038,30 @@ export default function AdminPanel({ onNavigateToApp }) {
                         className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/20 transition shadow-inner"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500">User withdrawal modal will enforce this exact minimum threshold.</p>
+                    <p className="text-[10px] text-slate-500">User withdrawal modal will enforce this minimum (e.g. 500 BDT).</p>
+                  </div>
+
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-slate-300 font-bold">Referral Commission</label>
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/40">% Rate</span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">%</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={settings.referralCommissionRate ?? 10}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSettings((prev) => ({ ...prev, referralCommissionRate: val === '' ? 10 : parseFloat(val) }));
+                        }}
+                        className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/20 transition shadow-inner"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500">Auto-credited to referrer when a member's recharge is approved.</p>
                   </div>
                 </div>
 
@@ -3043,11 +3085,12 @@ export default function AdminPanel({ onNavigateToApp }) {
                       const payload = {
                         ...settings,
                         minDeposit: typeof settings.minDeposit === 'number' ? settings.minDeposit : (parseFloat(settings.minDeposit) || 0),
-                        minWithdrawal: typeof settings.minWithdrawal === 'number' ? settings.minWithdrawal : (parseFloat(settings.minWithdrawal) || 0)
+                        minWithdrawal: typeof settings.minWithdrawal === 'number' ? settings.minWithdrawal : (parseFloat(settings.minWithdrawal) || 0),
+                        referralCommissionRate: typeof settings.referralCommissionRate === 'number' ? settings.referralCommissionRate : (parseFloat(settings.referralCommissionRate) || 10)
                       };
                       setSettings(payload);
                       updateSettings(payload);
-                      showToast(`Settings saved! Min Deposit: $${payload.minDeposit}, Min Withdrawal: $${payload.minWithdrawal}`);
+                      showToast(`Settings saved! Min Recharge: ৳${payload.minDeposit}, Min Withdrawal: ৳${payload.minWithdrawal}, Referral Commission: ${payload.referralCommissionRate}%`);
                     }}
                     className="w-full sm:w-auto justify-center bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs py-3 px-7 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.98] transition cursor-pointer flex items-center gap-2"
                   >
@@ -3887,9 +3930,45 @@ export default function AdminPanel({ onNavigateToApp }) {
                       type="text"
                       value={vipForm.logo || ''}
                       onChange={(e) => setVipForm({ ...vipForm, logo: e.target.value })}
-                      placeholder="Or paste image URL (e.g. /icons/vip1.png)"
+                      placeholder="Or paste image URL (e.g. /packages/starter.svg)"
                       className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-[10px] text-slate-200 outline-none focus:border-blue-500 font-mono"
                     />
+
+                    {/* 10 Official Package Preset Badges */}
+                    <div className="pt-1.5">
+                      <span className="text-[10px] text-slate-400 block mb-1">Quick Select Official Badges:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { label: 'Starter', icon: '/packages/starter.svg' },
+                          { label: 'Basic', icon: '/packages/basic.svg' },
+                          { label: 'Silver', icon: '/packages/silver.svg' },
+                          { label: 'Gold', icon: '/packages/gold.svg' },
+                          { label: 'Platinum', icon: '/packages/platinum.svg' },
+                          { label: 'Diamond', icon: '/packages/diamond.svg' },
+                          { label: 'Premium', icon: '/packages/premium.svg' },
+                          { label: 'Business', icon: '/packages/business.svg' },
+                          { label: 'Elite', icon: '/packages/elite.svg' },
+                          { label: 'Royal', icon: '/packages/royal.svg' }
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => {
+                              setVipForm((prev) => ({ ...prev, logo: p.icon }));
+                              showToast(`Selected ${p.label} badge`);
+                            }}
+                            className={`px-2 py-0.5 rounded text-[10px] font-semibold border flex items-center gap-1 cursor-pointer transition ${
+                              (vipForm.logo || '').includes(p.icon.replace('/packages/', ''))
+                                ? 'bg-amber-500/20 text-amber-300 border-amber-500'
+                                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                            }`}
+                          >
+                            <img src={p.icon} alt={p.label} className="w-3.5 h-3.5" />
+                            <span>{p.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

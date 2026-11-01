@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="eltRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e879f9"/>
+      <stop offset="40%" stop-color="#a855f7"/>
+      <stop offset="80%" stop-color="#6b21a8"/>
+      <stop offset="100%" stop-color="#3b0764"/>
+    </linearGradient>
+    <linearGradient id="eltCore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fae8ff"/>
+      <stop offset="50%" stop-color="#7e22ce"/>
+      <stop offset="100%" stop-color="#1e0538"/>
+    </linearGradient>
+    <filter id="eltShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="url(#eltRim)" filter="url(#eltShadow)"/>
+  <circle cx="64" cy="64" r="54" fill="#140224"/>
+  <circle cx="64" cy="64" r="50" fill="url(#eltCore)"/>
+  <circle cx="64" cy="64" r="46" fill="none" stroke="#d946ef" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- Elite Star Crest -->
+  <g transform="translate(64,58) scale(1) translate(-64,-58)">
+    <polygon points="64,24 73,46 96,49 80,66 84,88 64,77 44,88 48,66 32,49 55,46" fill="#c084fc" stroke="#fdf4ff" stroke-width="2"/>
+    <polygon points="64,36 70,51 86,53 74,65 77,81 64,73 51,81 54,65 42,53 58,51" fill="#7e22ce"/>
+    <circle cx="64" cy="60" r="6" fill="#fdf4ff"/>
+  </g>
+  <rect x="30" y="98" width="68" height="18" rx="9" fill="#140224" stroke="#d946ef" stroke-width="1.5"/>
+  <text x="64" y="110" font-family="Arial, sans-serif" font-size="9" font-weight="900" fill="#fdf4ff" text-anchor="middle" letter-spacing="1">ELITE</text>
+</svg>

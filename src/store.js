@@ -1,16 +1,16 @@
 // Shared State Store with LocalStorage Persistence
 
 export const DEFAULT_VIP_TIERS = [
-  { id: '1', level: 'VIP1', deposit: '10.00', tasks: 10, days: 20, profitPercent: 80, interest: '0.09', daily: '0.90', total: '18.00' },
-  { id: '2', level: 'VIP2', deposit: '70.00', tasks: 10, days: 20, profitPercent: 80, interest: '0.63', daily: '6.30', total: '126.00' },
-  { id: '3', level: 'VIP3', deposit: '170.00', tasks: 10, days: 20, profitPercent: 80, interest: '1.53', daily: '15.30', total: '306.00' },
-  { id: '4', level: 'VIP4', deposit: '370.00', tasks: 10, days: 20, profitPercent: 80, interest: '3.33', daily: '33.30', total: '666.00' },
-  { id: '5', level: 'VIP5', deposit: '770.00', tasks: 10, days: 20, profitPercent: 80, interest: '6.93', daily: '69.30', total: '1,386.00' },
-  { id: '6', level: 'VIP6', deposit: '1,570.00', tasks: 10, days: 20, profitPercent: 80, interest: '14.13', daily: '141.30', total: '2,826.00' },
-  { id: '7', level: 'VIP7', deposit: '3,570.00', tasks: 10, days: 20, profitPercent: 80, interest: '32.13', daily: '321.30', total: '6,426.00' },
-  { id: '8', level: 'VIP8', deposit: '7,770.00', tasks: 10, days: 20, profitPercent: 80, interest: '69.93', daily: '699.30', total: '13,986.00' },
-  { id: '9', level: 'VIP9', deposit: '17,700.00', tasks: 10, days: 20, profitPercent: 80, interest: '159.30', daily: '1,593.00', total: '31,860.00' },
-  { id: '10', level: 'VIP10', deposit: '27,700.00', tasks: 10, days: 20, profitPercent: 80, interest: '249.30', daily: '2,493.00', total: '49,860.00' },
+  { id: '1', level: 'Starter Package', deposit: '0.00', tasks: 10, days: 20, profitPercent: 0, interest: '5.00', daily: '50.00', total: '1,000.00', logo: '/packages/starter.svg' },
+  { id: '2', level: 'Basic Package', deposit: '1,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '9.00', daily: '90.00', total: '1,800.00', logo: '/packages/basic.svg' },
+  { id: '3', level: 'Silver Package', deposit: '5,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '45.00', daily: '450.00', total: '9,000.00', logo: '/packages/silver.svg' },
+  { id: '4', level: 'Gold Package', deposit: '15,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '135.00', daily: '1,350.00', total: '27,000.00', logo: '/packages/gold.svg' },
+  { id: '5', level: 'Platinum Package', deposit: '35,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '315.00', daily: '3,150.00', total: '63,000.00', logo: '/packages/platinum.svg' },
+  { id: '6', level: 'Diamond Package', deposit: '75,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '675.00', daily: '6,750.00', total: '135,000.00', logo: '/packages/diamond.svg' },
+  { id: '7', level: 'Premium Package', deposit: '150,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '1,350.00', daily: '13,500.00', total: '270,000.00', logo: '/packages/premium.svg' },
+  { id: '8', level: 'Business Package', deposit: '350,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '3,150.00', daily: '31,500.00', total: '630,000.00', logo: '/packages/business.svg' },
+  { id: '9', level: 'Elite Package', deposit: '750,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '6,750.00', daily: '67,500.00', total: '1,350,000.00', logo: '/packages/elite.svg' },
+  { id: '10', level: 'Royal Package', deposit: '1,500,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '13,500.00', daily: '135,000.00', total: '2,700,000.00', logo: '/packages/royal.svg' },
 ];
 
 export const DEFAULT_USERS = [
@@ -195,9 +195,12 @@ export const recordUpgradeLog = ({ userId, user, userIdentifier, fromVip, toVip,
 
 export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
+  currency: 'BDT',
+  currencySymbol: '৳',
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
-  minWithdrawal: 10.0,
-  minDeposit: 10.0,
+  minWithdrawal: 500,
+  minDeposit: 500,
+  referralCommissionRate: 10,
   telegramSupport: '@NextTask_SupportBot',
   floatingSupportEnabled: true,
   supportExecutiveAvatar: '',
@@ -206,6 +209,32 @@ export const DEFAULT_SETTINGS = {
   telegramAdminChatId: '',
   telegramBotAutoReply: true,
   companyProfile: DEFAULT_COMPANY_PROFILE
+};
+
+export const getPackageLogo = (vip) => {
+  if (vip?.logo && String(vip.logo).trim()) return vip.logo;
+  const name = String(vip?.level || vip?.name || '').toLowerCase();
+  if (name.includes('starter')) return '/packages/starter.svg';
+  if (name.includes('basic')) return '/packages/basic.svg';
+  if (name.includes('silver')) return '/packages/silver.svg';
+  if (name.includes('gold')) return '/packages/gold.svg';
+  if (name.includes('platinum')) return '/packages/platinum.svg';
+  if (name.includes('diamond')) return '/packages/diamond.svg';
+  if (name.includes('premium')) return '/packages/premium.svg';
+  if (name.includes('business')) return '/packages/business.svg';
+  if (name.includes('elite')) return '/packages/elite.svg';
+  if (name.includes('royal')) return '/packages/royal.svg';
+  if (name.includes('vip10')) return '/packages/royal.svg';
+  if (name.includes('vip9')) return '/packages/elite.svg';
+  if (name.includes('vip8')) return '/packages/business.svg';
+  if (name.includes('vip7')) return '/packages/premium.svg';
+  if (name.includes('vip6')) return '/packages/diamond.svg';
+  if (name.includes('vip5')) return '/packages/platinum.svg';
+  if (name.includes('vip4')) return '/packages/gold.svg';
+  if (name.includes('vip3')) return '/packages/silver.svg';
+  if (name.includes('vip2')) return '/packages/basic.svg';
+  if (name.includes('vip1')) return '/packages/starter.svg';
+  return '/packages/starter.svg';
 };
 
 export const getPaymentLogo = (pm) => {
@@ -221,17 +250,17 @@ export const getPaymentLogo = (pm) => {
 };
 
 export const DEFAULT_PAYMENT_METHODS = [
-  { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 125, logo: '/logos/bkash.svg', active: true, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 125, logo: '/logos/nagad.svg', active: false, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 125, logo: '/logos/rocket.svg', active: false, instructions: 'Please Send Money and enter TrxID below' },
-  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 1, logo: '/logos/usdt.svg', active: true, instructions: 'Transfer USDT via TRC20 network and submit TxID below' }
+  { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 1, logo: '/logos/bkash.svg', active: true, instructions: 'Please Send Money (Personal) to the official bKash number below, then enter your 11-digit Sender Number & TrxID.' },
+  { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 1, logo: '/logos/nagad.svg', active: true, instructions: 'Please Send Money (Personal) to the official Nagad number below, then enter your 11-digit Sender Number & TrxID.' },
+  { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 1, logo: '/logos/rocket.svg', active: false, instructions: 'Please Send Money to the official Rocket number below, then enter your 11-digit Sender Number & TrxID.' },
+  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 125, logo: '/logos/usdt.svg', active: true, instructions: 'Transfer USDT via TRC20 network (1 USDT = 125 BDT) and submit TxID below' }
 ];
 
 export const DEFAULT_SLIDES = [
   {
     id: 's1',
-    badge: 'MADE',
-    amount: '$3,200',
+    badge: 'EARNED',
+    amount: '৳50,000',
     subtitle: 'IN 48 HOURS!',
     gradient: 'from-amber-500 via-orange-500 to-yellow-400',
     description: 'Top earning member payout milestone achieved this week',
@@ -240,19 +269,19 @@ export const DEFAULT_SLIDES = [
   {
     id: 's2',
     badge: 'OFFICIAL',
-    amount: '16% COMMISSION',
-    subtitle: 'LEVEL 1 REWARDS',
+    amount: '10% COMMISSION',
+    subtitle: 'DIRECT REWARDS',
     gradient: 'from-blue-600 via-indigo-600 to-purple-600',
-    description: 'Invite new partners and earn instant direct incentives',
+    description: 'Invite new partners and earn instant direct recharge commissions',
     active: true
   },
   {
     id: 's3',
     badge: 'DAILY BONUS',
-    amount: '23,545 USDT',
+    amount: '৳250,000 BDT',
     subtitle: 'VIP-10 TOP TIER',
     gradient: 'from-emerald-600 via-teal-600 to-cyan-600',
-    description: 'Unlock highest contribution levels for automated USDT payout',
+    description: 'Unlock highest contribution levels for automated BDT payout',
     active: true
   }
 ];
@@ -278,19 +307,21 @@ export const getStoredData = (key, fallback) => {
       }
     }
 
-    // Ensure VIP tiers have validity days and 80% profit parameters
+    // Ensure VIP tiers have validity days and proper calculations without stripping admin customizations
     if (key === 'vips' && Array.isArray(parsed)) {
       return parsed.map((v) => {
         if (!v) return v;
         const dep = parseFloat(String(v.deposit || 0).replace(/,/g, '')) || 0;
-        const days = v.days ? parseInt(v.days) : 20;
-        const profitPct = v.profitPercent ? parseFloat(v.profitPercent) : 80;
-        const tot = v.total && !v.total.includes('1,680') ? v.total : (dep * (1 + profitPct / 100)).toFixed(2);
-        const daily = v.daily && !v.daily.includes('7.00') ? v.daily : (parseFloat(tot) / days).toFixed(2);
-        const interest = (parseFloat(daily) / (v.tasks || 10)).toFixed(2);
+        const days = v.days !== undefined && v.days !== null && String(v.days).trim() !== '' ? parseInt(v.days) : 20;
+        const profitPct = v.profitPercent !== undefined && v.profitPercent !== null && String(v.profitPercent).trim() !== '' ? parseFloat(v.profitPercent) : 80;
+        const tot = v.total && String(v.total).trim() ? v.total : (dep * (1 + profitPct / 100)).toFixed(2);
+        const daily = v.daily && String(v.daily).trim() ? v.daily : (parseFloat(tot) / days).toFixed(2);
+        const tasks = v.tasks ? parseInt(v.tasks) : 10;
+        const interest = v.interest && String(v.interest).trim() ? v.interest : (parseFloat(daily) / tasks).toFixed(2);
         return {
           ...v,
           days,
+          tasks,
           profitPercent: profitPct,
           daily,
           interest,

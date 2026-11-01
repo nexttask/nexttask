@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="gldRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="30%" stop-color="#eab308"/>
+      <stop offset="70%" stop-color="#ca8a04"/>
+      <stop offset="100%" stop-color="#713f12"/>
+    </linearGradient>
+    <linearGradient id="gldCore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef9c3"/>
+      <stop offset="40%" stop-color="#eab308"/>
+      <stop offset="80%" stop-color="#854d0e"/>
+      <stop offset="100%" stop-color="#422006"/>
+    </linearGradient>
+    <filter id="gldShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="url(#gldRim)" filter="url(#gldShadow)"/>
+  <circle cx="64" cy="64" r="54" fill="#1c1305"/>
+  <circle cx="64" cy="64" r="50" fill="url(#gldCore)"/>
+  <circle cx="64" cy="64" r="46" fill="none" stroke="#fef08a" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- Gold Diamond / Crown -->
+  <g transform="translate(64,58) scale(1.05) translate(-64,-58)">
+    <polygon points="64,26 90,46 64,88 38,46" fill="#facc15" stroke="#713f12" stroke-width="2"/>
+    <polygon points="64,26 77,46 64,88" fill="#fef08a"/>
+    <polygon points="64,26 51,46 64,88" fill="#eab308"/>
+    <polygon points="38,46 51,46 64,88" fill="#ca8a04"/>
+    <polygon points="90,46 77,46 64,88" fill="#a16207"/>
+    <polygon points="38,46 51,46 64,26" fill="#fef9c3"/>
+    <polygon points="90,46 77,46 64,26" fill="#fde047"/>
+  </g>
+  <rect x="30" y="98" width="68" height="18" rx="9" fill="#1c1305" stroke="#fef08a" stroke-width="1.5"/>
+  <text x="64" y="110" font-family="Arial, sans-serif" font-size="9" font-weight="900" fill="#fef08a" text-anchor="middle" letter-spacing="1">GOLD</text>
+</svg>

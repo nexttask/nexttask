@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="prmRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="40%" stop-color="#f43f5e"/>
+      <stop offset="80%" stop-color="#be123c"/>
+      <stop offset="100%" stop-color="#4c0519"/>
+    </linearGradient>
+    <linearGradient id="prmCore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe4e6"/>
+      <stop offset="45%" stop-color="#e11d48"/>
+      <stop offset="100%" stop-color="#4c0519"/>
+    </linearGradient>
+    <filter id="prmShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="url(#prmRim)" filter="url(#prmShadow)"/>
+  <circle cx="64" cy="64" r="54" fill="#20030c"/>
+  <circle cx="64" cy="64" r="50" fill="url(#prmCore)"/>
+  <circle cx="64" cy="64" r="46" fill="none" stroke="#f43f5e" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- Ruby Crest / Crown -->
+  <g transform="translate(64,58) scale(1) translate(-64,-58)">
+    <path d="M42 38 L52 74 L64 88 L76 74 L86 38 L72 50 L64 32 L56 50 Z" fill="#fb7185" stroke="#fef08a" stroke-width="2.5"/>
+    <circle cx="64" cy="32" r="4" fill="#fef08a"/>
+    <circle cx="42" cy="38" r="3.5" fill="#fef08a"/>
+    <circle cx="86" cy="38" r="3.5" fill="#fef08a"/>
+    <polygon points="64,52 72,66 64,78 56,66" fill="#fef08a"/>
+  </g>
+  <rect x="26" y="98" width="76" height="18" rx="9" fill="#20030c" stroke="#f43f5e" stroke-width="1.5"/>
+  <text x="64" y="110" font-family="Arial, sans-serif" font-size="8.5" font-weight="900" fill="#fecdd3" text-anchor="middle" letter-spacing="1">PREMIUM</text>
+</svg>

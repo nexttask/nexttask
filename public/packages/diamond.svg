@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="diaRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a5f3fc"/>
+      <stop offset="40%" stop-color="#06b6d4"/>
+      <stop offset="80%" stop-color="#0e7490"/>
+      <stop offset="100%" stop-color="#164e63"/>
+    </linearGradient>
+    <linearGradient id="diaCore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#cffafe"/>
+      <stop offset="50%" stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#083344"/>
+    </linearGradient>
+    <filter id="diaShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="58" fill="url(#diaRim)" filter="url(#diaShadow)"/>
+  <circle cx="64" cy="64" r="54" fill="#031d27"/>
+  <circle cx="64" cy="64" r="50" fill="url(#diaCore)"/>
+  <circle cx="64" cy="64" r="46" fill="none" stroke="#22d3ee" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- Multi-faceted Diamond -->
+  <g transform="translate(64,58) scale(1.1) translate(-64,-58)">
+    <polygon points="64,26 92,46 64,90 36,46" fill="#06b6d4" stroke="#cffafe" stroke-width="2"/>
+    <polygon points="64,26 78,46 64,90" fill="#a5f3fc"/>
+    <polygon points="64,26 50,46 64,90" fill="#67e8f9"/>
+    <polygon points="36,46 50,46 64,90" fill="#0891b2"/>
+    <polygon points="92,46 78,46 64,90" fill="#0e7490"/>
+    <polygon points="36,46 50,46 64,26" fill="#ecfeff"/>
+    <polygon points="92,46 78,46 64,26" fill="#cffafe"/>
+    <!-- Center Sparkle -->
+    <polygon points="64,46 66,41 71,46 66,51" fill="#ffffff"/>
+  </g>
+  <rect x="26" y="98" width="76" height="18" rx="9" fill="#031d27" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="64" y="110" font-family="Arial, sans-serif" font-size="8.5" font-weight="900" fill="#a5f3fc" text-anchor="middle" letter-spacing="1">DIAMOND</text>
+</svg>

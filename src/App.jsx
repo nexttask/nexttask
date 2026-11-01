@@ -44,6 +44,8 @@ import {
   Headphones,
   MessageCircle,
   Send,
+  Plus,
+  Trash2,
   X
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
@@ -71,6 +73,7 @@ import {
   DEFAULT_SUPPORT_AVATAR,
   getUserWithdrawableBalance,
   getPaymentLogo,
+  getPackageLogo,
   getVipDisplayName,
   recordUserLoginAudit
 } from './store';
@@ -78,18 +81,18 @@ import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
 
 const MEMBER_LIST_DATA = [
-  { amount: '+$14,160.00', user: '856******340', vip: 'VIP9' },
-  { amount: '+$49.00', user: '251******465', vip: 'VIP2' },
-  { amount: '+$119.00', user: 'Bee******nzj@gmail.com', vip: 'VIP3' },
-  { amount: '+$119.00', user: 'elt******25@gmail.com', vip: 'VIP3' },
-  { amount: '+$259.00', user: '917******882', vip: 'VIP4' },
-  { amount: '+$539.00', user: 'kat******44@gmail.com', vip: 'VIP5' },
-  { amount: '+$7.00', user: '017******110', vip: 'VIP1' },
-  { amount: '+$1,099.00', user: 'alex******89', vip: 'VIP6' },
-  { amount: '+$2,677.00', user: 'david******21@gmail.com', vip: 'VIP7' },
-  { amount: '+$5,990.00', user: '88018******99', vip: 'VIP8' },
-  { amount: '+$23,545.00', user: 'whale******01@gmail.com', vip: 'VIP10' },
-  { amount: '+$49.00', user: 'maria******77', vip: 'VIP2' },
+  { amount: '+৳15,000.00', user: '018******34', vip: 'Business Package' },
+  { amount: '+৳500.00', user: '017******46', vip: 'Starter Package' },
+  { amount: '+৳3,500.00', user: '019******25', vip: 'Basic Package' },
+  { amount: '+৳7,500.00', user: '016******88', vip: 'Silver Package' },
+  { amount: '+৳18,000.00', user: '013******82', vip: 'Gold Package' },
+  { amount: '+৳42,000.00', user: '015******44', vip: 'Platinum Package' },
+  { amount: '+৳50.00', user: '017******11', vip: 'Starter Package' },
+  { amount: '+৳90,000.00', user: '018******89', vip: 'Diamond Package' },
+  { amount: '+৳180,000.00', user: '019******21', vip: 'Premium Package' },
+  { amount: '+৳450,000.00', user: '018******99', vip: 'Elite Package' },
+  { amount: '+৳1,200,000.00', user: '017******01', vip: 'Royal Package' },
+  { amount: '+৳1,000.00', user: '016******77', vip: 'Basic Package' },
 ];
 
 export const resolveInitialRoute = () => {
@@ -481,13 +484,23 @@ export default function App() {
     };
 
     handleUrlChange();
-    fetchCloudDataNow();
+    fetchCloudDataNow().then(() => {
+      setIsInitialSyncing(false);
+    }).catch(() => {
+      setIsInitialSyncing(false);
+    });
+
+    const splashSafetyTimer = setTimeout(() => {
+      setIsInitialSyncing(false);
+    }, 1200);
+
     window.addEventListener('popstate', handleUrlChange);
     window.addEventListener('hashchange', handleUrlChange);
     window.addEventListener('storage', handleSyncEvent);
     window.addEventListener('cloud-sync', handleSyncEvent);
     const syncInterval = setInterval(syncCurrentUserData, 2000);
     return () => {
+      clearTimeout(splashSafetyTimer);
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
       window.removeEventListener('storage', handleSyncEvent);
@@ -603,7 +616,8 @@ export default function App() {
       return '';
     }
   });
-  const [loginMethod, setLoginMethod] = useState('email'); // 'email' | 'phone'
+  const [isInitialSyncing, setIsInitialSyncing] = useState(true);
+  const [loginMethod, setLoginMethod] = useState('phone'); // phone only (Gmail removed)
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_LIST[0]); // Default Bangladesh +880
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [countrySearch, setCountrySearch] = useState('');
@@ -647,6 +661,13 @@ export default function App() {
   // User Profile & Withdrawal Accounts State
   const [showPersonalProfileModal, setShowPersonalProfileModal] = useState(false);
   const [showWithdrawAccountsModal, setShowWithdrawAccountsModal] = useState(false);
+  const [showAddAccountForm, setShowAddAccountForm] = useState(false);
+  const [newAccType, setNewAccType] = useState('bKash');
+  const [newAccHolder, setNewAccHolder] = useState('');
+  const [newAccNumber, setNewAccNumber] = useState('');
+  const [newAccBankName, setNewAccBankName] = useState('');
+  const [selectedWithdrawAccountId, setSelectedWithdrawAccountId] = useState('');
+  const [rechargeErrorPopup, setRechargeErrorPopup] = useState('');
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileTab, setProfileTab] = useState('personal');
   const [profileName, setProfileName] = useState('');
@@ -1090,16 +1111,96 @@ export default function App() {
     setShowPersonalProfileModal(true);
   };
 
+  const getUserAccountsList = (user) => {
+    if (!user) return [];
+    const list = Array.isArray(user.savedAccounts) ? [...user.savedAccounts] : [];
+    if (list.length === 0 && user.withdrawalAccounts) {
+      const wa = user.withdrawalAccounts;
+      if (wa.bkash?.trim()) list.push({ id: 'acc_bkash', type: 'bKash', number: wa.bkash.trim(), holder: wa.bankHolder || user.name || 'User' });
+      if (wa.nagad?.trim()) list.push({ id: 'acc_nagad', type: 'Nagad', number: wa.nagad.trim(), holder: wa.bankHolder || user.name || 'User' });
+      if (wa.rocket?.trim()) list.push({ id: 'acc_rocket', type: 'Rocket', number: wa.rocket.trim(), holder: wa.bankHolder || user.name || 'User' });
+      if (wa.bankAccount?.trim()) list.push({ id: 'acc_bank', type: 'Bank Transfer', number: wa.bankAccount.trim(), bankName: wa.bankName || '', holder: wa.bankHolder || user.name || 'User' });
+      if (wa.trc20?.trim()) list.push({ id: 'acc_trc20', type: 'USDT (TRC20)', number: wa.trc20.trim(), holder: user.name || 'User' });
+    }
+    return list;
+  };
+
   const handleOpenWithdrawAccounts = () => {
     if (!currentUser) return;
-    setProfileBkash(currentUser.withdrawalAccounts?.bkash || '');
-    setProfileNagad(currentUser.withdrawalAccounts?.nagad || '');
-    setProfileRocket(currentUser.withdrawalAccounts?.rocket || '');
-    setProfileTrc20(currentUser.withdrawalAccounts?.trc20 || '');
-    setProfileBankName(currentUser.withdrawalAccounts?.bankName || '');
-    setProfileBankAccount(currentUser.withdrawalAccounts?.bankAccount || '');
-    setProfileBankHolder(currentUser.withdrawalAccounts?.bankHolder || '');
+    setShowAddAccountForm(false);
     setShowWithdrawAccountsModal(true);
+  };
+
+  const handleSaveNewAccount = (e) => {
+    e?.preventDefault();
+    if (!currentUser) return;
+    if (!newAccNumber.trim()) {
+      showToast('Please enter account number');
+      return;
+    }
+    if (!newAccHolder.trim()) {
+      showToast('Please enter account holder name');
+      return;
+    }
+
+    const currentList = getUserAccountsList(currentUser);
+    const newAcc = {
+      id: `acc_${Date.now()}`,
+      type: newAccType,
+      number: newAccNumber.trim(),
+      holder: newAccHolder.trim(),
+      bankName: newAccType === 'Bank Transfer' ? newAccBankName.trim() : '',
+      date: new Date().toISOString().slice(0, 10)
+    };
+
+    const updatedList = [...currentList, newAcc];
+    const legacyWa = { ...(currentUser.withdrawalAccounts || {}) };
+    if (newAccType === 'bKash') legacyWa.bkash = newAcc.number;
+    if (newAccType === 'Nagad') legacyWa.nagad = newAcc.number;
+    if (newAccType === 'Rocket') legacyWa.rocket = newAcc.number;
+    if (newAccType === 'USDT (TRC20)') legacyWa.trc20 = newAcc.number;
+    if (newAccType === 'Bank Transfer') {
+      legacyWa.bankAccount = newAcc.number;
+      legacyWa.bankName = newAcc.bankName;
+      legacyWa.bankHolder = newAcc.holder;
+    }
+
+    const updatedUser = {
+      ...currentUser,
+      savedAccounts: updatedList,
+      withdrawalAccounts: legacyWa
+    };
+
+    setCurrentUser(updatedUser);
+    setSelectedWithdrawAccountId(newAcc.id);
+    setWithdrawMethod(newAcc.type);
+    setWithdrawAccountInput(newAcc.number);
+    try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser)); } catch (err) {}
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u);
+    setStoredData('users', updatedUsers);
+
+    setShowAddAccountForm(false);
+    setNewAccNumber('');
+    setNewAccHolder('');
+    setNewAccBankName('');
+    showToast(`${newAccType} account added successfully!`);
+  };
+
+  const handleDeleteSavedAccount = (accId) => {
+    if (!currentUser) return;
+    const currentList = getUserAccountsList(currentUser);
+    const updatedList = currentList.filter((a) => a.id !== accId);
+    const updatedUser = {
+      ...currentUser,
+      savedAccounts: updatedList
+    };
+    setCurrentUser(updatedUser);
+    try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser)); } catch (err) {}
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u);
+    setStoredData('users', updatedUsers);
+    showToast('Account removed');
   };
 
   const handleOpenProfileModal = (tab = 'personal') => {
@@ -1201,9 +1302,9 @@ export default function App() {
     }
     const minWth = typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0
       ? settings.minWithdrawal
-      : (parseFloat(settings?.minWithdrawal) || 10.0);
+      : (parseFloat(settings?.minWithdrawal) || 500);
     if (num < minWth) {
-      showToast(`Minimum withdrawal is ${minWth.toFixed(2)} USDT`);
+      showToast(`Minimum withdrawal is ৳${minWth.toFixed(2)}`);
       return;
     }
 
@@ -1272,7 +1373,7 @@ export default function App() {
     setShowWithdrawModal(false);
     setWithdrawAmount('');
     setWithdrawAccountInput('');
-    showToast(`Withdrawal of $${num.toFixed(2)} submitted successfully!`);
+    showToast(`Withdrawal of ৳${num.toFixed(2)} submitted successfully!`);
   };
 
   // Complete Task Handler (Runs one task at a time with verification countdown)
@@ -1821,12 +1922,14 @@ export default function App() {
     if (!selectedVipForUnlock) return;
 
     const reqDeposit = parseFloat(selectedVipForUnlock.deposit.toString().replace(/,/g, '')) || 0;
+    const isFreePackage = reqDeposit === 0 || String(selectedVipForUnlock.level || '').toLowerCase().includes('starter');
     const emailOrPhone = loginMethod === 'email' ? userEmail : userPhone;
 
-    // Check if user has enough balance in account
-    if (balance >= reqDeposit && reqDeposit > 0) {
-      const newBalance = parseFloat((balance - reqDeposit).toFixed(2));
-      const newRecharge = parseFloat(((currentUser?.recharge || rechargeTotal || 0) + reqDeposit).toFixed(2));
+    // Free Starter package OR user has enough balance in account
+    if (isFreePackage || (balance >= reqDeposit && reqDeposit > 0)) {
+      const depositDeduction = isFreePackage ? 0 : reqDeposit;
+      const newBalance = parseFloat((balance - depositDeduction).toFixed(2));
+      const newRecharge = parseFloat(((currentUser?.recharge || rechargeTotal || 0) + depositDeduction).toFixed(2));
       const durationDays = selectedVipForUnlock.days ? parseInt(selectedVipForUnlock.days) : 20;
       const now = Date.now();
       const expiresAt = now + durationDays * 86400000;
@@ -1836,7 +1939,10 @@ export default function App() {
       setUserVip(selectedVipForUnlock.level);
 
       const allUsers = getStoredData('users', DEFAULT_USERS);
-      const commissionAmount = parseFloat((reqDeposit * 0.10).toFixed(2)); // 10% referral commission
+      const commRate = typeof settings?.referralCommissionRate === 'number' && settings.referralCommissionRate >= 0
+        ? settings.referralCommissionRate
+        : (parseFloat(settings?.referralCommissionRate) || 10);
+      const commissionAmount = isFreePackage ? 0 : parseFloat((reqDeposit * (commRate / 100)).toFixed(2));
       let referrerCredited = false;
       let referrerName = '';
 
@@ -1890,7 +1996,7 @@ export default function App() {
           trxId: `COMM-${selectedVipForUnlock.level}-${Date.now().toString().slice(-6)}`,
           status: 'approved',
           date: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          note: `10% referral commission from ${currentUser?.name || currentUser?.id} for unlocking ${selectedVipForUnlock.level}`
+          note: `${commRate}% referral commission from ${currentUser?.name || currentUser?.id} for unlocking ${selectedVipForUnlock.level}`
         };
         setStoredData('recharges', [commissionRecord, ...allRecharges]);
       }
@@ -1903,11 +2009,15 @@ export default function App() {
         userIdentifier: (currentUser?.phone || currentUser?.email || userPhone || userEmail || 'Member').replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2'),
         fromVip: prevLevel,
         toVip: selectedVipForUnlock.level,
-        amount: reqDeposit,
-        type: prevLevel === 'VIP0' ? 'Unlock' : 'Upgrade'
+        amount: isFreePackage ? 0 : reqDeposit,
+        type: isFreePackage ? 'Free Unlock' : (prevLevel === 'VIP0' ? 'Unlock' : 'Upgrade')
       });
 
-      showToast(`🎉 Congratulations! You have unlocked ${selectedVipForUnlock.level}`);
+      if (isFreePackage) {
+        showToast(`🎉 Starter Package unlocked for FREE! You can now complete 10 daily tasks and earn ৳50.00 daily.`);
+      } else {
+        showToast(`🎉 Congratulations! You have unlocked ${selectedVipForUnlock.level}`);
+      }
       return;
     }
 
@@ -1938,6 +2048,31 @@ export default function App() {
       showToast('Please enter Transaction ID (TrxID)');
       return;
     }
+
+    const currentMethod = selectedPaymentMethod?.method || 'bKash';
+    const isCrypto = currentMethod.toLowerCase().includes('usdt') || currentMethod.toLowerCase().includes('crypto');
+
+    // Strict validation for mobile banking (bKash, Nagad, Rocket, etc.)
+    if (!isCrypto) {
+      const senderDigits = senderAccount.replace(/\D/g, '');
+      if (senderDigits.length !== 11) {
+        setRechargeErrorPopup({
+          title: 'ভুল প্রেরক নাম্বার (Invalid Sender Number)',
+          message: `বিকাশ/নগদ/রকেটে রিচার্জের জন্য প্রেরক নাম্বার অবশ্যই ১১ ডিজিট (যেমন: 017XXXXXXXX) হতে হবে। আপনি ${senderDigits.length} ডিজিট দিয়েছেন। অনুগ্রহ করে সঠিক ১১ ডিজিটের নাম্বার দিন।`
+        });
+        return;
+      }
+
+      const cleanTrx = transactionId.trim();
+      if (cleanTrx.length < 10) {
+        setRechargeErrorPopup({
+          title: 'ভুল ট্রানজেকশন আইডি (Invalid TrxID)',
+          message: `ট্রানজেকশন আইডি (TrxID) কমপক্ষে ১০ ডিজিট/অক্ষর (যেমন: 9ABC1234XY) হতে হবে। আপনি ${cleanTrx.length} অক্ষর দিয়েছেন। অনুগ্রহ করে আপনার বিকাশ/নগদ স্টেটমেন্ট থেকে সঠিক ১০ ডিজিটের TrxID দিন।`
+        });
+        return;
+      }
+    }
+
     const numAmount = parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0;
     if (numAmount <= 0) {
       showToast('Invalid recharge amount');
@@ -1945,9 +2080,9 @@ export default function App() {
     }
     const minDep = typeof settings?.minDeposit === 'number' && settings.minDeposit > 0
       ? settings.minDeposit
-      : (parseFloat(settings?.minDeposit) || 10.0);
+      : (parseFloat(settings?.minDeposit) || 500);
     if (numAmount < minDep) {
-      showToast(`Minimum recharge is ${minDep} USDT`);
+      showToast(`Minimum recharge is ৳${minDep}`);
       return;
     }
 
@@ -1971,7 +2106,7 @@ export default function App() {
     setShowRechargeModal(false);
     setSenderAccount('');
     setTransactionId('');
-    showToast(`Recharge of $${numAmount.toFixed(2)} submitted! Admin will verify soon.`);
+    showToast(`Recharge of ৳${numAmount.toFixed(2)} submitted! Admin will verify soon.`);
   };
 
     const filteredCountries = COUNTRY_LIST.filter((c) => {
@@ -2012,6 +2147,58 @@ export default function App() {
     <div className="h-[100dvh] w-full bg-slate-950 flex justify-center items-center overflow-hidden sm:p-2">
       {/* Mobile App Viewport Frame - Always fixed height with internal scrolling */}
       <div ref={appFrameRef} dir={currentLangObj.dir} className="w-full max-w-md bg-[#f4f7fb] h-full sm:h-[840px] sm:max-h-[96dvh] flex flex-col relative sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-800">
+
+        {/* ================= INITIAL CLOUD SYNC SPLASH (NO FLICKER ON NEW DEVICES) ================= */}
+        {isInitialSyncing && (
+          <div className="absolute inset-0 z-[100] bg-gradient-to-b from-[#05132d] via-[#091b3e] to-[#040e22] flex flex-col items-center justify-center p-6 text-white animate-fade-in select-none">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-amber-400 p-0.5 shadow-2xl shadow-cyan-500/30">
+                <div className="w-full h-full bg-[#05132d] rounded-3xl flex items-center justify-center overflow-hidden">
+                  <img src="/app-logo.png" alt="NextTask" className="w-12 h-12 object-contain drop-shadow" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                </div>
+              </div>
+              <div className="absolute -inset-1 rounded-3xl bg-cyan-400/20 blur-md -z-10 animate-pulse"></div>
+            </div>
+
+            <h2 className="text-xl font-black tracking-tight text-white mb-1">
+              NextTask
+            </h2>
+            <p className="text-xs text-cyan-300/80 font-medium tracking-wide mb-6">
+              Official Earning Platform
+            </p>
+
+            <div className="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden relative shadow-inner">
+              <div className="h-full bg-gradient-to-r from-cyan-400 via-indigo-400 to-amber-400 animate-progress rounded-full"></div>
+            </div>
+            <span className="text-[10px] text-slate-400 mt-3 font-mono">Synchronizing live data...</span>
+          </div>
+        )}
+
+        {/* ================= RECHARGE ERROR POPUP (11 DIGITS & 10 TRX) ================= */}
+        {rechargeErrorPopup && (
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-[90] flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl w-full max-w-[340px] p-5 shadow-2xl border border-rose-100 flex flex-col items-center text-center space-y-3.5 animate-scale-up">
+              <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shadow-inner">
+                <AlertTriangle className="w-7 h-7 stroke-[2.2]" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 tracking-tight">
+                  {typeof rechargeErrorPopup === 'string' ? 'রিচার্জে ভুল তথ্য' : rechargeErrorPopup.title}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed mt-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 font-medium text-left">
+                  {typeof rechargeErrorPopup === 'string' ? rechargeErrorPopup : rechargeErrorPopup.message}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRechargeErrorPopup('')}
+                className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-3 rounded-2xl text-xs shadow-md transition active:scale-95 cursor-pointer"
+              >
+                সঠিক তথ্য দিন (Enter Correct Info)
+              </button>
+            </div>
+          </div>
+        )}
         
         {/* Toast Alert */}
         {toastMessage && (
@@ -2429,29 +2616,41 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Method Tabs: Email vs Phone (Matching Original UI) */}
+              {/* Auth Mode Tabs: Sign In vs Sign Up (Phone Only) */}
               <div className="flex justify-center gap-10 mt-2 text-sm font-semibold text-white/70">
                 <button
                   type="button"
-                  onClick={() => { setLoginMethod('email'); setAccountInput(''); setAuthError(''); setAuthModalMsg(''); }}
+                  onClick={() => {
+                    setAuthMode('login');
+                    setLoginMethod('phone');
+                    setAccountInput('');
+                    setAuthError('');
+                    setAuthModalMsg('');
+                  }}
                   className={`pb-2 relative transition cursor-pointer ${
-                    loginMethod === 'email' ? 'text-white font-bold' : 'hover:text-white/90'
+                    authMode === 'login' ? 'text-white font-bold' : 'hover:text-white/90 text-white/60'
                   }`}
                 >
-                  {authMode === 'register' ? 'Register by Email' : 'Email Login'}
-                  {loginMethod === 'email' && (
+                  Phone Login
+                  {authMode === 'login' && (
                     <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white rounded-full"></span>
                   )}
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setLoginMethod('phone'); setAccountInput(''); setAuthError(''); setAuthModalMsg(''); }}
+                  onClick={() => {
+                    setAuthMode('register');
+                    setLoginMethod('phone');
+                    setAccountInput('');
+                    setAuthError('');
+                    setAuthModalMsg('');
+                  }}
                   className={`pb-2 relative transition cursor-pointer ${
-                    loginMethod === 'phone' ? 'text-white font-bold' : 'hover:text-white/90'
+                    authMode === 'register' ? 'text-white font-bold' : 'hover:text-white/90 text-white/60'
                   }`}
                 >
-                  {authMode === 'register' ? 'Register by phone' : 'Phone Login'}
-                  {loginMethod === 'phone' && (
+                  Register by Phone
+                  {authMode === 'register' && (
                     <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-white rounded-full"></span>
                   )}
                 </button>
@@ -2472,62 +2671,49 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Name field (Sign Up only, above Email as requested) */}
+                {/* Name field (Sign Up only) */}
                 {authMode === 'register' && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Name</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
                     <input
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Name"
+                      placeholder="Enter your full name"
                       className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
                     />
                   </div>
                 )}
 
-                {/* Email / Phone Field */}
+                {/* Phone Number Field with Country Code Picker */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {loginMethod === 'email' ? 'E-mail' : 'Phone'}
+                    Phone Number
                   </label>
-                  {loginMethod === 'phone' ? (
-                    <div className="flex items-center bg-[#eef3fb] px-3.5 py-1 rounded-2xl border border-transparent focus-within:border-indigo-500 focus-within:bg-white transition">
-                      <button
-                        type="button"
-                        onClick={() => setShowCountryPicker(true)}
-                        className="flex items-center gap-1.5 text-[#05132d] font-semibold text-sm py-2 hover:opacity-80 transition cursor-pointer shrink-0"
-                      >
-                        <span className="text-base">{selectedCountry.flag}</span>
-                        <span>{selectedCountry.dial}</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                      </button>
+                  <div className="flex items-center bg-[#eef3fb] px-3.5 py-1 rounded-2xl border border-transparent focus-within:border-indigo-500 focus-within:bg-white transition">
+                    <button
+                      type="button"
+                      onClick={() => setShowCountryPicker(true)}
+                      className="flex items-center gap-1.5 text-[#05132d] font-semibold text-sm py-2 hover:opacity-80 transition cursor-pointer shrink-0"
+                    >
+                      <span className="text-base">{selectedCountry.flag}</span>
+                      <span>{selectedCountry.dial}</span>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                    </button>
 
-                      <div className="h-5 w-[1px] bg-slate-300 mx-2 shrink-0" />
+                    <div className="h-5 w-[1px] bg-slate-300 mx-2 shrink-0" />
 
-                      <input
-                        type="tel"
-                        value={accountInput}
-                        onChange={(e) => {
-                          setAccountInput(e.target.value);
-                          setUserPhone(e.target.value);
-                        }}
-                        placeholder="Phone"
-                        className="w-full bg-transparent text-slate-800 text-sm py-2 outline-none font-medium"
-                      />
-                    </div>
-                  ) : (
                     <input
-                      type="text"
+                      type="tel"
                       value={accountInput}
                       onChange={(e) => {
                         setAccountInput(e.target.value);
-                        setUserEmail(e.target.value);
+                        setUserPhone(e.target.value);
                       }}
-                      placeholder="E-mail"
-                      className="w-full bg-[#eef3fb] text-slate-800 text-sm px-4 py-3 rounded-2xl border border-transparent focus:border-indigo-500 focus:bg-white outline-none transition"
+                      placeholder="Phone (e.g. 017XXXXXXXX)"
+                      className="w-full bg-transparent text-slate-800 text-sm py-2 outline-none font-medium"
                     />
-                  )}
+                  </div>
                 </div>
 
                 {authMode === 'forgot' ? (
@@ -2994,49 +3180,51 @@ export default function App() {
                     <h3 className="font-extrabold text-base text-slate-900 tracking-tight">{t('taskHall')}</h3>
 
                     <div className="space-y-3">
-                      {vipTiers.map((vip) => (
-                        <div
-                          key={vip.level}
-                          onClick={() => handleUnlockVip(vip)}
-                          className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition cursor-pointer active:scale-[0.99]"
-                        >
-                          {/* Left: Dark Padlocked VIP Badge */}
-                          <div className="w-20 h-20 rounded-2xl bg-[#0c0d11] border border-amber-500/30 flex flex-col items-center justify-center relative shadow-inner overflow-hidden shrink-0">
-                            {vip.logo ? (
+                      {vipTiers.map((vip) => {
+                        const isStarter = parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || String(vip.level).toLowerCase().includes('starter');
+                        return (
+                          <div
+                            key={vip.level}
+                            onClick={() => handleUnlockVip(vip)}
+                            className="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition cursor-pointer active:scale-[0.99]"
+                          >
+                            {/* Left: Official Matching Badge */}
+                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0c0d11] to-[#161822] border border-amber-500/30 flex items-center justify-center p-1.5 relative shadow-inner overflow-hidden shrink-0">
                               <img
-                                src={vip.logo}
+                                src={getPackageLogo(vip)}
                                 alt={vip.level}
-                                className="w-14 h-14 object-contain rounded-xl"
+                                className="w-12 h-12 object-contain rounded-xl"
                                 loading="lazy"
                                 decoding="async"
                               />
-                            ) : (
-                              <>
-                                <div className="absolute inset-0 bg-radial from-amber-500/10 to-transparent"></div>
-                                <Lock className="w-7 h-7 text-white drop-shadow stroke-[2.5]" />
-                                <div className="text-[9px] uppercase tracking-tighter text-amber-300/80 mt-1 font-semibold">
-                                  VIP member only
-                                </div>
-                              </>
-                            )}
-                          </div>
+                            </div>
 
-                          {/* Right: Unlock Amount & Level */}
-                          <div className="flex-1">
-                            <div className="text-xs text-slate-400 font-medium">{t('unlockAmount')}</div>
-                            <div className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
-                              ${vip.deposit}
-                            </div>
-                            <div className="text-xs text-slate-500 font-semibold mt-0.5">
-                              {vip.level}
-                            </div>
-                            {/* Double Chevrons Icon */}
-                            <div className="mt-1 flex text-slate-400">
-                              <ChevronsRight className="w-4 h-4 text-slate-400" />
+                            {/* Right: Unlock Amount & Level */}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-slate-400 font-medium">{t('unlockAmount')}</div>
+                              <div className="text-lg font-black text-slate-900 tracking-tight mt-0.5">
+                                {isStarter ? (
+                                  <span className="text-emerald-600">Free (৳0.00)</span>
+                                ) : (
+                                  <span>৳{vip.deposit}</span>
+                                )}
+                              </div>
+                              <div className="text-xs font-bold text-slate-700 mt-0.5 flex items-center gap-1.5 truncate">
+                                <span>{vip.level}</span>
+                                {isStarter && (
+                                  <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                                    FREE PLAN
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1 flex items-center justify-between text-[11px] text-cyan-700 font-bold">
+                                <span>+৳{vip.daily} / Day (10 Tasks)</span>
+                                <ChevronsRight className="w-4 h-4 text-slate-400 shrink-0" />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -3119,30 +3307,19 @@ export default function App() {
                           )}
 
                           <div className="flex gap-2.5 items-center">
-                            {/* Left Badge Box (Compact & Balanced for Mobile) */}
-                            <div className={`w-16 h-16 rounded-xl flex flex-col items-center justify-center p-1 relative shadow-inner overflow-hidden shrink-0 ${
+                            {/* Left Badge Box (Official Package Motif) */}
+                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center p-1 relative shadow-inner overflow-hidden shrink-0 ${
                               isCurrentUnlocked
                                 ? "bg-gradient-to-br from-[#064e3b] via-[#022c22] to-[#043328] border border-emerald-400/50 shadow-emerald-950/20"
                                 : "bg-[#0c0d11] border border-amber-500/30"
                             }`}>
-                              {vip.logo ? (
-                                <img
-                                  src={vip.logo}
-                                  alt={vipName}
-                                  className="w-11 h-11 object-contain rounded-lg drop-shadow"
-                                  loading="lazy"
-                                  decoding="async"
-                                />
-                              ) : isCurrentUnlocked ? (
-                                <Crown className="w-7 h-7 text-emerald-300 fill-emerald-300 drop-shadow" />
-                              ) : (
-                                <>
-                                  <Crown className="w-5 h-5 text-amber-400 fill-amber-400 drop-shadow" />
-                                  <div className="text-[10px] font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400">
-                                    VIP
-                                  </div>
-                                </>
-                              )}
+                              <img
+                                src={getPackageLogo(vip)}
+                                alt={vipName}
+                                className="w-12 h-12 object-contain rounded-lg drop-shadow"
+                                loading="lazy"
+                                decoding="async"
+                              />
                             </div>
 
                             {/* Middle & Right Specs (Crisp 2x2 Grid) */}
@@ -3152,7 +3329,11 @@ export default function App() {
                                   {vipName}
                                 </span>
                                 <span className="font-black text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                                  Recharge: <b className="text-indigo-600">${vip.deposit}</b>
+                                  {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || vip.level.toLowerCase().includes('starter') ? (
+                                    <span className="text-emerald-600 font-black">Free (৳0.00)</span>
+                                  ) : (
+                                    <span>Recharge: <b className="text-indigo-600">৳{vip.deposit}</b></span>
+                                  )}
                                 </span>
                               </div>
 
@@ -3161,15 +3342,15 @@ export default function App() {
                               }`}>
                                 <div>
                                   <span className="text-[9px] text-slate-500 block leading-tight">Daily Income</span>
-                                  <b className="text-cyan-700 font-extrabold">+{vip.daily} <span className="text-[8px] font-normal text-slate-400">USDT</span></b>
+                                  <b className="text-cyan-700 font-extrabold">+৳{vip.daily} <span className="text-[8px] font-normal text-slate-400">BDT</span></b>
                                 </div>
                                 <div>
-                                  <span className="text-[9px] text-slate-500 block leading-tight">Total Return ({vip.profitPercent || 80}%)</span>
-                                  <b className="text-emerald-600 font-extrabold">{vip.total} <span className="text-[8px] font-normal text-slate-400">USDT</span></b>
+                                  <span className="text-[9px] text-slate-500 block leading-tight">Total Return</span>
+                                  <b className="text-emerald-600 font-extrabold">৳{vip.total} <span className="text-[8px] font-normal text-slate-400">BDT</span></b>
                                 </div>
                                 <div>
                                   <span className="text-[9px] text-slate-500 block leading-tight">Missions / Day</span>
-                                  <b className="text-slate-700">{vip.tasks} Tasks / Day</b>
+                                  <b className="text-slate-700">{vip.tasks || 10} Tasks / Day</b>
                                 </div>
                                 <div>
                                   <span className="text-[9px] text-slate-500 block leading-tight">Package Validity</span>
@@ -3203,16 +3384,24 @@ export default function App() {
                                 className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                               >
                                 <span>Upgrade</span>
-                                <span className="text-cyan-300 font-extrabold">${vip.deposit}</span>
+                                <span className="text-cyan-300 font-extrabold">
+                                  {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 ? 'Free' : `৳${vip.deposit}`}
+                                </span>
                               </button>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => handleUnlockVip(vip)}
-                                className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
+                                className={`text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer ${
+                                  parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || vip.level.toLowerCase().includes('starter')
+                                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 ring-2 ring-emerald-400/30'
+                                    : 'bg-[#05132d] hover:bg-[#0b224d]'
+                                }`}
                               >
-                                <span>Unlock</span>
-                                <span className="text-cyan-300 font-extrabold">${vip.deposit}</span>
+                                <span>{parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 ? 'Unlock Free Plan' : 'Unlock'}</span>
+                                <span className="text-cyan-300 font-extrabold">
+                                  {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 ? '(৳0.00)' : `৳${vip.deposit}`}
+                                </span>
                               </button>
                             )}
                           </div>
@@ -3538,7 +3727,7 @@ export default function App() {
                           <h2 className="text-base font-black text-white mt-1.5 tracking-tight">AI & Blockchain Node Tasks</h2>
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <span className="text-[11px] text-slate-300">
-                              {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+{rewardPerTask.toFixed(2)} USDT</b>
+                              {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+৳{rewardPerTask.toFixed(2)}</b>
                             </span>
                             {userVip && userVip !== 'VIP0' && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs">
@@ -3644,7 +3833,7 @@ export default function App() {
                                   </span>
                                 </div>
                                 <div className="text-[11px] text-slate-500">
-                                  Daily Reward: <b className="text-emerald-600 font-bold">+{rewardPerTask.toFixed(2)} USDT</b>
+                                  Daily Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
                                 </div>
                               </div>
 
@@ -3689,7 +3878,7 @@ export default function App() {
                                   </span>
                                 </div>
                                 <div className="text-[11px] text-slate-500">
-                                  Credited: <b className="text-emerald-600 font-bold">+{rewardPerTask.toFixed(2)} USDT</b>
+                                  Credited: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
                                 </div>
                               </div>
 
@@ -4754,7 +4943,7 @@ export default function App() {
               <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                 <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                   <ArrowUpRight className="w-5 h-5 text-amber-500" />
-                  Withdraw Funds
+                  Withdraw Funds (টাকা উত্তোলন)
                 </h3>
                 <button
                   type="button"
@@ -4774,12 +4963,12 @@ export default function App() {
                         {currentUser?.capitalReleased || (currentUser?.vipExpiresAt && Date.now() >= currentUser.vipExpiresAt) ? 'Earnings + Released Capital' : 'Task Earnings'}
                       </span>
                     </div>
-                    <div className="text-xl font-black text-slate-900 mt-0.5">{balance.toFixed(2)} USDT</div>
+                    <div className="text-xl font-black text-slate-900 mt-0.5">৳{balance.toFixed(2)}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] text-slate-400 font-medium">Min Withdrawal</div>
                     <div className="text-xs font-bold text-indigo-600">
-                      {(typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0 ? settings.minWithdrawal : (parseFloat(settings?.minWithdrawal) || 10.0)).toFixed(2)} USDT
+                      ৳{(typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0 ? settings.minWithdrawal : (parseFloat(settings?.minWithdrawal) || 500)).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -4790,26 +4979,19 @@ export default function App() {
                       <Lock className="w-3 h-3 text-amber-600 shrink-0" />
                       <span>Locked VIP ({getVipDisplayName(userVip, vipTiers)}) Capital:</span>
                     </span>
-                    <strong className="text-amber-800 font-bold">${rechargeTotal.toFixed(2)} USDT</strong>
+                    <strong className="text-amber-800 font-bold">৳{rechargeTotal.toFixed(2)}</strong>
                   </div>
                 )}
               </div>
 
-              {/* Dynamic Account Verification & Method Selector */}
+              {/* Dynamic Saved Accounts Selector */}
               {(() => {
-                const wa = currentUser?.withdrawalAccounts || {};
-                const activeMethods = [];
-                if (wa.bkash?.trim()) activeMethods.push({ name: 'bKash', number: wa.bkash.trim() });
-                if (wa.nagad?.trim()) activeMethods.push({ name: 'Nagad', number: wa.nagad.trim() });
-                if (wa.rocket?.trim()) activeMethods.push({ name: 'Rocket', number: wa.rocket.trim() });
-                if (wa.trc20?.trim()) activeMethods.push({ name: 'USDT (TRC20)', number: wa.trc20.trim() });
-                if (wa.bankAccount?.trim()) activeMethods.push({ name: 'Bank Transfer', number: `${wa.bankName ? wa.bankName + ' - ' : ''}${wa.bankAccount.trim()}`, raw: wa.bankAccount.trim() });
-
+                const userAccounts = getUserAccountsList(currentUser);
                 const minWthLimit = typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0
                   ? settings.minWithdrawal
-                  : (parseFloat(settings?.minWithdrawal) || 10.0);
+                  : (parseFloat(settings?.minWithdrawal) || 500);
 
-                if (activeMethods.length === 0) {
+                if (userAccounts.length === 0) {
                   return (
                     <div className="py-6 px-4 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center space-y-3">
                       <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-500">
@@ -4818,7 +5000,7 @@ export default function App() {
                       <div className="space-y-1">
                         <h4 className="text-xs font-bold text-slate-800">No Withdrawal Account Added</h4>
                         <p className="text-[11px] text-slate-500 max-w-[230px] mx-auto">
-                          Please add your bKash, Nagad, Rocket, or USDT account to proceed with withdrawals.
+                          Please add your bKash, Nagad, Rocket, Bank or USDT account to withdraw.
                         </p>
                       </div>
                       <button
@@ -4829,19 +5011,23 @@ export default function App() {
                         }}
                         className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer"
                       >
-                        <span>+ Add withdrawal accounts (Manage Accounts)</span>
+                        <Plus className="w-4 h-4" />
+                        <span>+ Add Withdrawal Account Now</span>
                       </button>
                     </div>
                   );
                 }
 
+                // If no account is actively selected yet, select the first one
+                const currentSelectedAcc = userAccounts.find(a => a.id === selectedWithdrawAccountId) || userAccounts[0];
+
                 return (
                   <>
-                    {/* Method Selector */}
+                    {/* Method & Saved Account Selection */}
                     <div>
                       <div className="flex justify-between items-center mb-1.5">
                         <label className="block text-xs font-bold text-slate-700">
-                          Select Withdrawal Method
+                          Select Payout Account
                         </label>
                         <button
                           type="button"
@@ -4849,68 +5035,104 @@ export default function App() {
                             setShowWithdrawModal(false);
                             handleOpenWithdrawAccounts();
                           }}
-                          className="text-[10px] text-indigo-600 hover:underline font-bold cursor-pointer"
+                          className="text-[10px] text-indigo-600 hover:underline font-bold cursor-pointer flex items-center gap-0.5"
                         >
-                          Manage Accounts &gt;
+                          <Plus className="w-3 h-3" />
+                          <span>Add New / Manage &gt;</span>
                         </button>
                       </div>
-                      <div className={`grid ${activeMethods.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
-                        {activeMethods.map((m) => (
+
+                      <div className="space-y-1.5 max-h-[160px] overflow-y-auto no-scrollbar pr-0.5">
+                        {userAccounts.map((acc) => {
+                          const isSelected = (selectedWithdrawAccountId && selectedWithdrawAccountId === acc.id) ||
+                                            (!selectedWithdrawAccountId && currentSelectedAcc?.id === acc.id);
+                          return (
+                            <button
+                              type="button"
+                              key={acc.id}
+                              onClick={() => {
+                                setSelectedWithdrawAccountId(acc.id);
+                                setWithdrawMethod(acc.type);
+                                setWithdrawAccountInput(acc.number);
+                              }}
+                              className={`w-full p-2.5 text-xs rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                                isSelected
+                                  ? 'bg-[#05132d] text-white border-[#05132d] shadow-sm'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <div className="space-y-0.5 min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-extrabold">{acc.type}</span>
+                                  {acc.bankName && (
+                                    <span className={`text-[9px] px-1 py-0.2 rounded font-medium truncate max-w-[120px] ${
+                                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                                    }`}>
+                                      {acc.bankName}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className={`text-[11px] truncate ${isSelected ? 'text-slate-200' : 'text-slate-500'}`}>
+                                  {acc.holder} • <span className="font-mono font-bold">{acc.number}</span>
+                                </div>
+                              </div>
+
+                              {isSelected && (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 ml-2" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Amount Input */}
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-xs font-bold text-slate-700">
+                          Withdrawal Amount (BDT)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setWithdrawAmount(String(Math.floor(balance)))}
+                          className="text-[10px] text-cyan-700 font-bold hover:underline cursor-pointer"
+                        >
+                          All: ৳{balance.toFixed(2)}
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">৳</span>
+                        <input
+                          type="number"
+                          step="1"
+                          value={withdrawAmount}
+                          onChange={(e) => setWithdrawAmount(e.target.value)}
+                          placeholder={`Enter amount (Min ৳${minWthLimit})`}
+                          className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl pl-8 pr-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500 focus:bg-white transition"
+                        />
+                      </div>
+
+                      {/* Quick Amount Chips */}
+                      <div className="flex gap-1.5 mt-2">
+                        {[500, 1000, 2000, 5000].map((amt) => (
                           <button
+                            key={amt}
                             type="button"
-                            key={m.name}
-                            onClick={() => {
-                              setWithdrawMethod(m.name);
-                              setWithdrawAccountInput(m.raw || m.number);
-                            }}
-                            className={`p-2.5 text-xs font-bold rounded-xl border text-left transition cursor-pointer flex flex-col justify-center ${
-                              withdrawMethod === m.name
-                                ? 'bg-[#05132d] text-white border-[#05132d] shadow-sm'
-                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                            }`}
+                            onClick={() => setWithdrawAmount(String(amt))}
+                            className="flex-1 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold transition cursor-pointer text-center"
                           >
-                            <span className="font-extrabold">{m.name}</span>
-                            <span className="text-[10px] opacity-75 font-mono truncate mt-0.5">{m.number}</span>
+                            ৳{amt}
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Account Input / Display */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        {withdrawMethod} Account / Number
-                      </label>
-                      <input
-                        type="text"
-                        value={withdrawAccountInput}
-                        onChange={(e) => setWithdrawAccountInput(e.target.value)}
-                        placeholder={`Enter your ${withdrawMethod} number or address`}
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                      />
-                    </div>
-
-                    {/* Amount Input */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Withdrawal Amount (USDT)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={withdrawAmount}
-                        onChange={(e) => setWithdrawAmount(e.target.value)}
-                        placeholder={`Enter amount (Min ${minWthLimit} USDT)`}
-                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-bold outline-none focus:border-indigo-500 focus:bg-white transition"
-                      />
-                    </div>
-
                     <button
                       type="button"
                       onClick={handleWithdrawSubmit}
-                      className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
+                      className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3.5 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
                     >
-                      Confirm Withdrawal
+                      Confirm Withdrawal (উত্তোলন নিশ্চিত করুন)
                     </button>
                   </>
                 );
@@ -5265,108 +5487,211 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= MODAL: WITHDRAWAL ACCOUNTS (SEPARATE PAGE) ================= */}
-        {showWithdrawAccountsModal && (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-            <div className="bg-white rounded-3xl w-full max-w-[370px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[90%] flex flex-col">
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
-                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-cyan-600" />
-                  Withdrawal Accounts
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowWithdrawAccountsModal(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-                >
-                  ✕
-                </button>
+        {/* ================= MODAL: WITHDRAWAL ACCOUNTS (MULTI-ACCOUNT MANAGEMENT) ================= */}
+        {showWithdrawAccountsModal && (() => {
+          const userAccounts = getUserAccountsList(currentUser);
+
+          return (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-[370px] p-5 space-y-4 shadow-2xl border border-slate-100 max-h-[90%] flex flex-col">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-sm">
+                        {showAddAccountForm ? 'Add Withdrawal Account' : 'My Withdrawal Accounts'}
+                      </h3>
+                      <p className="text-[10px] text-slate-400">
+                        {showAddAccountForm ? 'Save bKash, Nagad, Rocket, Bank or USDT' : `${userAccounts.length} saved account(s)`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWithdrawAccountsModal(false);
+                      setShowAddAccountForm(false);
+                    }}
+                    className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {showAddAccountForm ? (
+                  /* Form to Add New Account */
+                  <form onSubmit={handleSaveNewAccount} className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1 text-xs">
+                    {/* Method Type Selector */}
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1.5">Select Account Type</label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {['bKash', 'Nagad', 'Rocket', 'Bank Transfer', 'USDT (TRC20)'].map((tName) => (
+                          <button
+                            key={tName}
+                            type="button"
+                            onClick={() => setNewAccType(tName)}
+                            className={`p-2 rounded-xl text-[11px] font-bold border transition cursor-pointer text-center ${
+                              newAccType === tName
+                                ? 'bg-[#05132d] text-white border-[#05132d] shadow-sm'
+                                : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {tName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Account Holder Name */}
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">
+                        Account Holder Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newAccHolder}
+                        onChange={(e) => setNewAccHolder(e.target.value)}
+                        placeholder="e.g. Md. Khalid Hasan"
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+
+                    {/* Bank Name if Bank Transfer */}
+                    {newAccType === 'Bank Transfer' && (
+                      <div>
+                        <label className="block text-slate-700 font-bold mb-1">
+                          Bank Name & Branch <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newAccBankName}
+                          onChange={(e) => setNewAccBankName(e.target.value)}
+                          placeholder="e.g. Islami Bank, Gulshan Branch"
+                          className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                        />
+                      </div>
+                    )}
+
+                    {/* Account / Phone Number / Wallet Address */}
+                    <div>
+                      <label className="block text-slate-700 font-bold mb-1">
+                        {newAccType === 'USDT (TRC20)' ? 'TRC20 Wallet Address' : `${newAccType} Account / Phone Number`} <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newAccNumber}
+                        onChange={(e) => setNewAccNumber(e.target.value)}
+                        placeholder={newAccType === 'USDT (TRC20)' ? 'Paste TRC20 address (Starts with T)' : 'e.g. 017XXXXXXXX'}
+                        className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
+                      />
+                    </div>
+
+                    <div className="pt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddAccountForm(false)}
+                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 rounded-xl transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-2.5 rounded-xl shadow-md active:scale-95 transition cursor-pointer"
+                      >
+                        Save Account
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  /* List of Saved Accounts */
+                  <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 font-medium text-[11px]">Saved Payment Methods</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewAccHolder(currentUser?.name || '');
+                          setNewAccNumber('');
+                          setNewAccBankName('');
+                          setShowAddAccountForm(true);
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-xs active:scale-95 transition cursor-pointer"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add New Account</span>
+                      </button>
+                    </div>
+
+                    {userAccounts.length === 0 ? (
+                      <div className="py-8 px-4 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-center space-y-3 my-2">
+                        <div className="w-12 h-12 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-600 flex items-center justify-center mx-auto">
+                          <CreditCard className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold text-slate-800">No Accounts Saved Yet</h4>
+                          <p className="text-[11px] text-slate-500 max-w-[220px] mx-auto">
+                            Add your bKash, Nagad, Rocket, Bank or USDT account to withdraw your earnings anytime.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewAccHolder(currentUser?.name || '');
+                            setNewAccNumber('');
+                            setNewAccBankName('');
+                            setShowAddAccountForm(true);
+                          }}
+                          className="bg-[#05132d] hover:bg-slate-900 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer mx-auto"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Account Now</span>
+                        </button>
+                      </div>
+                    ) : (
+                      userAccounts.map((acc) => (
+                        <div
+                          key={acc.id}
+                          className="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-2xl border border-slate-200/80 flex items-center justify-between transition"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black text-xs text-slate-900">{acc.type}</span>
+                              {acc.bankName && (
+                                <span className="text-[10px] bg-indigo-50 text-indigo-700 font-semibold px-1.5 py-0.2 rounded-md">
+                                  {acc.bankName}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-slate-600 font-medium">
+                              Holder: <b>{acc.holder || 'User'}</b>
+                            </div>
+                            <div className="text-xs font-mono font-bold text-slate-900 tracking-wide">
+                              {acc.number}
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSavedAccount(acc.id)}
+                            className="w-8 h-8 rounded-xl bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer shrink-0"
+                            title="Remove account"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
-
-              <p className="text-[11px] text-slate-500 leading-tight">
-                Add or manage your withdrawal accounts. These saved accounts will appear on your withdrawal screen for 1-click payouts.
-              </p>
-
-              <form onSubmit={handleSaveWithdrawAccounts} className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1 text-xs">
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">bKash Account Number</label>
-                  <input
-                    type="tel"
-                    value={profileBkash}
-                    onChange={(e) => setProfileBkash(e.target.value)}
-                    placeholder="e.g. 01712345678"
-                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Nagad Account Number</label>
-                  <input
-                    type="tel"
-                    value={profileNagad}
-                    onChange={(e) => setProfileNagad(e.target.value)}
-                    placeholder="e.g. 01812345678"
-                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">Rocket Account Number</label>
-                  <input
-                    type="tel"
-                    value={profileRocket}
-                    onChange={(e) => setProfileRocket(e.target.value)}
-                    placeholder="e.g. 01912345678"
-                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-bold mb-1">USDT (TRC20) Wallet Address</label>
-                  <input
-                    type="text"
-                    value={profileTrc20}
-                    onChange={(e) => setProfileTrc20(e.target.value)}
-                    placeholder="Paste TRC20 address (Starts with T)"
-                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <div className="font-bold text-slate-800">Bank Account Details (Optional)</div>
-                  <input
-                    type="text"
-                    value={profileBankName}
-                    onChange={(e) => setProfileBankName(e.target.value)}
-                    placeholder="Bank Name (e.g. Islami Bank)"
-                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                  <input
-                    type="text"
-                    value={profileBankHolder}
-                    onChange={(e) => setProfileBankHolder(e.target.value)}
-                    placeholder="Account Holder Name"
-                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                  <input
-                    type="text"
-                    value={profileBankAccount}
-                    onChange={(e) => setProfileBankAccount(e.target.value)}
-                    placeholder="Account Number"
-                    className="w-full bg-[#f4f7fb] border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono font-medium outline-none focus:border-indigo-500 focus:bg-white transition"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#05132d] hover:bg-[#091f4b] text-white text-xs font-bold py-3 rounded-full shadow-lg active:scale-95 transition cursor-pointer shrink-0 mt-3"
-                >
-                  Save Withdrawal Accounts
-                </button>
-              </form>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ================= CHANGE PASSWORD MODAL (OLD TO NEW) ================= */}
         {showPasswordModal && (

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bkGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#854d0e"/>
+    </linearGradient>
+    <linearGradient id="bkBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="50%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="bkGlow" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="bkShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <!-- Outer Gold Rim -->
+  <circle cx="64" cy="64" r="58" fill="url(#bkGold)" filter="url(#bkShadow)"/>
+  <circle cx="64" cy="64" r="54" fill="#0f172a"/>
+  <!-- Inner Blue Gem -->
+  <circle cx="64" cy="64" r="50" fill="url(#bkBlue)"/>
+  <circle cx="64" cy="64" r="50" fill="url(#bkGlow)"/>
+  <circle cx="64" cy="64" r="46" fill="none" stroke="url(#bkGold)" stroke-width="2" stroke-dasharray="4 2"/>
+  <!-- Central Globe & Star -->
+  <g transform="translate(64,60) scale(0.85) translate(-64,-60)">
+    <!-- Globe -->
+    <circle cx="64" cy="60" r="26" fill="#1e40af" stroke="url(#bkGold)" stroke-width="2.5"/>
+    <ellipse cx="64" cy="60" rx="26" ry="11" fill="none" stroke="url(#bkGold)" stroke-width="1.8"/>
+    <ellipse cx="64" cy="60" rx="13" ry="26" fill="none" stroke="url(#bkGold)" stroke-width="1.8"/>
+    <line x1="38" y1="60" x2="90" y2="60" stroke="url(#bkGold)" stroke-width="2"/>
+    <line x1="64" y1="34" x2="64" y2="86" stroke="url(#bkGold)" stroke-width="2"/>
+    <!-- Overlaid Star -->
+    <polygon points="64,36 67,48 80,48 69,56 73,68 64,60 55,68 59,56 48,48 61,48" fill="#fef08a" stroke="#ca8a04" stroke-width="1"/>
+  </g>
+  <!-- Mini Banner -->
+  <rect x="30" y="98" width="68" height="18" rx="9" fill="#0f172a" stroke="url(#bkGold)" stroke-width="1.5"/>
+  <text x="64" y="110" font-family="Arial, sans-serif" font-size="9" font-weight="900" fill="#93c5fd" text-anchor="middle" letter-spacing="1">BASIC</text>
+</svg>
