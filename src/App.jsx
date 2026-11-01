@@ -2753,11 +2753,17 @@ export default function App() {
                         >
                           {/* Left: Dark Padlocked VIP Badge */}
                           <div className="w-20 h-20 rounded-2xl bg-[#0c0d11] border border-amber-500/30 flex flex-col items-center justify-center relative shadow-inner overflow-hidden shrink-0">
-                            <div className="absolute inset-0 bg-radial from-amber-500/10 to-transparent"></div>
-                            <Lock className="w-7 h-7 text-white drop-shadow stroke-[2.5]" />
-                            <div className="text-[9px] uppercase tracking-tighter text-amber-300/80 mt-1 font-semibold">
-                              VIP member only
-                            </div>
+                            {vip.logo ? (
+                              <img src={vip.logo} alt={vip.level} className="w-14 h-14 object-contain rounded-xl" />
+                            ) : (
+                              <>
+                                <div className="absolute inset-0 bg-radial from-amber-500/10 to-transparent"></div>
+                                <Lock className="w-7 h-7 text-white drop-shadow stroke-[2.5]" />
+                                <div className="text-[9px] uppercase tracking-tighter text-amber-300/80 mt-1 font-semibold">
+                                  VIP member only
+                                </div>
+                              </>
+                            )}
                           </div>
 
                           {/* Right: Unlock Amount & Level */}
@@ -2863,7 +2869,16 @@ export default function App() {
                                 ? "bg-gradient-to-br from-[#064e3b] via-[#022c22] to-[#043328] border border-emerald-400/50 shadow-emerald-950/20 shadow-md"
                                 : "bg-[#0c0d11] border border-amber-500/30"
                             }`}>
-                              {isCurrentUnlocked ? (
+                              {vip.logo ? (
+                                <div className="relative flex flex-col items-center justify-center w-full h-full">
+                                  <img src={vip.logo} alt={vip.level} className="w-16 h-16 object-contain rounded-xl drop-shadow" />
+                                  {isCurrentUnlocked && (
+                                    <div className="absolute bottom-0 text-[7px] uppercase tracking-wider text-emerald-100 font-extrabold bg-emerald-800/90 px-1 py-0.2 rounded shadow-xs">
+                                      UNLOCKED
+                                    </div>
+                                  )}
+                                </div>
+                              ) : isCurrentUnlocked ? (
                                 <>
                                   <Crown className="w-5 h-5 text-emerald-300 mb-0.5 fill-emerald-300 drop-shadow" />
                                   <div className="text-base font-black tracking-wider text-emerald-300">
@@ -3494,17 +3509,6 @@ export default function App() {
                       <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setShowRecordsModal(true)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-slate-50 text-left transition cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-emerald-500" />
-                        <span className="text-sm font-medium text-slate-800">Financial Records</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400" />
-                    </button>
 
                     <button
                       type="button"
