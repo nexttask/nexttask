@@ -982,24 +982,27 @@ export default function App() {
       });
     }
 
-    // 2. Purchased VIP Packages in currentUser.activePackages
+    // 2. Purchased VIP Packages in currentUser.activePackages (exclude any duplicate starter)
     if (Array.isArray(currentUser.activePackages)) {
       currentUser.activePackages.forEach((pkg, idx) => {
-        if (pkg && pkg.expiresAt && now < pkg.expiresAt) {
-          // Link dynamically with live admin VIP tier settings
-          const matchingTier = vipTiers.find((v) => v.id === pkg.packId || v.level === pkg.level) || pkg;
-          list.push({
-            ...pkg,
-            instanceId: pkg.instanceId || `pkg_${pkg.packId || idx}_${pkg.activatedAt}`,
-            level: matchingTier.level || pkg.level,
-            daily: matchingTier.daily || pkg.daily,
-            interest: matchingTier.interest || pkg.interest,
-            tasks: parseInt(matchingTier.tasks) || parseInt(pkg.tasks) || 5,
-            deposit: matchingTier.deposit || pkg.deposit,
-            logo: getPackageLogo(matchingTier),
-            isStarter: false
-          });
-        }
+        if (!pkg || !pkg.expiresAt || now >= pkg.expiresAt) return;
+        const isPkgStarter = String(pkg.level || '').toLowerCase().includes('starter') || pkg.isStarter;
+        // Never add starter package twice!
+        if (isPkgStarter && list.some((p) => p.isStarter)) return;
+
+        // Link dynamically with live admin VIP tier settings
+        const matchingTier = vipTiers.find((v) => v.id === pkg.packId || v.level === pkg.level) || pkg;
+        list.push({
+          ...pkg,
+          instanceId: pkg.instanceId || `pkg_${pkg.packId || idx}_${pkg.activatedAt}`,
+          level: matchingTier.level || pkg.level,
+          daily: matchingTier.daily || pkg.daily,
+          interest: matchingTier.interest || pkg.interest,
+          tasks: parseInt(matchingTier.tasks) || parseInt(pkg.tasks) || 5,
+          deposit: matchingTier.deposit || pkg.deposit,
+          logo: getPackageLogo(matchingTier),
+          isStarter: isPkgStarter
+        });
       });
     }
 
@@ -1126,7 +1129,7 @@ export default function App() {
     };
 
     const currentActive = Array.isArray(currentUser?.activePackages) ? currentUser.activePackages : [];
-    const updatedActive = [...currentActive.filter((p) => p.instanceId !== 'starter_active'), starterInstance];
+    const updatedActive = currentActive.filter((p) => !String(p?.level || '').toLowerCase().includes('starter') && p?.instanceId !== 'starter_active');
 
     const updatedUser = {
       ...currentUser,
@@ -1140,7 +1143,7 @@ export default function App() {
     const allUsers = getStoredData('users', DEFAULT_USERS);
     setStoredData('users', allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u));
     showToast(`🎉 Free Starter Package activated! You have ${tasksCount} daily tasks for ${starterDays} days (৳${starterTier?.daily || '20.00'}/day).`);
-    setSelectedTaskPackId(starterInstance.instanceId);
+    setSelectedTaskPackId('starter_active');
   };
 
   const getUserTasksKey = (u) => {
@@ -3785,7 +3788,7 @@ export default function App() {
                                   onClick={() => handleUnlockVip(vip)}
                                   className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm active:scale-95 transition cursor-pointer inline-flex items-center gap-1"
                                 >
-                                  <span>+ Add Pack</span>
+                                  <span>+ Upgrade</span>
                                 </button>
                               ) : (
                                 <button
@@ -3793,7 +3796,7 @@ export default function App() {
                                   onClick={() => handleUnlockVip(vip)}
                                   className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition cursor-pointer"
                                 >
-                                  Unlock
+                                  Upgrade
                                 </button>
                               )}
                             </div>
@@ -4346,7 +4349,7 @@ export default function App() {
                             onClick={() => navigateToTab('vip')}
                             className="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition cursor-pointer py-1"
                           >
-                            + Unlock More VIP Packages
+                            + Upgrade to VIP Package
                           </button>
                         </div>
                       </div>
@@ -5123,15 +5126,15 @@ export default function App() {
                   <p className="text-slate-600 text-xs leading-relaxed mt-2 px-1">
                     {isFree ? (
                       <span>
-                        Starter Package is <b>100% Free</b> for all members! Unlock now to receive <b>10 daily tasks</b> and earn <b>৳50.00 BDT</b> daily.
+                        Starter Package is <b>100% Free</b> for all members! Claim now to receive <b>5 daily tasks</b> and earn <b>৳20.00 BDT</b> daily for 7 days.
                       </span>
                     ) : hasSufficient ? (
                       <span>
-                        Unlock <b>{selectedVipForUnlock.level}</b> using your current balance? <b>৳{selectedVipForUnlock.deposit} BDT</b> will be activated for this package.
+                        Upgrade to <b>{selectedVipForUnlock.level}</b> using your current balance? <b>৳{selectedVipForUnlock.deposit} BDT</b> will be activated for this package.
                       </span>
                     ) : (
                       <span>
-                        Unlocking <b>{selectedVipForUnlock.level}</b> requires a deposit of <b>৳{selectedVipForUnlock.deposit} BDT</b>. Please recharge your account to activate.
+                        Upgrading to <b>{selectedVipForUnlock.level}</b> requires a deposit of <b>৳{selectedVipForUnlock.deposit} BDT</b>. Please recharge your account to activate.
                       </span>
                     )}
                   </p>
@@ -5149,10 +5152,10 @@ export default function App() {
                     }`}
                   >
                     {isFree
-                      ? 'Unlock for Free (৳0.00)'
+                      ? 'Claim Free Starter (৳0.00)'
                       : hasSufficient
-                      ? `Confirm Unlock (৳${selectedVipForUnlock.deposit})`
-                      : `Proceed to Recharge (৳${selectedVipForUnlock.deposit})`}
+                      ? `Confirm Upgrade (৳${selectedVipForUnlock.deposit})`
+                      : `Recharge to Upgrade (৳${selectedVipForUnlock.deposit})`}
                   </button>
                   <button
                     type="button"
