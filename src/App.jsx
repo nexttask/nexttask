@@ -881,6 +881,7 @@ export default function App() {
   const [withdrawMethod, setWithdrawMethod] = useState('bKash');
   const [withdrawAccountInput, setWithdrawAccountInput] = useState('');
   const [withdrawalSuccessDetails, setWithdrawalSuccessDetails] = useState(null);
+  const [rechargeSuccessDetails, setRechargeSuccessDetails] = useState(null);
 
   // Automatically select the user's first configured withdrawal account
   useEffect(() => {
@@ -2629,11 +2630,15 @@ export default function App() {
             }
             setTimeout(() => {
               setIsVerifyingPayment(false);
-              navigateToTab('profile');
-              setShowRecordsModal(true);
-              setRecordTab('deposit');
-              showToast('Payment submitted to admin queue for review');
-            }, 3000);
+              setRechargeSuccessDetails({
+                id: newRecord.id,
+                amount: numAmount,
+                method: currentMethod,
+                senderAccount: cleanSender,
+                trxId: cleanTrxId,
+                date: newRecord.date
+              });
+            }, 1000);
           }
         }
       }, 1000);
@@ -2666,7 +2671,14 @@ export default function App() {
     setShowRechargeModal(false);
     setSenderAccount('');
     setTransactionId('');
-    showToast(`Recharge of ৳${numAmount.toFixed(2)} submitted! Admin will verify soon.`);
+    setRechargeSuccessDetails({
+      id: newRecord.id,
+      amount: numAmount,
+      method: currentMethod,
+      senderAccount: cleanSender,
+      trxId: cleanTrxId,
+      date: newRecord.date
+    });
   };
 
     const filteredCountries = COUNTRY_LIST.filter((c) => {
@@ -5266,7 +5278,7 @@ export default function App() {
 
         {/* ================= RECHARGE / DEPOSIT MODAL (bKash / Nagad / Rocket / USDT) ================= */}
         {showRechargeModal && (
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 animate-fade-in">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-3 animate-fade-in">
             <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden max-h-[92%] flex flex-col animate-slide-up shadow-2xl border border-slate-100">
               
               {/* Luxury Midnight Header */}
@@ -5275,22 +5287,18 @@ export default function App() {
                 <div className="relative flex justify-between items-center">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
-                      <ArrowDownLeft className="w-5 h-5" />
+                      <ArrowDownLeft className="w-5 h-5 stroke-[2.5]" />
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
                         <h3 className="font-extrabold text-white text-base tracking-tight">
                           {rechargeStep === 1 ? 'Recharge Deposit' : 'Payment Checkout'}
                         </h3>
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${
-                          settings?.paymentGatewayMode === 'automated'
-                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
-                            : 'bg-cyan-400/20 text-cyan-300 border-cyan-400/30'
-                        }`}>
-                          {settings?.paymentGatewayMode === 'automated' ? '⚡ P2P Auto Gateway' : 'Standard Deposit'}
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                          {settings?.paymentGatewayMode === 'automated' ? '⚡ Auto Gateway' : 'Secure Deposit'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-300 font-medium">Safe & Encrypted Cloud Settlement</p>
+                      <p className="text-[11px] text-slate-300/90 font-medium">Safe & Encrypted Cloud Settlement</p>
                     </div>
                   </div>
                   <button
@@ -5309,7 +5317,7 @@ export default function App() {
                     <span>Current Balance:</span>
                   </div>
                   <span className="font-extrabold text-cyan-300 tracking-wide font-mono">
-                    ৳{(currentUser?.balance || 0).toFixed(2)} BDT
+                    ৳{((rechargeTotal || 0) + (balance || 0)).toFixed(2)} BDT
                   </span>
                 </div>
               </div>
@@ -5317,7 +5325,7 @@ export default function App() {
               {/* Scrollable Body: Step 1 vs Step 2 */}
               {rechargeStep === 1 ? (
                 /* ================= STEP 1: AMOUNT SELECTION & PAY NOW ================= */
-                <div className="p-4 sm:p-5 space-y-5 overflow-y-auto animate-fade-in">
+                <div className="p-4 sm:p-5 space-y-4 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full animate-fade-in">
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
                       <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
@@ -5336,7 +5344,7 @@ export default function App() {
                         value={rechargeAmount}
                         onChange={(e) => setRechargeAmount(e.target.value)}
                         placeholder="Amount"
-                        className="w-full bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-cyan-600 rounded-2xl pl-8 pr-16 py-3 text-lg font-black text-slate-900 outline-none transition shadow-inner font-mono"
+                        className="w-full bg-slate-50 focus:bg-white border-2 border-slate-200 focus:border-cyan-600 rounded-2xl pl-8 pr-16 py-3 text-lg font-black text-slate-900 outline-none transition shadow-xs font-mono"
                       />
                       <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase tracking-wider">
                         BDT
@@ -5345,8 +5353,10 @@ export default function App() {
 
                     {/* Quick Amount Selectors */}
                     <div className="grid grid-cols-4 gap-1.5 mt-2.5">
-                      {['500.00', '1,000.00', '2,000.00', '5,000.00', '10,000.00', '25,000.00', '50,000.00', '100,000.00'].map((amt) => {
-                        const isActive = rechargeAmount === amt;
+                      {['500', '1,000', '2,000', '5,000', '10,000', '25,000', '50,000', '100,000'].map((amt) => {
+                        const numAmt = parseFloat(amt.replace(/,/g, ''));
+                        const currentNum = parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0;
+                        const isActive = currentNum === numAmt;
                         return (
                           <button
                             key={amt}
@@ -5358,7 +5368,7 @@ export default function App() {
                                 : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
                             }`}
                           >
-                            ৳{amt.split('.')[0]}
+                            ৳{amt}
                           </button>
                         );
                       })}
@@ -5379,7 +5389,7 @@ export default function App() {
                       }
                       setRechargeStep(2);
                     }}
-                    className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-600 hover:brightness-110 text-white font-black py-4 rounded-2xl text-sm uppercase tracking-wider shadow-xl shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer"
+                    className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-600 hover:brightness-110 text-white font-black py-4 rounded-2xl text-sm uppercase tracking-wider shadow-lg shadow-blue-950/25 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer"
                   >
                     <span>Pay Now</span>
                     <span className="text-cyan-300 font-mono">
@@ -5388,18 +5398,14 @@ export default function App() {
                     <ChevronRight className="w-5 h-5 text-cyan-300" />
                   </button>
 
-                  <div className="flex items-center justify-center gap-2 text-[11px] font-semibold text-slate-400">
+                  <div className="flex items-center justify-center gap-2 text-[11px] font-semibold text-slate-400 pt-0.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                    <span>
-                      {settings?.paymentGatewayMode === 'automated'
-                        ? 'Automated P2P Live Verification Network'
-                        : 'Official 256-Bit Encrypted Security'}
-                    </span>
+                    <span>Official 256-Bit Encrypted Security</span>
                   </div>
                 </div>
               ) : (
                 /* ================= STEP 2: CHECKOUT (GATEWAYS, NUMBER COPY, TRXID) ================= */
-                <div className="p-4 space-y-4 overflow-y-auto animate-fade-in">
+                <div className="p-4 space-y-3.5 overflow-y-auto max-h-[75vh] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full animate-fade-in">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <button
                       type="button"
@@ -5444,7 +5450,7 @@ export default function App() {
                               <img
                                 src={getPaymentLogo(pm)}
                                 alt={pm.method}
-                                className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200/90 p-0.5 shrink-0 shadow-sm"
+                                className="w-8 h-8 rounded-xl object-contain bg-white border border-slate-200/90 p-0.5 shrink-0 shadow-xs"
                                 loading="eager"
                                 decoding="async"
                                 onError={(e) => { e.currentTarget.src = '/logos/usdt.svg'; }}
@@ -5455,7 +5461,7 @@ export default function App() {
                               </div>
                             </div>
                             {isSelected && (
-                              <div className="w-4 h-4 rounded-full bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                              <div className="w-4 h-4 rounded-full bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-xs">
                                 <Check className="w-2.5 h-2.5 stroke-[3]" />
                               </div>
                             )}
@@ -5467,7 +5473,7 @@ export default function App() {
 
                   {/* Official Receiver Luxury Card */}
                   {selectedPaymentMethod && (
-                    <div className="relative overflow-hidden bg-gradient-to-br from-[#0c1424] via-[#09152e] to-[#040c1a] border border-cyan-500/30 rounded-2xl p-3.5 text-white shadow-xl space-y-3">
+                    <div className="relative overflow-hidden bg-gradient-to-br from-[#0c1424] via-[#09152e] to-[#040c1a] border border-cyan-500/30 rounded-2xl p-3.5 text-white shadow-xl space-y-2.5">
                       <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
 
                       <div className="flex justify-between items-center gap-2">
@@ -5515,7 +5521,7 @@ export default function App() {
 
                       {/* Rate conversion for BDT methods */}
                       {selectedPaymentMethod.rate > 1 && (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex justify-between items-center text-xs">
+                        <div className="bg-white/5 border border-white/10 rounded-xl p-2 flex justify-between items-center text-xs">
                           <div className="space-y-0.5">
                             <div className="text-slate-300 text-[11px] font-medium">Payable in BDT:</div>
                             <div className="text-[10px] text-cyan-300 font-mono">
@@ -5974,6 +5980,99 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     setWithdrawalSuccessDetails(null);
+                    const rawBot = (settings?.telegramBotUsername || '@NextTask_SupportBot').replace(/^@/, '').trim();
+                    window.open(`https://t.me/${rawBot}`, '_blank');
+                  }}
+                  className="w-full text-blue-600 hover:text-blue-800 font-bold py-1.5 text-xs transition cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Send className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Contact 24/7 Telegram Support</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= RECHARGE SUBMISSION SUCCESS MODAL ================= */}
+        {rechargeSuccessDetails && (
+          <div
+            onClick={() => setRechargeSuccessDetails(null)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 cursor-default"
+            >
+              {/* Animated checkmark circle */}
+              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                <CheckCircle2 className="w-9 h-9 text-emerald-600" />
+              </div>
+
+              <div>
+                <h4 className="text-lg font-black text-slate-900 tracking-tight">
+                  Recharge Submitted!
+                </h4>
+                <p className="text-xs text-slate-500 mt-1">
+                  Thank you! Your deposit request has been submitted successfully.
+                </p>
+              </div>
+
+              {/* Transaction details card */}
+              <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70 text-left space-y-2 text-xs font-medium">
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Recharge Amount:</span>
+                  <span className="font-bold text-slate-900 font-mono text-sm text-emerald-600">
+                    ৳{rechargeSuccessDetails.amount.toFixed(2)} BDT
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Payment Gateway:</span>
+                  <span className="font-bold text-slate-800">{rechargeSuccessDetails.method}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Sender Account:</span>
+                  <span className="font-bold font-mono text-slate-800">{rechargeSuccessDetails.senderAccount}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Transaction ID (TrxID):</span>
+                  <span className="font-bold font-mono text-slate-800">{rechargeSuccessDetails.trxId}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-400 text-[11px] border-t border-slate-200/60 pt-1.5">
+                  <span>Request ID:</span>
+                  <span className="font-mono">{rechargeSuccessDetails.id}</span>
+                </div>
+              </div>
+
+              {/* Highlighted Expected Processing Time Banner (1 to 15 Minutes) */}
+              <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/80 rounded-2xl p-3.5 text-center space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-center gap-1.5 text-emerald-950 font-black text-xs">
+                  <Clock className="w-4 h-4 text-emerald-600" />
+                  <span>Processing Time: 1 Min – 15 Minutes</span>
+                </div>
+                <p className="text-[11px] text-emerald-950 leading-relaxed font-medium">
+                  Your funds will be verified and added to your <b>Balance</b> within <b>1 minute to 15 minutes</b>.
+                </p>
+                <p className="text-[10px] text-emerald-900/80 pt-0.5 border-t border-emerald-200/60 mt-1">
+                  If balance is not credited after 15 minutes, please tap below to contact our 24/7 Telegram Support desk with your TrxID.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRechargeSuccessDetails(null);
+                    setShowRecordsModal(true);
+                    setRecordsTab('deposit');
+                  }}
+                  className="w-full bg-[#05132d] hover:bg-[#0b2457] text-white font-bold py-3 px-5 rounded-full shadow-lg active:scale-95 transition text-xs cursor-pointer"
+                >
+                  OK, Got It
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRechargeSuccessDetails(null);
                     const rawBot = (settings?.telegramBotUsername || '@NextTask_SupportBot').replace(/^@/, '').trim();
                     window.open(`https://t.me/${rawBot}`, '_blank');
                   }}
