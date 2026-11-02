@@ -1504,9 +1504,9 @@ export default function AdminPanel({ onNavigateToApp }) {
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 bg-emerald-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm animate-fade-in max-w-[90vw]">
+        <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 bg-emerald-500 text-slate-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm animate-fade-in max-w-[90vw] w-fit">
           <CheckCircle className="w-4 h-4 shrink-0" />
-          <span className="truncate">{toast}</span>
+          <span className="line-clamp-2 leading-snug">{toast}</span>
         </div>
       )}
 

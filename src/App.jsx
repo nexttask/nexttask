@@ -2820,13 +2820,15 @@ export default function App() {
           </div>
         )}
         
-        {/* Toast Alert */}
+        {/* Toast Alert (1 Line for short text, 2 Lines for longer text) */}
         {toastMessage && (
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[120] bg-[#071739]/95 text-white text-xs px-5 py-2.5 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2.5 border border-slate-700/80 animate-fade-in pointer-events-none select-none max-w-[90vw]">
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[120] bg-[#071739]/95 text-white text-xs px-4 sm:px-5 py-2.5 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 border border-slate-700/80 animate-fade-in pointer-events-none select-none max-w-[92vw] w-fit">
             <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
               <Check className="w-3.5 h-3.5 stroke-[3]" />
             </div>
-            <span className="font-bold tracking-tight text-slate-100">{toastMessage}</span>
+            <span className="font-bold tracking-tight text-slate-100 leading-snug line-clamp-2 text-left">
+              {toastMessage}
+            </span>
           </div>
         )}
 
