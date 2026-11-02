@@ -2485,7 +2485,7 @@ export default function App() {
 
   // User submits deposit form with Sender account and Transaction ID (TrxID)
   const handleSubmitRecharge = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!senderAccount.trim()) {
       showToast('Please enter your sender account number');
       return;
@@ -2498,23 +2498,18 @@ export default function App() {
     const currentMethod = selectedPaymentMethod?.method || 'bKash';
     const isCrypto = currentMethod.toLowerCase().includes('usdt') || currentMethod.toLowerCase().includes('crypto');
 
-    // Strict validation for mobile banking (bKash, Nagad, Rocket, etc.)
+    // Validation for mobile banking (bKash, Nagad, Rocket, etc.)
     if (!isCrypto) {
-      const senderDigits = senderAccount.replace(/\D/g, '');
-      if (senderDigits.length !== 11) {
-        setRechargeErrorPopup({
-          title: 'Invalid Sender Number',
-          message: `Sender account number must be exactly 11 digits. You entered ${senderDigits.length} digits. Please check and provide a valid 11-digit mobile banking number.`
-        });
+      const rawDigits = senderAccount.replace(/\D/g, '');
+      const senderDigits = rawDigits.startsWith('88') ? rawDigits.slice(2) : rawDigits;
+      if (senderDigits.length < 10 || senderDigits.length > 15) {
+        showToast('Please enter a valid 11-digit sender phone number');
         return;
       }
 
       const cleanTrx = transactionId.trim();
-      if (cleanTrx.length < 8) {
-        setRechargeErrorPopup({
-          title: 'Invalid Transaction ID (TrxID)',
-          message: `Transaction ID (TrxID) must be at least 8 characters. You entered ${cleanTrx.length} characters. Please check your statement and enter the correct TrxID.`
-        });
+      if (!cleanTrx || cleanTrx.length < 4) {
+        showToast('Please enter a valid Transaction ID (TrxID)');
         return;
       }
     }
@@ -2535,119 +2530,8 @@ export default function App() {
     const cleanTrxId = transactionId.trim().toUpperCase();
     const cleanSender = senderAccount.trim();
     const targetVipLevel = selectedVipForUnlock?.level || '';
-    const isAutoGatewayEnabled = settings?.paymentGatewayMode === 'automated';
 
-    // ========================================================
-    // MODE 1: AUTOMATED P2P SMS GATEWAY (Active when Admin enables it)
-    // ========================================================
-    if (isAutoGatewayEnabled) {
-      setShowRechargeModal(false);
-      setIsVerifyingPayment(true);
-      setVerificationCountdown(12);
-      setVerificationStage('scanning');
-      setVerificationDetails({
-        amount: numAmount,
-        method: currentMethod,
-        trxId: cleanTrxId,
-        targetVip: targetVipLevel
-      });
-
-      setSenderAccount('');
-      setTransactionId('');
-
-      let isFinished = false;
-      const pollVerification = async () => {
-        try {
-          const res = await fetch('/api/verify-recharge', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: currentUser?.id,
-              user: currentUser?.name || currentUser?.email || currentUser?.phone || 'User',
-              amount: numAmount,
-              method: currentMethod,
-              senderAccount: cleanSender,
-              trxId: cleanTrxId,
-              targetVip: targetVipLevel
-            })
-          });
-          const data = await res.json();
-          if (data.success && data.verified) {
-            isFinished = true;
-            setVerificationStage('success');
-            setBalance((prev) => parseFloat((prev + numAmount).toFixed(2)));
-            syncCurrentUserData();
-            showToast(`🎉 Payment of ৳${numAmount.toFixed(2)} verified & credited to your balance!`);
-            setTimeout(() => {
-              setIsVerifyingPayment(false);
-              navigateToTab('profile');
-            }, 2000);
-          }
-        } catch (err) {
-          console.error('Verify recharge error:', err);
-        }
-      };
-
-      pollVerification();
-
-      let secondsLeft = 12;
-      const interval = setInterval(async () => {
-        if (isFinished) {
-          clearInterval(interval);
-          return;
-        }
-        secondsLeft -= 1;
-        setVerificationCountdown(secondsLeft);
-
-        if (secondsLeft % 2 === 0 && secondsLeft > 0) {
-          await pollVerification();
-        }
-
-        if (secondsLeft <= 0) {
-          clearInterval(interval);
-          if (!isFinished) {
-            setVerificationStage('queued');
-            const currentRecharges = getStoredData('recharges', DEFAULT_RECHARGES);
-            const alreadyExists = currentRecharges.some((r) => String(r.trxId || '').toUpperCase() === cleanTrxId);
-            if (!alreadyExists) {
-              const newRecord = {
-                id: `REC-${Math.floor(100 + Math.random() * 900)}`,
-                userId: currentUser?.id,
-                user: currentUser?.name || currentUser?.email || currentUser?.phone || userEmail || userPhone || 'User',
-                userEmail: currentUser?.email || userEmail || '',
-                userPhone: currentUser?.phone || userPhone || '',
-                amount: numAmount,
-                network: currentMethod,
-                senderNumber: cleanSender,
-                txid: cleanTrxId,
-                trxId: cleanTrxId,
-                targetVip: targetVipLevel,
-                date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-                status: 'pending',
-                source: 'Manual Submission (Queued)'
-              };
-              setStoredData('recharges', [newRecord, ...currentRecharges]);
-            }
-            setTimeout(() => {
-              setIsVerifyingPayment(false);
-              setRechargeSuccessDetails({
-                id: newRecord.id,
-                amount: numAmount,
-                method: currentMethod,
-                senderAccount: cleanSender,
-                trxId: cleanTrxId,
-                date: newRecord.date
-              });
-            }, 1000);
-          }
-        }
-      }, 1000);
-      return;
-    }
-
-    // ========================================================
-    // MODE 2: ORIGINAL MANUAL GATEWAY (100% UNTOUCHED & DEFAULT)
-    // ========================================================
+    // Create & record deposit request
     const currentRecharges = getStoredData('recharges', DEFAULT_RECHARGES);
     const newRecord = {
       id: `REC-${Math.floor(100 + Math.random() * 900)}`,
@@ -2663,14 +2547,36 @@ export default function App() {
       targetVip: targetVipLevel,
       date: new Date().toISOString().slice(0, 16).replace('T', ' '),
       status: 'pending',
-      source: 'Manual Submission'
+      source: 'User Submission'
     };
     const updated = [newRecord, ...currentRecharges];
     setStoredData('recharges', updated);
 
+    // Close modal & clear input form
     setShowRechargeModal(false);
     setSenderAccount('');
     setTransactionId('');
+
+    // If auto gateway is on, trigger background verify
+    if (settings?.paymentGatewayMode === 'automated') {
+      try {
+        fetch('/api/verify-recharge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUser?.id,
+            user: currentUser?.name || currentUser?.email || currentUser?.phone || 'User',
+            amount: numAmount,
+            method: currentMethod,
+            senderAccount: cleanSender,
+            trxId: cleanTrxId,
+            targetVip: targetVipLevel
+          })
+        }).catch(() => {});
+      } catch (e) {}
+    }
+
+    // Trigger the Thank You confirmation popup (1 to 15 minutes)
     setRechargeSuccessDetails({
       id: newRecord.id,
       amount: numAmount,
@@ -5911,12 +5817,10 @@ export default function App() {
         {/* ================= WITHDRAWAL SUBMISSION SUCCESS MODAL ================= */}
         {withdrawalSuccessDetails && (
           <div
-            onClick={() => setWithdrawalSuccessDetails(null)}
-            className="absolute inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in"
           >
             <div
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 cursor-default"
+              className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 relative z-[101]"
             >
               {/* Animated checkmark circle */}
               <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
@@ -5996,12 +5900,10 @@ export default function App() {
         {/* ================= RECHARGE SUBMISSION SUCCESS MODAL ================= */}
         {rechargeSuccessDetails && (
           <div
-            onClick={() => setRechargeSuccessDetails(null)}
-            className="absolute inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in"
           >
             <div
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 cursor-default"
+              className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 relative z-[101]"
             >
               {/* Animated checkmark circle */}
               <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
