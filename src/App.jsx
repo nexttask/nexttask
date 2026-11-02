@@ -3214,17 +3214,17 @@ export default function App() {
           onTouchEnd={handlePullTouchEnd}
           className="flex-1 overflow-y-auto no-scrollbar pb-6 relative"
         >
-          {/* Mobile Pull To Refresh Indicator (Matching Image 3, No Text) */}
+          {/* Mobile Pull To Refresh Floating Overlay Indicator (Zero Layout Shift, Overlay Only) */}
           {(pullDistance > 0 || isPullRefreshing) && (
             <div
+              className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none select-none transition-all duration-150 ease-out"
               style={{
-                height: `${pullDistance}px`,
-                opacity: Math.min(1, pullDistance / 24),
+                transform: `translateY(${Math.min(72, Math.max(16, pullDistance))}px)`,
+                opacity: Math.min(1, pullDistance / 18),
               }}
-              className="w-full flex items-center justify-center overflow-hidden transition-all duration-150 ease-out shrink-0 select-none pointer-events-none sticky top-0 z-40 bg-transparent pb-1"
             >
               <div
-                className={`w-11 h-11 rounded-full bg-white shadow-xl border border-slate-100 flex items-center justify-center transition-transform ${
+                className={`w-10 h-10 rounded-full bg-white shadow-2xl border border-slate-200/90 flex items-center justify-center transition-transform ${
                   isPullRefreshing ? 'animate-spin' : ''
                 }`}
                 style={{
@@ -3233,7 +3233,7 @@ export default function App() {
               >
                 <svg
                   viewBox="0 0 100 100"
-                  className="w-7 h-7 select-none"
+                  className="w-6 h-6 select-none"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
                 >
@@ -3241,7 +3241,7 @@ export default function App() {
                   <path
                     d="M 50 16 A 34 34 0 1 0 82 45"
                     stroke="#143a75"
-                    strokeWidth="9"
+                    strokeWidth="9.5"
                     strokeLinecap="round"
                   />
                   {/* Arrowhead pointing clockwise */}
@@ -3249,13 +3249,13 @@ export default function App() {
                     points="70,8 86,28 66,32"
                     fill="#143a75"
                   />
-                  {/* Sky-Blue / Cyan Dashed Segments (completing circle like Image 3) */}
+                  {/* Sky-Blue / Cyan Dashed Segments */}
                   <circle
                     cx="50"
                     cy="50"
                     r="34"
                     stroke="#0099ff"
-                    strokeWidth="9"
+                    strokeWidth="9.5"
                     strokeLinecap="round"
                     strokeDasharray="13 17"
                     strokeDashoffset="12"
