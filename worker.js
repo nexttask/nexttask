@@ -1030,6 +1030,136 @@ export default {
       }
     }
 
+    // 4.5. Delete User & Purge All Associated Data (/api/delete-user) - Master Admin Only
+    if (url.pathname === '/api/delete-user' && request.method === 'POST') {
+      if (!isAdminRequest(request)) {
+        return JSON_RES({ success: false, error: 'Unauthorized: Master Administrator required' }, 403);
+      }
+
+      try {
+        const payload = await request.json();
+        const targetId = payload.userId ? String(payload.userId).trim().toLowerCase() : '';
+        const targetEmail = payload.email ? String(payload.email).trim().toLowerCase() : '';
+        const targetPhone = payload.phone ? String(payload.phone).trim() : '';
+
+        if (!targetId && !targetEmail && !targetPhone) {
+          return JSON_RES({ success: false, error: 'Target user identifier required' }, 400);
+        }
+
+        // Safety: Master Admin cannot be deleted
+        if (targetEmail === 'admin@nexttask.online') {
+          return JSON_RES({ success: false, error: 'Cannot delete Master Admin account' }, 403);
+        }
+
+        await ensureTable(env.DB);
+
+        // Fetch existing records from D1
+        const { results } = await env.DB.prepare(
+          'SELECT key, value FROM app_state WHERE key IN (?, ?, ?, ?, ?, ?)'
+        ).bind(
+          'users',
+          'recharges',
+          'withdrawals',
+          'task_records',
+          'notifications',
+          'upgrade_logs'
+        ).all();
+
+        const dataMap = {};
+        if (results && Array.isArray(results)) {
+          results.forEach((r) => {
+            try {
+              dataMap[r.key] = JSON.parse(r.value);
+            } catch {
+              dataMap[r.key] = [];
+            }
+          });
+        }
+
+        const currentUsers = Array.isArray(dataMap.users) ? dataMap.users : [];
+        const currentRecharges = Array.isArray(dataMap.recharges) ? dataMap.recharges : [];
+        const currentWithdrawals = Array.isArray(dataMap.withdrawals) ? dataMap.withdrawals : [];
+        const currentTasks = Array.isArray(dataMap.task_records) ? dataMap.task_records : [];
+        const currentNotifs = Array.isArray(dataMap.notifications) ? dataMap.notifications : [];
+        const currentLogs = Array.isArray(dataMap.upgrade_logs) ? dataMap.upgrade_logs : [];
+
+        // Match user details
+        const targetUser = currentUsers.find((u) => {
+          if (!u) return false;
+          const uId = u.id ? String(u.id).trim().toLowerCase() : '';
+          const uEmail = u.email ? String(u.email).trim().toLowerCase() : '';
+          const uPhone = u.phone ? String(u.phone).trim() : '';
+          return (targetId && uId === targetId) || (targetEmail && uEmail === targetEmail) || (targetPhone && uPhone === targetPhone);
+        });
+
+        const userKeys = new Set();
+        if (targetId) userKeys.add(targetId);
+        if (targetEmail) userKeys.add(targetEmail);
+        if (targetPhone) userKeys.add(targetPhone);
+        if (targetUser) {
+          if (targetUser.id) userKeys.add(String(targetUser.id).trim().toLowerCase());
+          if (targetUser.email) userKeys.add(String(targetUser.email).trim().toLowerCase());
+          if (targetUser.phone) userKeys.add(String(targetUser.phone).trim().toLowerCase());
+          if (targetUser.name) userKeys.add(String(targetUser.name).trim().toLowerCase());
+          if (targetUser.myInviteCode) userKeys.add(String(targetUser.myInviteCode).trim().toLowerCase());
+        }
+
+        const isMatch = (item) => {
+          if (!item) return false;
+          const candidates = [
+            item.userId,
+            item.user,
+            item.email,
+            item.phone,
+            item.account,
+            item.senderAccount
+          ].filter(Boolean).map((v) => String(v).trim().toLowerCase());
+
+          return candidates.some((c) => userKeys.has(c));
+        };
+
+        // Filter out all records matching this user
+        const newUsers = currentUsers.filter((u) => {
+          if (!u) return false;
+          const uId = u.id ? String(u.id).trim().toLowerCase() : '';
+          const uEmail = u.email ? String(u.email).trim().toLowerCase() : '';
+          const uPhone = u.phone ? String(u.phone).trim() : '';
+          return !userKeys.has(uId) && !userKeys.has(uEmail) && !userKeys.has(uPhone);
+        });
+
+        const newRecharges = currentRecharges.filter((r) => !isMatch(r));
+        const newWithdrawals = currentWithdrawals.filter((w) => !isMatch(w));
+        const newTasks = currentTasks.filter((t) => !isMatch(t));
+        const newNotifs = currentNotifs.filter((n) => !isMatch(n));
+        const newLogs = currentLogs.filter((l) => !isMatch(l));
+
+        const now = Date.now();
+        const stmts = [
+          env.DB.prepare('INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('users', JSON.stringify(newUsers), now),
+          env.DB.prepare('INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('recharges', JSON.stringify(newRecharges), now),
+          env.DB.prepare('INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('withdrawals', JSON.stringify(newWithdrawals), now),
+          env.DB.prepare('INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('task_records', JSON.stringify(newTasks), now),
+          env.DB.prepare('INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('notifications', JSON.stringify(newNotifs), now),
+          env.DB.prepare('INSERT INTO app_state (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at').bind('upgrade_logs', JSON.stringify(newLogs), now)
+        ];
+
+        await env.DB.batch(stmts);
+
+        return JSON_RES({
+          success: true,
+          message: 'User and all associated data permanently purged',
+          stats: {
+            deletedUser: targetEmail || targetId,
+            rechargesRemoved: currentRecharges.length - newRecharges.length,
+            withdrawalsRemoved: currentWithdrawals.length - newWithdrawals.length,
+            tasksRemoved: currentTasks.length - newTasks.length
+          }
+        });
+      } catch (err) {
+        return JSON_RES({ success: false, error: err.message || 'Failed to delete user' }, 500);
+      }
+    }
+
     // 5. Data Store API (/api/data)
     if (url.pathname === '/api/data') {
       if (!env || !env.DB) {

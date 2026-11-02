@@ -64,7 +64,8 @@ import {
   getPackageLogo,
   DEFAULT_SUPPORT_AVATAR,
   getPaymentLogo,
-  isReferredByUser
+  isReferredByUser,
+  getAuthHeaders
 } from './store';
 
 export default function AdminPanel({ onNavigateToApp }) {
@@ -1035,12 +1036,107 @@ export default function AdminPanel({ onNavigateToApp }) {
     updateUsers(updated);
   };
 
-  const handleDeleteUser = (id, email) => {
-    if (confirm(`Permanently delete user ${email}? This action cannot be undone.`)) {
-      const filtered = users.filter((u) => u.id !== id);
-      updateUsers(filtered);
-      showToast(`User ${email} deleted`);
+  const handleDeleteUser = async (id, email) => {
+    const targetUser = users.find((u) => (id && u.id === id) || (email && u.email === email));
+    const userLabel = email || targetUser?.phone || targetUser?.name || id;
+
+    if (userLabel === 'admin@nexttask.online') {
+      showToast('Master Admin account cannot be deleted');
+      return;
     }
+
+    if (!confirm(`Permanently delete user ${userLabel} and ALL associated data (recharges, withdrawals, tasks, earnings, records)?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    // 1. Gather all identifiers of the target user
+    const userKeys = new Set();
+    if (id) userKeys.add(String(id).toLowerCase().trim());
+    if (email) userKeys.add(String(email).toLowerCase().trim());
+    if (targetUser) {
+      if (targetUser.id) userKeys.add(String(targetUser.id).toLowerCase().trim());
+      if (targetUser.email) userKeys.add(String(targetUser.email).toLowerCase().trim());
+      if (targetUser.phone) userKeys.add(String(targetUser.phone).toLowerCase().trim());
+      if (targetUser.name) userKeys.add(String(targetUser.name).toLowerCase().trim());
+      if (targetUser.myInviteCode) userKeys.add(String(targetUser.myInviteCode).toLowerCase().trim());
+    }
+
+    const isMatch = (item) => {
+      if (!item) return false;
+      const candidates = [
+        item.userId,
+        item.user,
+        item.email,
+        item.phone,
+        item.account,
+        item.senderAccount
+      ].filter(Boolean).map((v) => String(v).toLowerCase().trim());
+      return candidates.some((c) => userKeys.has(c));
+    };
+
+    // 2. Filter out user from users list
+    const filteredUsers = users.filter((u) => !userKeys.has(String(u.id || '').toLowerCase().trim()) && !userKeys.has(String(u.email || '').toLowerCase().trim()));
+    setUsers(filteredUsers);
+    await updateUsers(filteredUsers);
+
+    // 3. Permanently remove all recharge records of this user
+    const filteredRecharges = recharges.filter((r) => !isMatch(r));
+    setRecharges(filteredRecharges);
+    await updateRecharges(filteredRecharges);
+
+    // 4. Permanently remove all withdrawal records of this user
+    const filteredWithdrawals = withdrawals.filter((w) => !isMatch(w));
+    setWithdrawals(filteredWithdrawals);
+    await updateWithdrawals(filteredWithdrawals);
+
+    // 5. Permanently remove all task records of this user
+    try {
+      const allTasks = getStoredData('task_records', []);
+      const filteredTasks = allTasks.filter((t) => !isMatch(t));
+      await setStoredData('task_records', filteredTasks);
+    } catch (e) {}
+
+    // 6. Permanently remove all notifications for this user
+    try {
+      const allNotifs = getStoredData('notifications', []);
+      const filteredNotifs = allNotifs.filter((n) => !isMatch(n));
+      await setStoredData('notifications', filteredNotifs);
+    } catch (e) {}
+
+    // 7. Permanently remove upgrade/referral logs of this user
+    try {
+      const allLogs = getStoredData('upgrade_logs', []);
+      const filteredLogs = allLogs.filter((l) => !isMatch(l));
+      await setStoredData('upgrade_logs', filteredLogs);
+    } catch (e) {}
+
+    // 8. Call Cloud API endpoint for atomic server-side purge in D1
+    try {
+      fetch('/api/delete-user', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userId: id || targetUser?.id,
+          email: email || targetUser?.email,
+          phone: targetUser?.phone
+        })
+      }).catch((e) => console.warn('Server delete call error:', e));
+    } catch (e) {}
+
+    // 9. Clean up any user-specific localStorage entries
+    if (typeof window !== 'undefined') {
+      try {
+        const prefixes = [id, email, targetUser?.phone].filter(Boolean);
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && prefixes.some((p) => k.includes(p))) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch (e) {}
+    }
+
+    showToast(`User ${userLabel} and all associated records permanently deleted!`);
   };
 
   const handleAdjustBalance = (e) => {
@@ -1142,6 +1238,29 @@ export default function AdminPanel({ onNavigateToApp }) {
         const now = Date.now();
         const expiresAt = now + durationDays * 86400000;
 
+        const prevLevel = u.vip || 'Starter Package';
+        let pendingUpgradeData = u.pendingUpgrade || null;
+        let userCompletedTasks = u.completedTasks || {};
+
+        if (newVip !== prevLevel) {
+          const todayDate = new Date().toISOString().slice(0, 10);
+          const todayDone = (userCompletedTasks && Array.isArray(userCompletedTasks[todayDate])) ? userCompletedTasks[todayDate] : [];
+          const prevTier = vipTiers.find((v) => v && (v.level === prevLevel || v.id === prevLevel)) || vipTiers[0];
+          const prevMax = prevTier?.tasks || 10;
+
+          if (todayDone.length > 0 && todayDone.length < prevMax) {
+            pendingUpgradeData = {
+              date: todayDate,
+              activeTierLevel: prevLevel,
+              targetTierLevel: newVip,
+              previousMaxTasks: prevMax
+            };
+          } else if (todayDone.length >= prevMax) {
+            userCompletedTasks = { ...userCompletedTasks, [todayDate]: [] };
+            pendingUpgradeData = null;
+          }
+        }
+
         return {
           ...u,
           recharge: newRecharge,
@@ -1149,7 +1268,9 @@ export default function AdminPanel({ onNavigateToApp }) {
           vipActivatedAt: now,
           vipDurationDays: durationDays,
           vipExpiresAt: expiresAt,
-          capitalReleased: false
+          capitalReleased: false,
+          pendingUpgrade: pendingUpgradeData,
+          completedTasks: userCompletedTasks
         };
       }
 

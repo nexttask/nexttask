@@ -1630,8 +1630,24 @@ export default function App() {
         setTaskCountdown(0);
 
         let updatedIndices = completedTaskIndices;
+        let isTransitionComplete = false;
+        let finishedPending = null;
+
+        const pendingUpgrade = (currentUser?.pendingUpgrade && currentUser.pendingUpgrade.date === todayDateStr && currentUser.pendingUpgrade.activeTierLevel)
+          ? currentUser.pendingUpgrade
+          : null;
+        const prevMax = pendingUpgrade ? (pendingUpgrade.previousMaxTasks || 10) : null;
+
         setCompletedTaskIndices((prev) => {
           updatedIndices = prev.includes(taskIndex) ? prev : [...prev, taskIndex];
+
+          // If finishing remaining tasks of previous package:
+          if (pendingUpgrade && updatedIndices.length >= prevMax) {
+            isTransitionComplete = true;
+            finishedPending = pendingUpgrade;
+            updatedIndices = []; // Reset for newly unlocked package!
+          }
+
           try {
             localStorage.setItem(todayTasksKey, JSON.stringify(updatedIndices));
           } catch (e) {
@@ -1644,8 +1660,16 @@ export default function App() {
         setBalance((prevBal) => {
           const newBal = parseFloat((prevBal + reward).toFixed(2));
           if (currentUser) {
-            const userCompleted = { ...(currentUser.completedTasks || {}), [todayDateStr]: updatedIndices };
-            const updated = { ...currentUser, balance: newBal, completedTasks: userCompleted };
+            const userCompleted = {
+              ...(currentUser.completedTasks || {}),
+              [todayDateStr]: updatedIndices
+            };
+            const updated = {
+              ...currentUser,
+              balance: newBal,
+              completedTasks: userCompleted,
+              pendingUpgrade: isTransitionComplete ? null : currentUser.pendingUpgrade
+            };
             setCurrentUser(updated);
             try {
               localStorage.setItem('nt_currentUser', JSON.stringify(updated));
@@ -1656,7 +1680,7 @@ export default function App() {
             setStoredData('users', allUsers.map((u) => (
               (u.id && String(u.id) === String(currentUser.id)) ||
               (u.email && String(u.email).toLowerCase() === String(currentUser.email).toLowerCase())
-            ) ? { ...u, balance: newBal, completedTasks: userCompleted } : u));
+            ) ? { ...u, balance: newBal, completedTasks: userCompleted, pendingUpgrade: isTransitionComplete ? null : u.pendingUpgrade } : u));
           }
           return newBal;
         });
@@ -1665,14 +1689,15 @@ export default function App() {
         try {
           const now = new Date();
           const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+          const currentMissionVip = (pendingUpgrade && !isTransitionComplete) ? pendingUpgrade.activeTierLevel : (userVip || 'VIP1');
           const newTaskRecord = {
             id: `TSK-${Date.now()}-${taskIndex + 1}`,
             userId: currentUser?.id,
             user: currentUser?.email || currentUser?.phone || currentUser?.name || `User-${currentUser?.id}`,
             missionNo: taskIndex + 1,
             taskIndex: taskIndex,
-            taskName: `VIP Mission #${taskIndex + 1}`,
-            vipLevel: userVip || 'VIP1',
+            taskName: `${getVipDisplayName(currentMissionVip, vipTiers)} Mission #${taskIndex + 1}`,
+            vipLevel: currentMissionVip,
             amount: parseFloat(reward.toFixed(2)),
             status: 'completed',
             date: formattedDate,
@@ -1686,7 +1711,11 @@ export default function App() {
         }
 
         setTaskProcessingIdx(null);
-        showToast(`🎉 Mission #${taskIndex + 1} completed! +৳${reward.toFixed(2)} added.`);
+        if (isTransitionComplete && finishedPending) {
+          showToast(`🎉 ${getVipDisplayName(finishedPending.activeTierLevel, vipTiers)} finished! Your new ${getVipDisplayName(finishedPending.targetTierLevel || userVip, vipTiers)} missions are now open!`);
+        } else {
+          showToast(`🎉 Mission #${taskIndex + 1} completed! +৳${reward.toFixed(2)} added.`);
+        }
       }
     }, 1000);
   };
@@ -2159,6 +2188,48 @@ export default function App() {
       const now = Date.now();
       const expiresAt = now + durationDays * 86400000;
 
+      const prevLevel = currentUser?.vip || userVip || 'VIP0';
+      const newLevel = selectedVipForUnlock.level;
+
+      // VIP Task Queue: If user has unfinished tasks from their previous pack today, finish those first!
+      let pendingUpgradeData = null;
+      let userCompletedTasks = currentUser?.completedTasks || {};
+      if (prevLevel && prevLevel !== 'VIP0' && prevLevel !== newLevel) {
+        const prevTier = vipTiers.find((v) => v && (v.level === prevLevel || v.id === prevLevel)) || vipTiers[0];
+        const prevMax = prevTier?.tasks || 10;
+        const todayDone = completedTaskIndices.length;
+
+        if (todayDone > 0 && todayDone < prevMax) {
+          pendingUpgradeData = {
+            date: todayDateStr,
+            activeTierLevel: prevLevel,
+            targetTierLevel: newLevel,
+            previousMaxTasks: prevMax
+          };
+        } else if (todayDone >= prevMax) {
+          setCompletedTaskIndices([]);
+          userCompletedTasks = { ...userCompletedTasks, [todayDateStr]: [] };
+          try {
+            localStorage.setItem(todayTasksKey, JSON.stringify([]));
+          } catch (e) {}
+        }
+      }
+
+      const updatedUserObj = {
+        ...currentUser,
+        vip: selectedVipForUnlock.level,
+        balance: newBalance,
+        recharge: newRecharge,
+        vipActivatedAt: now,
+        vipDurationDays: durationDays,
+        vipExpiresAt: expiresAt,
+        capitalReleased: false,
+        pendingUpgrade: pendingUpgradeData,
+        completedTasks: userCompletedTasks
+      };
+      setCurrentUser(updatedUserObj);
+      try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUserObj)); } catch (e) {}
+
       setBalance(newBalance);
       setRechargeTotal(newRecharge);
       setUserVip(selectedVipForUnlock.level);
@@ -2186,7 +2257,9 @@ export default function App() {
             vipActivatedAt: now,
             vipDurationDays: durationDays,
             vipExpiresAt: expiresAt,
-            capitalReleased: false
+            capitalReleased: false,
+            pendingUpgrade: pendingUpgradeData,
+            completedTasks: userCompletedTasks
           };
         }
 
@@ -2227,7 +2300,6 @@ export default function App() {
       }
 
       // Record in Upgrade Log
-      const prevLevel = currentUser?.vip || userVip || 'VIP0';
       recordUpgradeLog({
         userId: currentUser?.id,
         user: currentUser?.name || currentUser?.phone || currentUser?.email || userPhone || userEmail || 'User',
@@ -3930,8 +4002,15 @@ export default function App() {
 
               {/* ================= TAB 4: TASK (CORRESPONDING TO USER VIP LEVEL) ================= */}
               {activeTab === 'task' && (() => {
-                const currentVipTier = vipTiers.find((v) => v && (v.level === userVip || v.id === userVip)) || vipTiers[0];
-                const maxTasks = currentVipTier?.tasks || 10;
+                const pendingUpgrade = (currentUser?.pendingUpgrade && currentUser.pendingUpgrade.date === todayDateStr && currentUser.pendingUpgrade.activeTierLevel)
+                  ? currentUser.pendingUpgrade
+                  : null;
+
+                const isPreviousTierPending = pendingUpgrade && completedTaskIndices.length < (pendingUpgrade.previousMaxTasks || 10);
+
+                const activeLevel = isPreviousTierPending ? pendingUpgrade.activeTierLevel : userVip;
+                const currentVipTier = vipTiers.find((v) => v && (v.level === activeLevel || v.id === activeLevel)) || vipTiers[0];
+                const maxTasks = isPreviousTierPending ? (pendingUpgrade.previousMaxTasks || currentVipTier?.tasks || 10) : (currentVipTier?.tasks || 10);
                 const dailyProfit = parseFloat(currentVipTier?.daily || '0.70') || 0.70;
                 const rewardPerTask = parseFloat((dailyProfit / maxTasks).toFixed(2));
 
@@ -3947,7 +4026,7 @@ export default function App() {
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-full shadow-sm">
-                              {getVipDisplayName(userVip, vipTiers)}
+                              {getVipDisplayName(activeLevel, vipTiers)}
                             </span>
                             <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
                           </div>
@@ -3956,7 +4035,7 @@ export default function App() {
                             <span className="text-xs text-slate-200">
                               {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+৳{rewardPerTask.toFixed(2)}</b>
                             </span>
-                            {userVip && userVip !== 'VIP0' && parseFloat(String(currentVipTier?.deposit || '0').replace(/,/g, '')) > 0 && (
+                            {activeLevel && activeLevel !== 'VIP0' && parseFloat(String(currentVipTier?.deposit || '0').replace(/,/g, '')) > 0 && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs">
                                 <span>⏳ Validity:</span>
                                 <b>
@@ -3993,6 +4072,23 @@ export default function App() {
                         />
                       </div>
                     </div>
+
+                    {/* Pending Upgrade Queue Banner */}
+                    {isPreviousTierPending && (
+                      <div className="bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/10 border border-amber-500/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 text-xs text-amber-200 shadow-sm animate-fade-in">
+                        <div className="flex items-start gap-2.5">
+                          <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <div className="font-extrabold text-amber-300">
+                              Finish Remaining {getVipDisplayName(pendingUpgrade.activeTierLevel, vipTiers)} Missions
+                            </div>
+                            <div className="text-[11px] text-slate-300 mt-0.5">
+                              Complete your remaining <b>{runningTasks.length}</b> missions for today. Once finished, your new <b>{getVipDisplayName(pendingUpgrade.targetTierLevel || userVip, vipTiers)}</b> missions will start immediately!
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Tabs: Running vs Completed */}
                     <div className="flex bg-[#e8eef8] p-1 rounded-2xl text-xs font-bold text-slate-600">
@@ -4040,7 +4136,7 @@ export default function App() {
                             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
                             <h3 className="text-sm font-bold text-slate-900">All tasks completed today!</h3>
                             <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                              You have finished all {maxTasks} daily tasks for {getVipDisplayName(userVip, vipTiers)}. Next daily tasks unlock in <b className="text-cyan-600">{timeUntilReset}</b>.
+                              You have finished all {maxTasks} daily tasks for {getVipDisplayName(activeLevel, vipTiers)}. Next daily tasks unlock in <b className="text-cyan-600">{timeUntilReset}</b>.
                             </p>
                           </div>
                         ) : (
@@ -4051,7 +4147,7 @@ export default function App() {
                             >
                               <div className="space-y-1 min-w-0 flex-1">
                                 <div className="text-xs font-bold text-slate-900 truncate">
-                                  {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
+                                  {getVipDisplayName(activeLevel, vipTiers)} Verification Mission #{taskIdx + 1}
                                 </div>
                                 <div className="text-[11px] text-slate-500">
                                   Daily Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
