@@ -1287,26 +1287,43 @@ export default function AdminPanel({ onNavigateToApp }) {
         note: `10% referral commission from ${targetUser?.name || targetUser?.id} deposit of $${rec.amount}`
       };
       setStoredData('recharges', [commissionRecord, ...updatedRecs]);
-      addNotification(targetUser?.referredBy || referrerName, 'Referral Commission Credited', `You earned $${commissionAmount} USDT commission from ${targetUser?.name || targetUser?.id}'s deposit!`, 'commission');
+      addNotification(targetUser?.referredBy || referrerName, 'Referral Commission Credited', `You earned ৳${commissionAmount} BDT commission from ${targetUser?.name || targetUser?.id}'s deposit!`, 'commission');
     }
 
-    addNotification(rec.userId || rec.user, 'Recharge & VIP Activated', `Your recharge of ${rec.amount} USDT has been approved and added to Recharge Amount. VIP status is active with deposit locked as principal capital. Complete daily tasks to earn withdrawable profit!`, 'recharge');
-    showToast(`Recharge of ${rec.amount} approved for ${rec.user}!${referrerCredited ? ' (10% commission credited to inviter)' : ''}`);
+    addNotification(
+      rec.userId || rec.user,
+      'Recharge Approved',
+      `Your recharge of ৳${parseFloat(rec.amount || 0).toFixed(2)} BDT has been successfully approved and added to your Balance. You can now use this balance to unlock VIP packages or make withdrawals.`,
+      'recharge'
+    );
+    showToast(`Recharge of ৳${rec.amount} approved for ${rec.user}!${referrerCredited ? ' (10% commission credited to inviter)' : ''}`);
   };
 
   const handleRejectRecharge = (id) => {
+    const rec = recharges.find((r) => r.id === id);
     const updatedRecs = recharges.map((r) => (r.id === id ? { ...r, status: 'rejected' } : r));
     updateRecharges(updatedRecs);
-    addNotification(id, 'Recharge Rejected', `Your recharge request of ${id} was rejected. Please verify transaction ID or contact support.`, 'recharge');
+    addNotification(
+      rec?.userId || rec?.user || id,
+      'Recharge Rejected',
+      `Your recharge request of ৳${parseFloat(rec?.amount || 0).toFixed(2)} BDT was not approved. Please verify your transaction ID (TrxID) or contact support.`,
+      'recharge'
+    );
     showToast(`Recharge ${id} rejected`);
   };
 
   // --- WITHDRAWAL APPROVALS ---
   const handleApproveWithdrawal = (id, user, amount) => {
+    const wth = withdrawals.find((w) => w.id === id);
     const updatedWth = withdrawals.map((w) => (w.id === id ? { ...w, status: 'approved' } : w));
     updateWithdrawals(updatedWth);
-    addNotification(user, 'Withdrawal Completed', `Your withdrawal request of ${amount} USDT has been approved and processed.`, 'withdraw');
-    showToast(`Withdrawal of ${amount} approved for ${user}`);
+    addNotification(
+      wth?.userId || wth?.user || user,
+      'Withdrawal Approved',
+      `Your withdrawal request of ৳${parseFloat(amount || 0).toFixed(2)} BDT via ${wth?.method || 'Withdrawal'} has been approved and processed.`,
+      'withdraw'
+    );
+    showToast(`Withdrawal of ৳${amount} approved for ${user}`);
   };
 
   const handleRejectWithdrawal = (wth) => {
@@ -1332,7 +1349,13 @@ export default function AdminPanel({ onNavigateToApp }) {
       return u;
     });
     updateUsers(updatedUsers);
-    showToast(`Withdrawal ${wth.id} rejected. $${wth.amount} refunded to user.`);
+    addNotification(
+      wth.userId || wth.user,
+      'Withdrawal Rejected',
+      `Your withdrawal request of ৳${parseFloat(wth.amount || 0).toFixed(2)} BDT was rejected. The full amount has been refunded back to your Earned balance.`,
+      'withdraw'
+    );
+    showToast(`Withdrawal ${wth.id} rejected. ৳${wth.amount} refunded to user.`);
   };
 
   // Filtered Users

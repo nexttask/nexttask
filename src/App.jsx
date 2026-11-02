@@ -1114,7 +1114,13 @@ export default function App() {
     try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser)); } catch (e) {}
     const allUsers = getStoredData('users', DEFAULT_USERS);
     setStoredData('users', allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u));
-    showToast(`🎉 Free Starter Package activated! You have ${tasksCount} daily tasks for ${starterDays} days (৳${starterTier?.daily || '20.00'}/day).`);
+    showToast('Starter Package successfully activated');
+    addUserNotification(
+      currentUser.id,
+      'Starter Package Activated',
+      `You have successfully activated Starter Package! Enjoy ${starterDays} days of free daily missions and rewards.`,
+      'vip'
+    );
     setSelectedTaskPackId('starter_active');
   };
 
@@ -1218,6 +1224,30 @@ export default function App() {
     };
   }, []);
 
+  // Helper to add clean real user notifications to persistent storage
+  const addUserNotification = (targetUserId, title, message, type = 'system') => {
+    try {
+      const allNotifs = getStoredData('notifications', []);
+      const newNotif = {
+        id: `ntf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: targetUserId || currentUser?.id || 'all',
+        title,
+        message,
+        time: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        read: false,
+        type
+      };
+      const updated = [newNotif, ...allNotifs];
+      setStoredData('notifications', updated);
+      setNotifications(updated);
+      try {
+        window.dispatchEvent(new Event('nt_notification_update'));
+      } catch (e) {}
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Load and filter notifications for current user with guaranteed persistent read state
   const getUserNotifications = () => {
     if (!currentUser) return [];
@@ -1227,7 +1257,33 @@ export default function App() {
     const phone = String(currentUser.phone || '');
     const myCode = String(currentUser.myInviteCode || currentUser.inviteCode || '');
 
-    const userSpecific = allNotifs.filter((n) => {
+    // Auto-sanitize any legacy mock notifications that say "Recharge & VIP Activated"
+    let legacyRepaired = false;
+    const sanitizedAllNotifs = allNotifs.map((n) => {
+      if (!n) return n;
+      if (
+        n.title === 'Recharge & VIP Activated' ||
+        (n.message && n.message.includes('VIP status is active with deposit locked as principal capital'))
+      ) {
+        legacyRepaired = true;
+        const cleanAmount = (n.message.match(/(\d+)\s*(USDT|BDT)?/i) || [])[1] || '1000';
+        return {
+          ...n,
+          title: 'Recharge Approved',
+          message: `Your recharge of ৳${cleanAmount} BDT has been approved and added to your Balance. You can now use your balance to unlock packages or withdraw.`,
+          type: 'recharge'
+        };
+      }
+      return n;
+    });
+
+    if (legacyRepaired) {
+      try {
+        setStoredData('notifications', sanitizedAllNotifs);
+      } catch (e) {}
+    }
+
+    const userSpecific = sanitizedAllNotifs.filter((n) => {
       if (!n) return false;
       const target = String(n.userId || '').toLowerCase();
       if (target === 'all') return true;
@@ -1245,7 +1301,7 @@ export default function App() {
           id: 'welcome_' + (uid || 'user'),
           userId: uid || 'all',
           title: 'Welcome to NextTask!',
-          message: 'Welcome to NextTask! Complete daily tasks, upgrade VIP tiers, and grow your team to earn daily profits.',
+          message: 'Welcome to NextTask! Complete daily tasks, upgrade VIP packages, and grow your team to earn daily profits.',
           time: 'Today',
           read: false,
           type: 'system'
@@ -1406,8 +1462,7 @@ export default function App() {
     setTimeout(() => {
       setIsPullRefreshing(false);
       setPullDistance(0);
-      showToast('✓ Data refreshed');
-    }, 850);
+    }, 750);
   };
 
   const showToast = (msg) => {
@@ -1807,6 +1862,12 @@ export default function App() {
       status: 'pending'
     };
     setStoredData('withdrawals', [newWth, ...currentWithdrawals]);
+    addUserNotification(
+      currentUser?.id,
+      'Withdrawal Submitted',
+      `Your withdrawal request of ৳${num.toFixed(2)} BDT via ${withdrawMethod} has been submitted and is pending verification.`,
+      'withdraw'
+    );
 
     setShowWithdrawModal(false);
     setWithdrawAmount('');
@@ -1909,7 +1970,7 @@ export default function App() {
         }
 
         setTaskProcessingIdx(null);
-        showToast(`🎉 Mission #${taskIndex + 1} completed! +৳${reward.toFixed(2)} added.`);
+        showToast(`Mission #${taskIndex + 1} Completed • +৳${reward.toFixed(2)} added`);
       }
     }, 1000);
   };
@@ -2526,7 +2587,13 @@ export default function App() {
         type: isFreePackage ? 'Free Unlock' : (prevLevel === 'VIP0' ? 'Unlock' : 'Upgrade')
       });
 
-      showToast(`🎉 Congratulations! You have unlocked ${selectedVipForUnlock.level}`);
+      showToast(`${selectedVipForUnlock.level} successfully activated`);
+      addUserNotification(
+        currentUser?.id,
+        'Package Activated',
+        `Congratulations! You have successfully activated ${selectedVipForUnlock.level} for ৳${reqDeposit > 0 ? reqDeposit.toFixed(2) : '0.00'} BDT. Daily missions are ready to complete!`,
+        'vip'
+      );
       return;
     }
 
@@ -2617,6 +2684,12 @@ export default function App() {
     };
     const updated = [newRecord, ...currentRecharges];
     setStoredData('recharges', updated);
+    addUserNotification(
+      currentUser?.id,
+      'Recharge Submitted',
+      `Your recharge request of ৳${numAmount.toFixed(2)} BDT (${currentMethod}) has been submitted and is pending verification.`,
+      'recharge'
+    );
 
     // Close modal & clear input form
     setShowRechargeModal(false);
@@ -2749,9 +2822,11 @@ export default function App() {
         
         {/* Toast Alert */}
         {toastMessage && (
-          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 text-white text-xs px-4 py-2 rounded-full shadow-lg backdrop-blur flex items-center gap-2 border border-slate-700 animate-fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{toastMessage}</span>
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[120] bg-[#071739]/95 text-white text-xs px-5 py-2.5 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2.5 border border-slate-700/80 animate-fade-in pointer-events-none select-none max-w-[90vw]">
+            <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+            </div>
+            <span className="font-bold tracking-tight text-slate-100">{toastMessage}</span>
           </div>
         )}
 
@@ -3139,31 +3214,53 @@ export default function App() {
           onTouchEnd={handlePullTouchEnd}
           className="flex-1 overflow-y-auto no-scrollbar pb-6 relative"
         >
-          {/* Pull To Refresh Mobile Indicator */}
+          {/* Mobile Pull To Refresh Indicator (Matching Image 3, No Text) */}
           {(pullDistance > 0 || isPullRefreshing) && (
             <div
               style={{
                 height: `${pullDistance}px`,
-                opacity: Math.min(1, pullDistance / 35),
+                opacity: Math.min(1, pullDistance / 24),
               }}
-              className="w-full flex items-center justify-center overflow-hidden transition-all duration-150 ease-out shrink-0 select-none pointer-events-none sticky top-0 z-40 bg-gradient-to-b from-[#05132d]/80 via-[#05132d]/30 to-transparent pb-1"
+              className="w-full flex items-center justify-center overflow-hidden transition-all duration-150 ease-out shrink-0 select-none pointer-events-none sticky top-0 z-40 bg-transparent pb-1"
             >
-              <div className="bg-white/95 text-slate-800 border border-slate-200/90 shadow-xl rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-bold backdrop-blur-md">
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isPullRefreshing ? 'animate-spin' : ''}`}>
-                  <RefreshCw
-                    className="w-3.5 h-3.5 text-cyan-600"
-                    style={{
-                      transform: isPullRefreshing ? 'none' : `rotate(${pullDistance * 4}deg)`,
-                    }}
+              <div
+                className={`w-11 h-11 rounded-full bg-white shadow-xl border border-slate-100 flex items-center justify-center transition-transform ${
+                  isPullRefreshing ? 'animate-spin' : ''
+                }`}
+                style={{
+                  transform: isPullRefreshing ? 'none' : `rotate(${pullDistance * 5}deg)`,
+                }}
+              >
+                <svg
+                  viewBox="0 0 100 100"
+                  className="w-7 h-7 select-none"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  {/* Navy Blue Arc */}
+                  <path
+                    d="M 50 16 A 34 34 0 1 0 82 45"
+                    stroke="#143a75"
+                    strokeWidth="9"
+                    strokeLinecap="round"
                   />
-                </div>
-                <span className="text-[11px] font-black text-slate-800">
-                  {isPullRefreshing
-                    ? 'Refreshing live data...'
-                    : pullDistance >= 52
-                    ? 'Release to refresh'
-                    : 'Pull down to refresh'}
-                </span>
+                  {/* Arrowhead pointing clockwise */}
+                  <polygon
+                    points="70,8 86,28 66,32"
+                    fill="#143a75"
+                  />
+                  {/* Sky-Blue / Cyan Dashed Segments (completing circle like Image 3) */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="34"
+                    stroke="#0099ff"
+                    strokeWidth="9"
+                    strokeLinecap="round"
+                    strokeDasharray="13 17"
+                    strokeDashoffset="12"
+                  />
+                </svg>
               </div>
             </div>
           )}
@@ -5773,11 +5870,8 @@ export default function App() {
               <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2">
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1.5">
-                      <span>Withdrawable Balance</span>
-                      <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded-full font-bold">
-                        100% Available
-                      </span>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      Withdrawable Balance
                     </div>
                     <div className="text-xl font-black text-slate-900 mt-0.5">৳{balance.toFixed(2)}</div>
                   </div>
