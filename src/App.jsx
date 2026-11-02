@@ -3705,142 +3705,107 @@ export default function App() {
 
               {/* ================= TAB 2: VIP ================= */}
               {activeTab === 'vip' && (
-                <div className="px-3.5 py-3 space-y-3.5">
+                <div className="px-3.5 py-3 space-y-2.5">
                   {(() => {
                     return vipTiers.map((vip) => {
                       const isStarter = parseFloat(String(vip.deposit || 0).replace(/,/g, '')) === 0 || String(vip.level || '').toLowerCase().includes('starter');
                       const activeInstances = userActivePackages.filter((p) => p.level === vip.level || p.packId === vip.id);
                       const isCurrentActive = activeInstances.length > 0;
                       const vipName = getVipDisplayName(vip.level, vipTiers);
-
-                      // Card styling based on active plan status
-                      const cardClass = isCurrentActive
-                        ? "bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 rounded-2xl p-3 shadow-sm border-2 border-emerald-500 relative pt-4 ring-2 ring-emerald-500/10 transition-all"
-                        : "bg-white rounded-2xl p-3 shadow-sm border border-slate-100/90 relative pt-4 hover:shadow-md transition-all";
+                      const daysCount = vip.days || (isStarter ? 7 : 20);
 
                       return (
-                        <div key={vip.level || vip.id} className={cardClass}>
-                          {/* Sleek Top badge */}
-                          {isCurrentActive ? (
-                            <div className="absolute -top-2.5 left-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                              <CheckCircle2 className="w-3 h-3 text-white" />
-                              <span>{vipName} • Active {activeInstances.length > 1 ? `(${activeInstances.length} Packs)` : ''}</span>
-                            </div>
-                          ) : (
-                            <div className="absolute -top-2.5 left-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-                              <Crown className="w-3 h-3 fill-slate-950 text-slate-950" />
-                              <span>{vipName}</span>
-                            </div>
-                          )}
+                        <div
+                          key={vip.level || vip.id}
+                          className={`rounded-2xl p-3.5 transition-all shadow-xs ${
+                            isCurrentActive
+                              ? 'bg-gradient-to-r from-emerald-50/80 via-white to-teal-50/40 border border-emerald-300/80 ring-1 ring-emerald-500/10'
+                              : 'bg-white border border-slate-200/70 hover:border-slate-300 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            {/* Left: Package Icon + Titles */}
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-12 h-12 rounded-2xl bg-[#071739] p-2 flex items-center justify-center shrink-0 border border-amber-500/20 shadow-xs">
+                                <img
+                                  src={getPackageLogo(vip)}
+                                  alt={vipName}
+                                  className="w-8 h-8 object-contain drop-shadow"
+                                  loading="lazy"
+                                />
+                              </div>
 
-                          <div className="flex gap-2.5 items-center">
-                            {/* Left Badge Box (Official Package Motif) */}
-                            <div className={`w-16 h-16 rounded-xl flex items-center justify-center p-1 relative shadow-inner overflow-hidden shrink-0 ${
-                              isCurrentActive
-                                ? "bg-gradient-to-br from-[#064e3b] via-[#022c22] to-[#043328] border border-emerald-400/50 shadow-emerald-950/20"
-                                : "bg-[#0c0d11] border border-amber-500/30"
-                            }`}>
-                              <img
-                                src={getPackageLogo(vip)}
-                                alt={vipName}
-                                className="w-12 h-12 object-contain rounded-lg drop-shadow"
-                                loading="lazy"
-                                decoding="async"
-                              />
-                            </div>
-
-                            {/* Middle & Right Specs (Crisp 2x2 Grid) */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-center mb-1">
-                                <span className="font-extrabold text-xs text-slate-900 truncate">
-                                  {vipName}
-                                </span>
-                                <span className="font-black text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                                  {isStarter ? (
-                                    <span className="text-emerald-600 font-black">Free (৳0.00)</span>
-                                  ) : (
-                                    <span>Recharge: <b className="text-indigo-600">৳{vip.deposit}</b></span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                                    {vipName}
+                                  </h4>
+                                  {isCurrentActive && (
+                                    <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0 shadow-xs">
+                                      Active {activeInstances.length > 1 ? `(${activeInstances.length})` : ''}
+                                    </span>
                                   )}
-                                </span>
-                              </div>
+                                </div>
 
-                              <div className={`grid grid-cols-2 gap-1.5 p-2 rounded-xl text-[11px] ${
-                                isCurrentActive ? "bg-emerald-50/80 border border-emerald-100" : "bg-[#f1f5fa]"
-                              }`}>
-                                <div>
-                                  <span className="text-[9px] text-slate-500 block leading-tight">Daily Income</span>
-                                  <b className="text-cyan-700 font-extrabold">+৳{vip.daily} <span className="text-[8px] font-normal text-slate-400">BDT</span></b>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] text-slate-500 block leading-tight">Total Return</span>
-                                  <b className="text-emerald-600 font-extrabold">৳{vip.total} <span className="text-[8px] font-normal text-slate-400">BDT</span></b>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] text-slate-500 block leading-tight">Missions / Day</span>
-                                  <b className="text-slate-700">{vip.tasks || 5} Tasks / Day</b>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] text-slate-500 block leading-tight">Package Validity</span>
-                                  <b className="text-amber-700">{vip.days || (isStarter ? 7 : 20)} Days</b>
+                                <div className="flex items-baseline gap-2 mt-0.5">
+                                  <span className="text-sm font-black text-slate-900">
+                                    {isStarter ? (
+                                      <span className="text-emerald-600">Free</span>
+                                    ) : (
+                                      `৳${vip.deposit}`
+                                    )}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-emerald-600">
+                                    +৳{vip.daily}<span className="text-[9px] font-normal text-slate-400">/day</span>
+                                  </span>
                                 </div>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Action Button Bottom Bar */}
-                          <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100">
-                            {isStarter ? (
-                              <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                                <span>100% Free • No Recharge Needed</span>
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                                <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                                <span>Capital auto-released in {vip.days || 20}d</span>
-                              </span>
-                            )}
-
-                            {isStarter ? (
-                              isCurrentActive ? (
-                                <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
-                                  <CheckCircle2 className="w-3 h-3 text-white" />
-                                  <span>Active (7 Days Free)</span>
-                                </div>
+                            {/* Right: Action Button */}
+                            <div className="shrink-0">
+                              {isStarter ? (
+                                isCurrentActive ? (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-200 px-3 py-1.5 rounded-full">
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    Active
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnlockVip(vip)}
+                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-sm active:scale-95 transition cursor-pointer"
+                                  >
+                                    Claim Free
+                                  </button>
+                                )
+                              ) : isCurrentActive ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnlockVip(vip)}
+                                  className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm active:scale-95 transition cursor-pointer inline-flex items-center gap-1"
+                                >
+                                  <span>+ Add Pack</span>
+                                </button>
                               ) : (
                                 <button
                                   type="button"
                                   onClick={() => handleUnlockVip(vip)}
-                                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer ring-2 ring-emerald-400/30"
+                                  className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition cursor-pointer"
                                 >
-                                  <span>Claim Free Plan</span>
-                                  <span className="text-emerald-100 font-extrabold">(৳0.00)</span>
+                                  Unlock
                                 </button>
-                              )
-                            ) : isCurrentActive ? (
-                              <div className="flex items-center gap-2">
-                                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-300">
-                                  Running
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleUnlockVip(vip)}
-                                  className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm active:scale-95 transition cursor-pointer"
-                                >
-                                  <span>Buy More</span>
-                                  <span className="text-cyan-300 font-bold">৳{vip.deposit}</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleUnlockVip(vip)}
-                                className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
-                              >
-                                <span>Unlock</span>
-                                <span className="text-cyan-300 font-extrabold">৳{vip.deposit}</span>
-                              </button>
-                            )}
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Clean Minimal Specs Bar */}
+                          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                            <span>Total Return: <b className="text-slate-800 font-bold">৳{vip.total}</b></span>
+                            <span className="text-slate-300">•</span>
+                            <span>Missions: <b className="text-slate-800 font-bold">{vip.tasks || 5}/day</b></span>
+                            <span className="text-slate-300">•</span>
+                            <span>Validity: <b className="text-amber-700 font-bold">{daysCount} Days</b></span>
                           </div>
                         </div>
                       );
@@ -4153,196 +4118,183 @@ export default function App() {
                 const finishedTasks = totalTasks.filter((i) => completedIndices.includes(i));
 
                 return (
-                  <div className="px-4 py-4 space-y-4">
-                    {/* Multi-Package Switcher (When user owns 2 or more packages running simultaneously) */}
+                  <div className="px-3.5 py-3 space-y-3">
+                    {/* Multi-Package Pill Switcher (Minimal & Clean) */}
                     {userActivePackages.length > 1 && (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs px-1">
-                          <span className="font-extrabold text-slate-800">Your Active Packages ({userActivePackages.length})</span>
-                          <span className="text-[10px] text-slate-400">All running simultaneously</span>
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                          {userActivePackages.map((pkg) => {
-                            const isSelected = pkg.instanceId === currentPkg?.instanceId;
-                            const pkgDone = getCompletedIndicesForPack(pkg);
-                            const pkgTotal = parseInt(pkg.tasks) || 5;
-                            const pkgInfo = getPack24hCycle(pkg);
+                      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+                        {userActivePackages.map((pkg) => {
+                          const isSelected = pkg.instanceId === currentPkg?.instanceId;
+                          const pkgDone = getCompletedIndicesForPack(pkg);
+                          const pkgTotal = parseInt(pkg.tasks) || 5;
 
-                            return (
-                              <button
-                                key={pkg.instanceId}
-                                type="button"
-                                onClick={() => setSelectedTaskPackId(pkg.instanceId)}
-                                className={`flex-1 min-w-[155px] p-2.5 rounded-2xl border transition-all text-left cursor-pointer shrink-0 ${
-                                  isSelected
-                                    ? 'bg-[#05132d] border-cyan-400/50 text-white shadow-md shadow-cyan-950/20'
-                                    : 'bg-white border-slate-200/80 text-slate-700 hover:border-slate-300'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className={`text-xs font-black truncate ${isSelected ? 'text-amber-400' : 'text-slate-900'}`}>
-                                    {pkg.level}
-                                  </span>
-                                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold shrink-0 ${
-                                    isSelected ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-slate-100 text-slate-600'
-                                  }`}>
-                                    {pkgDone.length}/{pkgTotal}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-[10px] mt-1.5 text-slate-400">
-                                  <span className="font-semibold text-emerald-500">+৳{pkg.daily}/day</span>
-                                  <span className="text-[9px] font-medium">{pkgInfo.daysLeft}d left</span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
+                          return (
+                            <button
+                              key={pkg.instanceId}
+                              type="button"
+                              onClick={() => setSelectedTaskPackId(pkg.instanceId)}
+                              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-xs ${
+                                isSelected
+                                  ? 'bg-[#05132d] text-white'
+                                  : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span>{pkg.level}</span>
+                              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                                isSelected ? 'bg-cyan-400/25 text-cyan-300' : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                {pkgDone.length}/{pkgTotal}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
 
-                    {/* Active Plan Mission Header */}
+                    {/* Active Plan Mission Header (Clean & Minimal) */}
                     {hasActivePlans && currentPkg ? (
-                      <div className="bg-gradient-to-r from-[#071739] via-[#0d2a66] to-[#05132d] rounded-3xl p-5 text-white shadow-xl border border-cyan-500/30 relative overflow-hidden">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-full shadow-sm">
-                                {currentPkg.level}
-                              </span>
-                              <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
-                            </div>
-                            
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <span className="text-xs text-slate-200">
-                                {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+৳{rewardPerTask.toFixed(2)}</b>
-                              </span>
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs">
-                                <span>⏳ Validity:</span>
-                                <b>{cycleInfo.daysLeft} Days left</b>
-                              </span>
-                              {timeUntilReset && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-xs">
-                                  <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                                  <span>Reset: <b>{timeUntilReset}</b></span>
-                                </span>
-                              )}
-                            </div>
+                      <div className="bg-gradient-to-br from-[#071739] via-[#0b2457] to-[#05132d] rounded-2xl p-4 text-white shadow-md border border-cyan-500/20 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-sm text-white">
+                              {currentPkg.level}
+                            </span>
+                            <span className="bg-amber-400/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-400/30">
+                              Active
+                            </span>
                           </div>
 
-                          <div className="text-right">
-                            <div className="text-[10px] text-slate-300 uppercase font-bold">{t('todaysProgress')}</div>
-                            <div className="text-2xl font-black text-white mt-0.5">
-                              {completedIndices.length} <span className="text-xs text-slate-400 font-medium">/ {maxTasks}</span>
-                            </div>
+                          {timeUntilReset && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-cyan-300 bg-white/10 px-2.5 py-1 rounded-full border border-white/10">
+                              <Clock className="w-3 h-3 text-cyan-400" />
+                              <span>{timeUntilReset}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 3 Crisp Stat Columns */}
+                        <div className="grid grid-cols-3 gap-2 bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Daily</span>
+                            <b className="text-xs font-bold text-emerald-400">+৳{currentPkg.daily}</b>
+                          </div>
+                          <div className="border-x border-white/10">
+                            <span className="text-[10px] text-slate-400 block">Per Mission</span>
+                            <b className="text-xs font-bold text-cyan-300">+৳{rewardPerTask.toFixed(2)}</b>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block">Validity</span>
+                            <b className="text-xs font-bold text-amber-300">{cycleInfo.daysLeft}d left</b>
                           </div>
                         </div>
 
-                        {/* Progress Bar */}
-                        <div className="mt-4 w-full bg-white/10 rounded-full h-2 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, (completedIndices.length / maxTasks) * 100)}%` }}
-                          />
+                        {/* Minimal Progress Bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] text-slate-300">
+                            <span>Today's Progress</span>
+                            <span className="font-mono font-bold">{completedIndices.length} / {maxTasks}</span>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, (completedIndices.length / maxTasks) * 100)}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     ) : (
                       /* Free Starter Claim / VIP Unlock Card if user has 0 active packages */
-                      <div className="bg-gradient-to-br from-[#071739] via-[#0b2457] to-[#05132d] rounded-3xl p-6 text-white shadow-xl border border-amber-500/30 space-y-4 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20">
-                          <Gift className="w-7 h-7" />
+                      <div className="bg-gradient-to-br from-[#071739] via-[#0b2457] to-[#05132d] rounded-2xl p-5 text-white shadow-md border border-amber-500/30 space-y-3 text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center mx-auto shadow-md">
+                          <Gift className="w-6 h-6" />
                         </div>
                         <div>
-                          <h3 className="text-base font-extrabold text-white">Claim 7 Days Free Starter Package!</h3>
+                          <h3 className="text-sm font-extrabold text-white">Claim 7 Days Free Starter Package!</h3>
                           <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
-                            Start earning instantly without recharge! Receive 5 daily verification tasks and earn <b className="text-amber-400">৳20.00 daily for 7 days</b>.
+                            Earn <b className="text-amber-400">৳20.00 daily for 7 days</b> with 5 free verification missions every day. Zero recharge needed.
                           </p>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2 pt-1 max-w-xs mx-auto">
+                        <div className="flex gap-2 pt-1 max-w-xs mx-auto">
                           <button
                             type="button"
                             onClick={handleClaimStarter}
-                            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white font-extrabold py-3 px-4 rounded-full text-xs shadow-md transition cursor-pointer"
+                            className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white font-bold py-2.5 rounded-full text-xs shadow-md transition cursor-pointer"
                           >
-                            🎁 Claim Free Starter Now
+                            🎁 Claim Free
                           </button>
                           <button
                             type="button"
                             onClick={() => navigateToTab('vip')}
-                            className="w-full bg-white/10 hover:bg-white/20 text-cyan-300 font-bold py-3 px-4 rounded-full text-xs border border-cyan-400/30 transition cursor-pointer"
+                            className="flex-1 bg-white/10 hover:bg-white/20 text-cyan-300 font-bold py-2.5 rounded-full text-xs border border-cyan-400/30 transition cursor-pointer"
                           >
-                            Explore VIP Packages
+                            VIP Packages
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {/* Tabs: Running vs Completed */}
+                    {/* Segmented Control: To Do vs Completed */}
                     {hasActivePlans && (
-                      <div className="flex bg-[#e8eef8] p-1 rounded-2xl text-xs font-bold text-slate-600">
+                      <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold text-slate-600">
                         <button
                           type="button"
                           onClick={() => setTaskTab('running')}
-                          className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'running' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                          className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${taskTab === 'running' ? 'bg-white text-slate-900 shadow-xs font-extrabold' : 'hover:text-slate-900'}`}
                         >
-                          Running ({runningTasks.length})
+                          To Do ({runningTasks.length})
                         </button>
                         <button
                           type="button"
                           onClick={() => setTaskTab('completed')}
-                          className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'completed' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                          className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${taskTab === 'completed' ? 'bg-white text-slate-900 shadow-xs font-extrabold' : 'hover:text-slate-900'}`}
                         >
                           Completed ({finishedTasks.length})
                         </button>
                       </div>
                     )}
 
-                    {/* Tasks List */}
+                    {/* Clean Tasks List */}
                     {hasActivePlans && currentPkg && (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {taskTab === 'running' ? (
                           runningTasks.length === 0 ? (
-                            <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm space-y-3">
-                              <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
-                              <h3 className="text-sm font-bold text-slate-900">All tasks completed today!</h3>
-                              <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                                You have finished all {maxTasks} daily tasks for {currentPkg.level}. Next daily tasks unlock in <b className="text-cyan-600">{timeUntilReset}</b>.
+                            <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 shadow-xs space-y-2">
+                              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+                              <h3 className="text-xs font-bold text-slate-900">All tasks completed today!</h3>
+                              <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
+                                You finished all {maxTasks} tasks for {currentPkg.level}. Resets in <b className="text-cyan-600 font-mono">{timeUntilReset}</b>.
                               </p>
-                              {userActivePackages.length > 1 && (
-                                <p className="text-[11px] text-amber-600 font-semibold">
-                                  💡 You have other active packages! Select them from the tabs above to finish their daily tasks.
-                                </p>
-                              )}
                             </div>
                           ) : (
                             runningTasks.map((taskIdx) => (
                               <div
                                 key={taskIdx}
-                                className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between gap-3 transition hover:shadow-md"
+                                className="bg-white rounded-xl p-3 shadow-xs border border-slate-100/90 flex items-center justify-between gap-3 hover:shadow-sm transition"
                               >
-                                <div className="space-y-1 min-w-0 flex-1">
-                                  <div className="text-xs font-bold text-slate-900 truncate">
-                                    {currentPkg.level} Verification Mission #{taskIdx + 1}
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-900 font-black text-xs flex items-center justify-center shrink-0">
+                                    {taskIdx + 1}
                                   </div>
-                                  <div className="text-[11px] text-slate-500">
-                                    Daily Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-bold text-slate-800 truncate">
+                                      Verification Mission #{taskIdx + 1}
+                                    </div>
+                                    <div className="text-[11px] text-slate-400">
+                                      Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
+                                    </div>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className="h-8 inline-flex items-center justify-center gap-1.5 text-[11px] bg-amber-50 text-amber-700 font-bold px-3 rounded-full border border-amber-200 shadow-xs leading-none">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                    Running
-                                  </span>
+                                <div className="shrink-0">
                                   <button
                                     type="button"
                                     disabled={taskProcessingIdx !== null}
                                     onClick={() => handleCompleteTask(taskIdx, rewardPerTask, currentPkg)}
-                                    className="h-8 bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 rounded-full shadow-md active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed leading-none"
+                                    className="h-8 bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 rounded-full shadow-xs active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     {taskProcessingIdx === taskIdx ? (
                                       <>
                                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                        <span>Verifying ({taskCountdown}s)...</span>
+                                        <span>{taskCountdown}s</span>
                                       </>
                                     ) : (
                                       <span>Complete</span>
@@ -4354,30 +4306,30 @@ export default function App() {
                           )
                         ) : (
                           finishedTasks.length === 0 ? (
-                            <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm text-slate-400">
-                              <Clock className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                              <p className="text-xs font-medium">No completed tasks yet today for {currentPkg.level}.</p>
+                            <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 shadow-xs text-slate-400">
+                              <p className="text-xs font-medium">No completed tasks yet today.</p>
                             </div>
                           ) : (
                             finishedTasks.map((taskIdx) => (
                               <div
                                 key={taskIdx}
-                                className="bg-white/80 rounded-2xl p-4 border border-emerald-100 flex items-center justify-between gap-3"
+                                className="bg-white/80 rounded-xl p-3 border border-emerald-100 flex items-center justify-between gap-3"
                               >
-                                <div className="space-y-1 min-w-0 flex-1">
-                                  <div className="text-xs font-bold text-slate-700 truncate">
-                                    {currentPkg.level} Verification Mission #{taskIdx + 1}
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                  <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                                    <Check className="w-4 h-4" />
                                   </div>
-                                  <div className="text-[11px] text-slate-500">
-                                    Credited: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-bold text-slate-700 truncate">
+                                      Verification Mission #{taskIdx + 1}
+                                    </div>
+                                    <div className="text-[10px] text-emerald-600 font-medium">
+                                      Completed • Credited
+                                    </div>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-full border border-emerald-200">
-                                    <Check className="w-3 h-3 text-emerald-600" />
-                                    Completed
-                                  </span>
+                                <div className="shrink-0">
                                   <span className="text-xs font-black text-emerald-600">
                                     +৳{rewardPerTask.toFixed(2)}
                                   </span>
@@ -4387,25 +4339,14 @@ export default function App() {
                           )
                         )}
 
-                        {/* Multi-Package Add Banner */}
-                        <div className="pt-2">
+                        {/* Minimal Add Package Link */}
+                        <div className="pt-1 text-center">
                           <button
                             type="button"
                             onClick={() => navigateToTab('vip')}
-                            className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/80 rounded-2xl p-3 flex items-center justify-between text-xs transition cursor-pointer text-left"
+                            className="text-[11px] font-bold text-blue-600 hover:text-blue-800 transition cursor-pointer py-1"
                           >
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
-                                <Plus className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <div className="font-extrabold text-blue-950">Add Another Package</div>
-                                <div className="text-[10px] text-slate-500">Unlock multiple packages simultaneously (+5 daily tasks each)</div>
-                              </div>
-                            </div>
-                            <span className="text-[11px] font-bold text-blue-600 bg-white px-2.5 py-1 rounded-full shadow-xs border border-blue-200 shrink-0">
-                              Explore VIP &gt;
-                            </span>
+                            + Unlock More VIP Packages
                           </button>
                         </div>
                       </div>
