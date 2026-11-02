@@ -622,14 +622,31 @@ export default {
           });
         }
 
-        // Check Regular Users
+        // Check Regular Users with flexible phone/email/username matching
+        const inputDigits = account.replace(/\\D/g, '');
         const matched = users.find((u) => {
           if (!u) return false;
           const uEmail = String(u.email || '').trim().toLowerCase();
           const uName = String(u.name || '').trim().toLowerCase();
-          const uPhone = String(u.phone || '').trim();
-          const uId = String(u.id || '').trim();
-          return uEmail === account || uName === account || uPhone === account || uId === account;
+          const uPhone = String(u.phone || '').trim().toLowerCase();
+          const uId = String(u.id || '').trim().toLowerCase();
+          const uInvite = String(u.myInviteCode || u.inviteCode || '').trim().toLowerCase();
+
+          if (uEmail === account || uName === account || uPhone === account || uId === account || uInvite === account) {
+            return true;
+          }
+
+          // Flexible phone match (allows direct number like 01712345678 without +88, or with +880, 880, etc.)
+          if (inputDigits.length >= 8 && uPhone) {
+            const uDigits = uPhone.replace(/\\D/g, '');
+            if (uDigits === inputDigits) return true;
+            if (uDigits.endsWith(inputDigits) || inputDigits.endsWith(uDigits)) return true;
+            const last10Input = inputDigits.slice(-10);
+            const last10User = uDigits.slice(-10);
+            if (last10Input.length >= 8 && last10Input === last10User) return true;
+          }
+
+          return false;
         });
 
         if (!matched || String(matched.password || '').trim() !== inputPass) {
@@ -758,14 +775,7 @@ export default {
                   u.balance = parseFloat(((parseFloat(u.balance) || 0) + parsed.amount).toFixed(2));
                   u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + parsed.amount).toFixed(2));
 
-                  // Auto activate target VIP package if specified
-                  if (pendingMatch.targetVip && pendingMatch.targetVip !== 'VIP0' && pendingMatch.targetVip !== u.vip) {
-                    u.vip = pendingMatch.targetVip;
-                    u.vipActivatedAt = Date.now();
-                    u.vipDurationDays = 20;
-                    u.vipExpiresAt = Date.now() + 20 * 86400000;
-                    u.capitalReleased = false;
-                  }
+                  // Recharge adds to balance; customer purchases VIP manually without auto-activation
 
                   // Credit Referrer Commission
                   const settingsRow = await env.DB.prepare('SELECT value FROM app_state WHERE key = ?').bind('settings').first();
@@ -945,14 +955,7 @@ export default {
             u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + amount).toFixed(2));
 
             let vipActivated = false;
-            if (targetVip && targetVip !== 'VIP0' && targetVip !== u.vip) {
-              u.vip = targetVip;
-              u.vipActivatedAt = Date.now();
-              u.vipDurationDays = 20;
-              u.vipExpiresAt = Date.now() + 20 * 86400000;
-              u.capitalReleased = false;
-              vipActivated = true;
-            }
+            // Recharge adds to balance; customer purchases VIP manually without auto-activation
 
             const commRate = parseFloat(settings.referralCommissionRate) || 10;
             if (u.referredBy && commRate > 0) {

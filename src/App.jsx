@@ -375,43 +375,13 @@ export default function App() {
         (u.phone && cur.phone && u.phone === cur.phone)
       );
       if (freshUser) {
-        // Auto-check capital release if package validity has ended
-        if (
-          freshUser.vipExpiresAt &&
-          Date.now() >= freshUser.vipExpiresAt &&
-          !freshUser.capitalReleased &&
-          freshUser.vip !== 'VIP0' &&
-          freshUser.email !== 'admin@nexttask.online'
-        ) {
-          freshUser.capitalReleased = true;
-          const updatedUsers = allUsers.map(u => (
-            (u.id && freshUser.id && String(u.id) === String(freshUser.id)) ||
-            (u.email && freshUser.email && u.email.toLowerCase() === freshUser.email.toLowerCase())
-          ) ? { ...u, capitalReleased: true } : u);
-          setStoredData('users', updatedUsers);
-          try {
-            const allNotifs = getStoredData('notifications', []);
-            allNotifs.unshift({
-              id: `notif_${Date.now()}`,
-              userId: String(freshUser.id || freshUser.email),
-              title: '🎉 Package Validity Completed & Capital Released!',
-              message: `Your ${freshUser.vip} package validity period has successfully completed. Your principal recharge capital of ৳${freshUser.recharge} BDT is now unlocked and fully released to your withdrawable balance!`,
-              time: new Date().toISOString().replace('T', ' ').slice(0, 16),
-              read: false,
-              type: 'vip'
-            });
-            setStoredData('notifications', allNotifs);
-          } catch (e) {}
-        }
-
         setCurrentUser((prev) => {
           if (!prev) return freshUser;
           if (
             prev.balance !== freshUser.balance ||
             prev.recharge !== freshUser.recharge ||
             prev.vip !== freshUser.vip ||
-            prev.name !== freshUser.name ||
-            prev.capitalReleased !== freshUser.capitalReleased
+            prev.name !== freshUser.name
           ) {
             try {
               localStorage.setItem('nt_currentUser', JSON.stringify(freshUser));
@@ -2338,7 +2308,7 @@ export default function App() {
 
       const depositDeduction = reqDeposit;
       const newBalance = parseFloat((balance - depositDeduction).toFixed(2));
-      const newRecharge = parseFloat(((currentUser?.recharge || rechargeTotal || 0) + depositDeduction).toFixed(2));
+      const userRecharge = currentUser?.recharge || rechargeTotal || 0;
       const durationDays = selectedVipForUnlock.days ? parseInt(selectedVipForUnlock.days) : 20;
       const now = Date.now();
       const expiresAt = now + durationDays * 86400000;
@@ -2353,6 +2323,8 @@ export default function App() {
         interest: selectedVipForUnlock.interest || (parseFloat(selectedVipForUnlock.daily) / tasksCount).toFixed(2),
         tasks: tasksCount,
         days: durationDays,
+        profitPercent: selectedVipForUnlock.profitPercent || 80,
+        totalReturn: selectedVipForUnlock.total || (parseFloat(selectedVipForUnlock.daily) * durationDays).toFixed(2),
         activatedAt: now,
         expiresAt: expiresAt,
         logo: selectedVipForUnlock.logo || '',
@@ -2369,12 +2341,11 @@ export default function App() {
         ...currentUser,
         vip: selectedVipForUnlock.level,
         balance: newBalance,
-        recharge: newRecharge,
+        recharge: userRecharge,
         vipActivatedAt: now,
         vipDurationDays: durationDays,
         vipExpiresAt: expiresAt,
         activePackages: updatedActivePackages,
-        capitalReleased: false,
         starterClaimedAt: currentUser?.starterClaimedAt || null,
         starterExpiresAt: currentUser?.starterExpiresAt || null
       };
@@ -2382,7 +2353,6 @@ export default function App() {
       try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUserObj)); } catch (e) {}
 
       setBalance(newBalance);
-      setRechargeTotal(newRecharge);
       setUserVip(selectedVipForUnlock.level);
       setSelectedTaskPackId(newPackageInstance.instanceId);
 
@@ -2405,12 +2375,11 @@ export default function App() {
             ...u,
             vip: selectedVipForUnlock.level,
             balance: newBalance,
-            recharge: newRecharge,
+            recharge: userRecharge,
             vipActivatedAt: now,
             vipDurationDays: durationDays,
             vipExpiresAt: expiresAt,
             activePackages: updatedActivePackages,
-            capitalReleased: false,
             starterClaimedAt: currentUser?.starterClaimedAt || null,
             starterExpiresAt: currentUser?.starterExpiresAt || null
           };
@@ -2580,11 +2549,8 @@ export default function App() {
             isFinished = true;
             setVerificationStage('success');
             setBalance((prev) => parseFloat((prev + numAmount).toFixed(2)));
-            if (data.vipActivated && targetVipLevel) {
-              setUserVip(targetVipLevel);
-            }
             syncCurrentUserData();
-            showToast(`🎉 Payment of ৳${numAmount.toFixed(2)} verified & credited instantly!`);
+            showToast(`🎉 Payment of ৳${numAmount.toFixed(2)} verified & credited to your balance!`);
             setTimeout(() => {
               setIsVerifyingPayment(false);
               navigateToTab('profile');
@@ -5332,7 +5298,7 @@ export default function App() {
 
                     {/* Quick Amount Selectors */}
                     <div className="grid grid-cols-4 gap-1.5 mt-2.5">
-                      {['1,000.00', '5,000.00', '15,000.00', '35,000.00', '75,000.00', '150,000.00', '350,000.00', '750,000.00'].map((amt) => {
+                      {['500.00', '1,000.00', '2,000.00', '5,000.00', '10,000.00', '25,000.00', '50,000.00', '100,000.00'].map((amt) => {
                         const isActive = rechargeAmount === amt;
                         return (
                           <button
@@ -5716,9 +5682,9 @@ export default function App() {
                 <div className="flex justify-between items-center">
                   <div>
                     <div className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1.5">
-                      <span>Available Balance</span>
+                      <span>Withdrawable Balance</span>
                       <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded-full font-bold">
-                        {currentUser?.capitalReleased || (currentUser?.vipExpiresAt && Date.now() >= currentUser.vipExpiresAt) ? 'Earnings + Released Capital' : 'Task Earnings'}
+                        100% Available
                       </span>
                     </div>
                     <div className="text-xl font-black text-slate-900 mt-0.5">৳{balance.toFixed(2)}</div>
@@ -5730,16 +5696,6 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-
-                {rechargeTotal > 0 && userVip && userVip !== 'VIP0' && (
-                  <div className="text-[10px] text-slate-500 bg-amber-50/70 border border-amber-200/60 rounded-xl p-2 flex items-center justify-between">
-                    <span className="flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-amber-600 shrink-0" />
-                      <span>Locked VIP ({getVipDisplayName(userVip, vipTiers)}) Capital:</span>
-                    </span>
-                    <strong className="text-amber-800 font-bold">৳{rechargeTotal.toFixed(2)}</strong>
-                  </div>
-                )}
               </div>
 
               {/* Dynamic Saved Accounts Selector */}

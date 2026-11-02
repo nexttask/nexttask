@@ -1216,79 +1216,19 @@ export default function AdminPanel({ onNavigateToApp }) {
       return parentCodes.includes(refClean) || isReferredByUser(child, parent);
     };
 
-    // 2. Credit user's balance and recharge total, auto-upgrade VIP level and credit referrer commission
+    // 2. Credit user's balance and recharge total (No auto-VIP: user chooses & buys package manually)
     const updatedUsers = users.map((u) => {
       const isMatch = targetUser && String(u.id) === String(targetUser.id);
 
       if (isMatch) {
         const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
-
-        let newVip = u.vip || 'Starter Package';
-        let matchedTier = null;
-        for (const tier of vipTiers) {
-          const reqDeposit = parseFloat(tier.deposit.toString().replace(/,/g, '')) || 0;
-          if (newRecharge >= reqDeposit && reqDeposit > 0) {
-            newVip = tier.level;
-            matchedTier = tier;
-          }
-        }
-        const durationDays = matchedTier?.days ? parseInt(matchedTier.days) : 20;
-        const now = Date.now();
-        const expiresAt = now + durationDays * 86400000;
-
-        const prevLevel = u.vip || 'Starter Package';
-        let pendingUpgradeData = u.pendingUpgrade || null;
-        let userCompletedTasks = u.completedTasks || {};
-
-        if (newVip !== prevLevel) {
-          const todayDate = new Date().toISOString().slice(0, 10);
-          const todayDone = (userCompletedTasks && Array.isArray(userCompletedTasks[todayDate])) ? userCompletedTasks[todayDate] : [];
-          const prevTier = vipTiers.find((v) => v && (v.level === prevLevel || v.id === prevLevel)) || vipTiers[0];
-          const prevMax = prevTier?.tasks || 10;
-
-          if (todayDone.length > 0 && todayDone.length < prevMax) {
-            pendingUpgradeData = {
-              date: todayDate,
-              activeTierLevel: prevLevel,
-              targetTierLevel: newVip,
-              previousMaxTasks: prevMax
-            };
-          } else if (todayDone.length >= prevMax) {
-            userCompletedTasks = { ...userCompletedTasks, [todayDate]: [] };
-            pendingUpgradeData = null;
-          }
-        }
-
-        let activePackages = Array.isArray(u.activePackages) ? [...u.activePackages] : [];
-        if (matchedTier) {
-          const tasksCount = parseInt(matchedTier.tasks) || 5;
-          activePackages.push({
-            instanceId: `pkg_${matchedTier.id || Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            packId: matchedTier.id,
-            level: matchedTier.level,
-            deposit: matchedTier.deposit,
-            daily: matchedTier.daily,
-            interest: matchedTier.interest || (parseFloat(matchedTier.daily) / tasksCount).toFixed(2),
-            tasks: tasksCount,
-            days: durationDays,
-            activatedAt: now,
-            expiresAt: expiresAt,
-            logo: matchedTier.logo || '',
-            isStarter: false
-          });
-        }
+        const prevBal = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
+        const newBal = parseFloat((prevBal + rec.amount).toFixed(2));
 
         return {
           ...u,
-          recharge: newRecharge,
-          vip: newVip,
-          vipActivatedAt: now,
-          vipDurationDays: durationDays,
-          vipExpiresAt: expiresAt,
-          activePackages,
-          capitalReleased: false,
-          pendingUpgrade: pendingUpgradeData,
-          completedTasks: userCompletedTasks
+          balance: newBal,
+          recharge: newRecharge
         };
       }
 
@@ -2586,7 +2526,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                           <span className="text-[10px] text-slate-400 uppercase font-semibold">VIP Level</span>
                           {u.vip && u.vip !== 'VIP0' && (
                             <span className="text-[9px] font-bold text-amber-300">
-                              {u.capitalReleased || (u.vipExpiresAt && Date.now() >= u.vipExpiresAt) ? 'Capital Released' : `${Math.max(1, Math.ceil(((u.vipExpiresAt || Date.now() + 20*86400000) - Date.now()) / 86400000))}d left`}
+                              {u.vipExpiresAt && Date.now() >= u.vipExpiresAt ? 'Expired' : `${Math.max(1, Math.ceil(((u.vipExpiresAt || Date.now() + 20*86400000) - Date.now()) / 86400000))}d left`}
                             </span>
                           )}
                         </div>
@@ -2738,7 +2678,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                           </select>
                           {u.vip && u.vip !== 'VIP0' && (
                             <span className="text-[9px] font-bold text-amber-400">
-                              {u.capitalReleased || (u.vipExpiresAt && Date.now() >= u.vipExpiresAt) ? 'Capital Released' : `${Math.max(1, Math.ceil(((u.vipExpiresAt || Date.now() + 20*86400000) - Date.now()) / 86400000))}d left`}
+                              {u.vipExpiresAt && Date.now() >= u.vipExpiresAt ? 'Expired' : `${Math.max(1, Math.ceil(((u.vipExpiresAt || Date.now() + 20*86400000) - Date.now()) / 86400000))}d left`}
                             </span>
                           )}
                         </div>
