@@ -1344,6 +1344,72 @@ export default function App() {
     showToast(`Language: ${LANGUAGES.find((l) => l.code === code)?.name}`);
   };
 
+  // Pull to Refresh State & Handlers
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const pullTouchStartY = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  const handlePullTouchStart = (e) => {
+    if (isPullRefreshing) return;
+    const container = scrollContainerRef.current;
+    if (container && container.scrollTop <= 2) {
+      pullTouchStartY.current = e.touches[0].clientY;
+    } else {
+      pullTouchStartY.current = null;
+    }
+  };
+
+  const handlePullTouchMove = (e) => {
+    if (pullTouchStartY.current === null || isPullRefreshing) return;
+    const container = scrollContainerRef.current;
+    if (!container || container.scrollTop > 2) {
+      setPullDistance(0);
+      pullTouchStartY.current = null;
+      return;
+    }
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - pullTouchStartY.current;
+    if (diff > 0) {
+      // Smooth elastic resistance curve when user drags down
+      const resistance = Math.min(85, Math.pow(diff, 0.78) * 1.8);
+      setPullDistance(resistance);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const handlePullTouchEnd = () => {
+    if (pullTouchStartY.current === null || isPullRefreshing) return;
+    pullTouchStartY.current = null;
+    if (pullDistance >= 52) {
+      triggerPullRefresh();
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const triggerPullRefresh = () => {
+    setIsPullRefreshing(true);
+    setPullDistance(52);
+    try {
+      if (navigator.vibrate) navigator.vibrate(25);
+    } catch (e) {}
+
+    // Synchronize latest user balance & app state
+    syncCurrentUserData();
+    const freshVips = getStoredData('vips', DEFAULT_VIP_TIERS);
+    setVipTiers(freshVips);
+    const freshSettings = getStoredData('settings', DEFAULT_SETTINGS);
+    setSettings(freshSettings);
+
+    setTimeout(() => {
+      setIsPullRefreshing(false);
+      setPullDistance(0);
+      showToast('✓ Data refreshed');
+    }, 850);
+  };
+
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 2500);
@@ -3066,7 +3132,41 @@ export default function App() {
         )}
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-6">
+        <div
+          ref={scrollContainerRef}
+          onTouchStart={handlePullTouchStart}
+          onTouchMove={handlePullTouchMove}
+          onTouchEnd={handlePullTouchEnd}
+          className="flex-1 overflow-y-auto no-scrollbar pb-6 relative"
+        >
+          {/* Pull To Refresh Mobile Indicator */}
+          {(pullDistance > 0 || isPullRefreshing) && (
+            <div
+              style={{
+                height: `${pullDistance}px`,
+                opacity: Math.min(1, pullDistance / 35),
+              }}
+              className="w-full flex items-center justify-center overflow-hidden transition-all duration-150 ease-out shrink-0 select-none pointer-events-none sticky top-0 z-40 bg-gradient-to-b from-[#05132d]/80 via-[#05132d]/30 to-transparent pb-1"
+            >
+              <div className="bg-white/95 text-slate-800 border border-slate-200/90 shadow-xl rounded-full px-4 py-1.5 flex items-center gap-2 text-xs font-bold backdrop-blur-md">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isPullRefreshing ? 'animate-spin' : ''}`}>
+                  <RefreshCw
+                    className="w-3.5 h-3.5 text-cyan-600"
+                    style={{
+                      transform: isPullRefreshing ? 'none' : `rotate(${pullDistance * 4}deg)`,
+                    }}
+                  />
+                </div>
+                <span className="text-[11px] font-black text-slate-800">
+                  {isPullRefreshing
+                    ? 'Refreshing live data...'
+                    : pullDistance >= 52
+                    ? 'Release to refresh'
+                    : 'Pull down to refresh'}
+                </span>
+              </div>
+            </div>
+          )}
           {activeTab === 'auth' ? (
             /* =================== AUTH SCREEN (LOGIN & REGISTER) =================== */
             <div className="min-h-full bg-gradient-to-b from-[#06142e] via-[#0b2046] to-[#f4f7fb] flex flex-col">
@@ -4884,10 +4984,14 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= UPGRADE LOG MODAL ================= */}
+        {/* ================= UPGRADE LOG MODAL (MY PACKAGES ONLY) ================= */}
         {showUpgradeLogModal && (() => {
-          const upgradeLogs = getStoredData('upgrade_logs', DEFAULT_UPGRADE_LOGS);
-          const myLogs = upgradeLogs.filter((log) => {
+          // 1. All currently active packages owned by this user
+          const activeList = Array.isArray(userActivePackages) ? userActivePackages : [];
+
+          // 2. Personal upgrade records from stored upgrade logs
+          const allStoredLogs = getStoredData('upgrade_logs', []);
+          const myUpgradeHistory = allStoredLogs.filter((log) => {
             if (!currentUser) return false;
             return (
               (log.userId && String(log.userId) === String(currentUser.id)) ||
@@ -4895,11 +4999,18 @@ export default function App() {
               (log.user && (currentUser.email === log.user || currentUser.phone === log.user))
             );
           });
-          const displayedLogs = upgradeLogTab === 'my' ? myLogs : upgradeLogs;
+
+          // Unique list of active package names to avoid duplicating history
+          const activeLevelNames = new Set(activeList.map((p) => String(p.level || '').toLowerCase().trim()));
+          const pastHistoryOnly = myUpgradeHistory.filter(
+            (log) => !activeLevelNames.has(String(log.toVip || '').toLowerCase().trim())
+          );
+
+          const totalPackagesCount = activeList.length;
 
           return (
-            <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 animate-fade-in">
-              <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden max-h-[92%] flex flex-col animate-slide-up shadow-2xl border border-slate-100">
+            <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-3 sm:p-4 animate-fade-in">
+              <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col animate-slide-up shadow-2xl border border-slate-100">
                 {/* Midnight Luxury Header */}
                 <div className="relative bg-gradient-to-r from-[#071739] via-[#0b2457] to-[#05132d] p-4 text-white shrink-0 overflow-hidden">
                   <div className="absolute -right-8 -top-8 w-28 h-28 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
@@ -4910,12 +5021,12 @@ export default function App() {
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <h3 className="font-extrabold text-white text-base tracking-tight">Upgrade Log</h3>
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                            Live
+                          <h3 className="font-extrabold text-white text-base tracking-tight">My Upgrade Log</h3>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                            {totalPackagesCount} {totalPackagesCount === 1 ? 'Package' : 'Packages'}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-300 font-medium">Real-time VIP Unlocks &amp; Transitions</p>
+                        <p className="text-[11px] text-slate-300 font-medium">Your activated VIP packages and upgrade history</p>
                       </div>
                     </div>
                     <button
@@ -4927,151 +5038,173 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Summary Bar */}
-                  <div className="mt-3 flex items-center justify-between bg-white/10 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 text-[11px]">
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Total Unlocks:</span>
-                      <b className="text-white font-mono">{upgradeLogs.length} Records</b>
+                  {/* User Profile Bar */}
+                  <div className="mt-3 flex items-center justify-between bg-white/10 backdrop-blur-md rounded-xl px-3 py-2 border border-white/10 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-slate-200">
+                      <span className="font-semibold text-slate-300">Account:</span>
+                      <b className="text-white font-mono">{currentUser?.phone || currentUser?.email || currentUser?.name || 'Member'}</b>
                     </div>
-                    <span className="font-mono text-[10px] text-cyan-300 font-extrabold bg-cyan-950/60 px-2 py-0.5 rounded-full border border-cyan-800/40">
-                      My VIP: {currentUser?.vip || userVip || 'VIP0'}
+                    <span className="font-mono text-[10px] text-amber-300 font-extrabold bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-600/40">
+                      Current VIP: {currentUser?.vip || userVip || 'VIP0'}
                     </span>
                   </div>
                 </div>
 
-                {/* Filter Tabs */}
-                <div className="p-3 pb-0 bg-slate-50 border-b border-slate-100 flex gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setUpgradeLogTab('all')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
-                      upgradeLogTab === 'all'
-                        ? 'bg-[#071739] text-white shadow-sm'
-                        : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80'
-                    }`}
-                  >
-                    All Upgrades ({upgradeLogs.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUpgradeLogTab('my')}
-                    className={`flex-1 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer text-center ${
-                      upgradeLogTab === 'my'
-                        ? 'bg-[#071739] text-white shadow-sm'
-                        : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200/80'
-                    }`}
-                  >
-                    My Upgrades ({myLogs.length})
-                  </button>
-                </div>
-
-                {/* Scrollable Records List */}
-                <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1">
-                  {displayedLogs.length === 0 ? (
-                    <div className="text-center py-12 px-4 space-y-3">
-                      <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                        <Award className="w-6 h-6 text-slate-400" />
+                {/* Scrollable Package List */}
+                <div className="p-3.5 space-y-3 overflow-y-auto flex-1 bg-slate-50/50">
+                  {activeList.length === 0 && myUpgradeHistory.length === 0 ? (
+                    <div className="text-center py-12 px-4 space-y-3.5 bg-white rounded-2xl border border-slate-100 my-2">
+                      <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto border border-amber-100 shadow-inner">
+                        <Award className="w-7 h-7 text-amber-500" />
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-700">No upgrade records in this tab</p>
-                        <p className="text-[11px] text-slate-400">
-                          {upgradeLogTab === 'my'
-                            ? 'You have not unlocked any VIP packages yet.'
-                            : 'Upgrade logs will appear here in real time.'}
+                        <h4 className="text-sm font-bold text-slate-800">No Upgraded Packages Yet</h4>
+                        <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                          You haven't upgraded to any package yet. Recharge your account and choose a package to start earning daily returns!
                         </p>
                       </div>
-                      {upgradeLogTab === 'my' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowUpgradeLogModal(false);
-                            setActiveTab('vip');
-                          }}
-                          className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs py-2.5 px-5 rounded-full shadow-md transition cursor-pointer"
-                        >
-                          Unlock VIP Package Now
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowUpgradeLogModal(false);
+                          setActiveTab('vip');
+                        }}
+                        className="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs py-2.5 px-6 rounded-full shadow-md transition cursor-pointer active:scale-95"
+                      >
+                        Explore VIP Packages
+                      </button>
                     </div>
                   ) : (
-                    displayedLogs.map((log, idx) => {
-                      const isMyRecord = currentUser && (
-                        String(log.userId) === String(currentUser.id) ||
-                        log.user === currentUser.name ||
-                        log.user === currentUser.email ||
-                        log.user === currentUser.phone
-                      );
-                      const isUnlock = log.type === 'Unlock' || log.fromVip === 'VIP0' || !log.fromVip;
-
-                      return (
-                        <div
-                          key={log.id || idx}
-                          className={`p-3 rounded-2xl border transition ${
-                            isMyRecord
-                              ? 'bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 border-amber-300 shadow-sm ring-1 ring-amber-400/20'
-                              : 'bg-slate-50/80 hover:bg-slate-50 border-slate-200/90'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] shrink-0 ${
-                                isUnlock
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                  : 'bg-amber-100 text-amber-900 border border-amber-300'
-                              }`}>
-                                {isUnlock ? '★' : '▲'}
-                              </div>
-                              <span className="font-extrabold text-xs text-slate-900 truncate">
-                                {log.userIdentifier || (log.user ? String(log.user).replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2') : 'Member')}
-                              </span>
-                              {isMyRecord && (
-                                <span className="bg-amber-400 text-slate-950 text-[9px] font-black px-1.5 py-0.2 rounded font-mono shrink-0">
-                                  YOU
-                                </span>
-                              )}
-                            </div>
-
-                            <span className="text-[10px] font-bold text-slate-400 shrink-0 font-mono">
-                              {log.date}
+                    <>
+                      {/* Active Packages List */}
+                      {activeList.length > 0 && (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between px-1">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                              Active Packages ({activeList.length})
                             </span>
+                            <span className="text-[10px] font-bold text-slate-400">Real-time status</span>
                           </div>
 
-                          {/* Transition Bar: VIP From -> To */}
-                          <div className="flex items-center justify-between bg-white border border-slate-200/70 rounded-xl px-2.5 py-1.5 text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 text-slate-600">
-                                {log.fromVip || 'VIP0'}
-                              </span>
-                              <span className="text-slate-400 font-bold text-xs">➔</span>
-                              <span className="px-2 py-0.5 rounded-md font-black text-[10px] bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 shadow-xs">
-                                {log.toVip}
-                              </span>
-                              <span className="text-[10px] font-bold text-slate-500 ml-1">
-                                {isUnlock ? 'Package Unlock' : 'Tier Upgrade'}
-                              </span>
-                            </div>
+                          {activeList.map((pkg, idx) => {
+                            const reqDep = parseFloat(String(pkg.deposit || 0).replace(/,/g, '')) || 0;
+                            const dailyInc = parseFloat(String(pkg.daily || 0).replace(/,/g, '')) || 0;
+                            const days = parseInt(pkg.days) || 20;
+                            const payable = parseFloat(String(pkg.totalReturn || (dailyInc * days)).replace(/,/g, '')) || (dailyInc * days);
+                            const now = Date.now();
+                            const remainingDays = pkg.expiresAt ? Math.max(0, Math.ceil((pkg.expiresAt - now) / 86400000)) : days;
+                            const activatedDateStr = pkg.activatedAt ? new Date(pkg.activatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Active';
 
-                            <div className="text-right shrink-0">
-                              <span className="font-mono text-xs font-black text-emerald-600">
-                                {log.amount > 0 ? `+৳${parseFloat(log.amount).toFixed(2)}` : 'Active'}
-                              </span>
-                            </div>
-                          </div>
+                            return (
+                              <div
+                                key={pkg.instanceId || `act_${idx}`}
+                                className="bg-white rounded-2xl p-3.5 border border-slate-200/90 shadow-sm relative overflow-hidden space-y-3"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center p-1 shrink-0 shadow-sm">
+                                      <img
+                                        src={pkg.logo || getPackageLogo(pkg)}
+                                        alt={pkg.level}
+                                        className="w-full h-full object-contain"
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.src = 'https://cryptologos.cc/logos/tether-usdt-logo.png';
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h4 className="font-black text-sm text-slate-900 truncate tracking-tight">
+                                        {pkg.level}
+                                      </h4>
+                                      <p className="text-[10px] font-medium text-slate-400">
+                                        Activated: {activatedDateStr}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-extrabold px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1 shadow-xs">
+                                    <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                                    Active
+                                  </span>
+                                </div>
+
+                                {/* Package Metrics Grid */}
+                                <div className="grid grid-cols-3 gap-2 bg-slate-50/90 rounded-xl p-2.5 border border-slate-100 text-center">
+                                  <div>
+                                    <div className="text-[10px] font-medium text-slate-500">Price</div>
+                                    <div className="text-xs font-black text-slate-800">
+                                      {reqDep === 0 ? 'Free' : `৳${reqDep.toFixed(0)}`}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-medium text-slate-500">Daily Return</div>
+                                    <div className="text-xs font-black text-emerald-600">
+                                      +৳{dailyInc.toFixed(0)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-medium text-slate-500">Payable</div>
+                                    <div className="text-xs font-black text-blue-600 font-mono">
+                                      ৳{payable.toFixed(0)}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Footer row with validity & missions */}
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5 px-0.5">
+                                  <span className="flex items-center gap-1 font-medium">
+                                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>Remaining:</span>
+                                    <b className="text-slate-700 font-bold">{remainingDays} Days left</b>
+                                  </span>
+                                  <span className="font-semibold text-slate-600">
+                                    Missions: <b className="text-slate-800">{pkg.tasks || 5}/day</b>
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })
+                      )}
+
+                      {/* Past Upgrade History (if any completed) */}
+                      {pastHistoryOnly.length > 0 && (
+                        <div className="space-y-2 pt-2">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 px-1 block">
+                            Upgrade History ({pastHistoryOnly.length})
+                          </span>
+                          {pastHistoryOnly.map((log, idx) => (
+                            <div
+                              key={log.id || `past_${idx}`}
+                              className="bg-white rounded-xl p-3 border border-slate-200/80 shadow-xs flex items-center justify-between"
+                            >
+                              <div>
+                                <h5 className="text-xs font-bold text-slate-800">{log.toVip}</h5>
+                                <p className="text-[10px] text-slate-400 font-mono">{log.date || 'Completed'}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                  {log.amount > 0 ? `৳${parseFloat(log.amount).toFixed(2)}` : 'Completed'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-3 bg-slate-50 border-t border-slate-100 text-center shrink-0">
+                <div className="p-3 bg-white border-t border-slate-100 text-center shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowUpgradeLogModal(false)}
-                    className="w-full bg-[#071739] hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                    className="w-full bg-[#071739] hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer active:scale-98 shadow-sm"
                   >
-                    Close Log
+                    Close
                   </button>
                 </div>
               </div>
