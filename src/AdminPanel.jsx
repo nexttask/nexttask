@@ -960,7 +960,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   const handleDeleteVip = (id, level) => {
     if (confirm(`Are you sure you want to delete ${level}?`)) {
-      const filtered = vipTiers.filter((v) => v.id !== id);
+      const filtered = vipTiers.filter((v) => (id && v.id ? String(v.id) !== String(id) : v.level !== level));
       updateVips(filtered);
       showToast(`${level} deleted`);
     }

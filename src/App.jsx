@@ -3612,57 +3612,119 @@ export default function App() {
 
                   {/* ================= TASK HALL SECTION ================= */}
                   <div className="px-4 space-y-3">
-                    <h3 className="font-extrabold text-base text-slate-900 tracking-tight">{t('taskHall')}</h3>
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-extrabold text-base text-slate-900 tracking-tight">{t('taskHall')}</h3>
+                      <button
+                        type="button"
+                        onClick={() => navigateToTab('vip')}
+                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-0.5 transition cursor-pointer"
+                      >
+                        <span>View All</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {vipTiers.map((vip) => {
-                        const isStarter = parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || String(vip.level).toLowerCase().includes('starter');
+                        const isStarter = parseFloat(String(vip.deposit || 0).replace(/,/g, '')) === 0 || String(vip.level || '').toLowerCase().includes('starter');
+                        const activeInstances = userActivePackages.filter((p) => p.level === vip.level || p.packId === vip.id);
+                        const isCurrentActive = activeInstances.length > 0;
+                        const vipName = getVipDisplayName(vip.level, vipTiers);
+                        const daysCount = vip.days || (isStarter ? 7 : 20);
+
                         return (
                           <div
-                            key={vip.level}
+                            key={vip.level || vip.id}
                             onClick={() => handleUnlockVip(vip)}
-                            className="bg-white rounded-xl p-2.5 shadow-2xs border border-slate-100 flex items-center gap-3 hover:shadow-xs transition cursor-pointer active:scale-[0.99]"
+                            className={`rounded-2xl p-3.5 shadow-2xs border transition cursor-pointer active:scale-[0.99] ${
+                              isCurrentActive
+                                ? 'bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/30 border-emerald-300/80 ring-1 ring-emerald-500/10'
+                                : 'bg-white border-slate-200/70 hover:border-slate-300 hover:shadow-xs'
+                            }`}
                           >
-                            {/* Left: Official Matching Badge */}
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0c0d11] to-[#161822] border border-amber-500/30 flex items-center justify-center p-1 relative shadow-inner overflow-hidden shrink-0">
-                              <img
-                                src={getPackageLogo(vip)}
-                                alt={vip.level}
-                                className="w-9 h-9 object-contain rounded-lg"
-                                loading="lazy"
-                                decoding="async"
-                              />
-                            </div>
-
-                            {/* Right: Unlock Amount & Level */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-baseline">
-                                <div className="text-[10px] text-slate-400 font-medium leading-none">{t('unlockAmount')}</div>
-                                <span className="text-[10px] font-bold text-cyan-700">
-                                  +৳{vip.daily}/d
-                                </span>
+                            <div className="flex items-center justify-between gap-3">
+                              {/* Left: Matching Official Badge */}
+                              <div className="w-12 h-12 rounded-2xl bg-[#071739] p-2 flex items-center justify-center shrink-0 border border-amber-500/20 shadow-2xs">
+                                <img
+                                  src={getPackageLogo(vip)}
+                                  alt={vipName}
+                                  className="w-8 h-8 object-contain drop-shadow"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
                               </div>
-                              <div className="flex justify-between items-center mt-0.5">
-                                <div className="text-sm font-black text-slate-900 tracking-tight leading-tight">
-                                  {isStarter ? (
-                                    <span className="text-emerald-600 font-extrabold">Free (৳0.00)</span>
-                                  ) : (
-                                    <span>৳{vip.deposit}</span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  {isStarter && (
-                                    <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.2 rounded-full uppercase">
-                                      FREE
+
+                              {/* Center: Details */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                                    {vipName}
+                                  </h4>
+                                  {isCurrentActive && (
+                                    <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+                                      Active {activeInstances.length > 1 ? `(${activeInstances.length})` : ''}
                                     </span>
                                   )}
-                                  <ChevronsRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                </div>
+
+                                <div className="flex items-baseline gap-2 mt-0.5">
+                                  <span className="text-sm font-black text-slate-900">
+                                    {isStarter ? (
+                                      <span className="text-emerald-600">Free</span>
+                                    ) : (
+                                      `৳${vip.deposit}`
+                                    )}
+                                  </span>
+                                  <span className="text-[11px] font-bold text-emerald-600">
+                                    +৳{vip.daily}<span className="text-[9px] font-normal text-slate-400">/day</span>
+                                  </span>
                                 </div>
                               </div>
-                              <div className="text-[11px] font-bold text-slate-700 mt-0.5 truncate flex items-center justify-between">
-                                <span className="truncate">{vip.level}</span>
-                                <span className="text-[9px] text-slate-400 font-normal shrink-0">10 Tasks</span>
+
+                              {/* Right: Action Button */}
+                              <div className="shrink-0">
+                                {isStarter ? (
+                                  isCurrentActive ? (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-200 px-3 py-1.5 rounded-full">
+                                      <Check className="w-3 h-3 text-emerald-600" />
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleUnlockVip(vip); }}
+                                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-1.5 rounded-full shadow-2xs active:scale-95 transition cursor-pointer"
+                                    >
+                                      Claim Free
+                                    </button>
+                                  )
+                                ) : isCurrentActive ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleUnlockVip(vip); }}
+                                    className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-2xs active:scale-95 transition cursor-pointer inline-flex items-center gap-1"
+                                  >
+                                    <span>+ Upgrade</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleUnlockVip(vip); }}
+                                    className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-2xs active:scale-95 transition cursor-pointer"
+                                  >
+                                    Upgrade
+                                  </button>
+                                )}
                               </div>
+                            </div>
+
+                            {/* Clean Minimal Specs Bar matching VIP tab */}
+                            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                              <span>Total Return: <b className="text-slate-800 font-bold">৳{vip.total}</b></span>
+                              <span className="text-slate-300">•</span>
+                              <span>Missions: <b className="text-slate-800 font-bold">{vip.tasks || 5}/day</b></span>
+                              <span className="text-slate-300">•</span>
+                              <span>Validity: <b className="text-amber-700 font-bold">{daysCount} Days</b></span>
                             </div>
                           </div>
                         );
@@ -4213,34 +4275,45 @@ export default function App() {
                         </div>
                       </div>
                     ) : (
-                      /* Free Starter Claim / VIP Unlock Card if user has 0 active packages */
-                      <div className="bg-gradient-to-br from-[#071739] via-[#0b2457] to-[#05132d] rounded-2xl p-5 text-white shadow-md border border-amber-500/30 space-y-3 text-center">
-                        <div className="w-12 h-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center mx-auto shadow-md">
-                          <Gift className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-extrabold text-white">Claim 7 Days Free Starter Package!</h3>
-                          <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
-                            Earn <b className="text-amber-400">৳20.00 daily for 7 days</b> with 5 free verification missions every day. Zero recharge needed.
-                          </p>
-                        </div>
-                        <div className="flex gap-2 pt-1 max-w-xs mx-auto">
-                          <button
-                            type="button"
-                            onClick={handleClaimStarter}
-                            className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white font-bold py-2.5 rounded-full text-xs shadow-md transition cursor-pointer"
-                          >
-                            🎁 Claim Free
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => navigateToTab('vip')}
-                            className="flex-1 bg-white/10 hover:bg-white/20 text-cyan-300 font-bold py-2.5 rounded-full text-xs border border-cyan-400/30 transition cursor-pointer"
-                          >
-                            VIP Packages
-                          </button>
-                        </div>
-                      </div>
+                      /* Clean Minimal Free Starter Claim Card */
+                      (() => {
+                        const starterTier = vipTiers.find((v) => String(v.level || '').toLowerCase().includes('starter') || v.id === '1') || vipTiers[0];
+                        const sDays = starterTier?.days || 7;
+                        const sDaily = starterTier?.daily || '20.00';
+                        const sTasks = starterTier?.tasks || 5;
+
+                        return (
+                          <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs space-y-3 text-center">
+                            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center mx-auto shadow-2xs">
+                              <Gift className="w-6 h-6 text-amber-500" />
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-extrabold text-slate-900">
+                                Claim {sDays} Days Free Starter Package!
+                              </h3>
+                              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto leading-relaxed">
+                                Earn <b className="text-emerald-600 font-bold">৳{sDaily} daily for {sDays} days</b> with {sTasks} verification missions every day. Zero recharge needed.
+                              </p>
+                            </div>
+                            <div className="flex gap-2.5 pt-1 max-w-xs mx-auto">
+                              <button
+                                type="button"
+                                onClick={handleClaimStarter}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-full text-xs shadow-xs active:scale-95 transition cursor-pointer"
+                              >
+                                🎁 Claim Free
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => navigateToTab('vip')}
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 rounded-full text-xs active:scale-95 transition cursor-pointer"
+                              >
+                                VIP Packages
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()
                     )}
 
                     {/* Segmented Control: To Do vs Completed */}
@@ -5134,15 +5207,15 @@ export default function App() {
                   <p className="text-slate-600 text-xs leading-relaxed mt-2 px-1">
                     {isFree ? (
                       <span>
-                        Starter Package is <b>100% Free</b> for all members! Claim now to receive <b>5 daily tasks</b> and earn <b>৳20.00 BDT</b> daily for 7 days.
+                        Starter Package is <b>100% Free</b> for all members! Claim now to receive <b>{selectedVipForUnlock.tasks || 5} daily tasks</b> and earn <b>৳{selectedVipForUnlock.daily || '20.00'} BDT</b> daily for {selectedVipForUnlock.days || 7} days.
                       </span>
                     ) : hasSufficient ? (
                       <span>
-                        Upgrade to <b>{selectedVipForUnlock.level}</b> using your current balance? <b>৳{selectedVipForUnlock.deposit} BDT</b> will be activated for this package.
+                        Upgrade to <b>{selectedVipForUnlock.level}</b> using your current balance? <b>৳{selectedVipForUnlock.deposit} BDT</b> will be activated for {selectedVipForUnlock.days || 20} days (Earn <b>৳{selectedVipForUnlock.daily}/day</b>, Total <b>৳{selectedVipForUnlock.total}</b>).
                       </span>
                     ) : (
                       <span>
-                        Upgrading to <b>{selectedVipForUnlock.level}</b> requires a deposit of <b>৳{selectedVipForUnlock.deposit} BDT</b>. Please recharge your account to activate.
+                        Upgrading to <b>{selectedVipForUnlock.level}</b> requires a deposit of <b>৳{selectedVipForUnlock.deposit} BDT</b> for {selectedVipForUnlock.days || 20} days validity (Daily <b>৳{selectedVipForUnlock.daily}</b>). Please recharge your account to activate.
                       </span>
                     )}
                   </p>
