@@ -1782,10 +1782,11 @@ export default function App() {
     if (taskProcessingIdx !== null) return;
     if (!targetPkg) return;
 
+    const taskKey = `${targetPkg.instanceId || targetPkg.packId}_${taskIndex}`;
     const currentCompleted = getCompletedIndicesForPack(targetPkg);
     if (currentCompleted.includes(taskIndex)) return;
 
-    setTaskProcessingIdx(taskIndex);
+    setTaskProcessingIdx(taskKey);
     const durationSec = 3; // 3-second sleek verification
     setTaskCountdown(durationSec);
 
@@ -4106,63 +4107,57 @@ export default function App() {
                 );
               })()}
 
-              {/* ================= TAB 4: TASK (CORRESPONDING TO USER VIP LEVEL) ================= */}
+              {/* ================= TAB 4: TASK (SERIAL-WISE ALL ACTIVE PACKAGES' MISSIONS) ================= */}
               {activeTab === 'task' && (() => {
                 const hasActivePlans = userActivePackages.length > 0;
-                const currentPkg = activePackage || userActivePackages[0] || null;
-                const completedIndices = currentPkg ? getCompletedIndicesForPack(currentPkg) : [];
-                const maxTasks = currentPkg ? (parseInt(currentPkg.tasks) || 5) : 5;
-                const dailyProfit = currentPkg ? (parseFloat(currentPkg.daily) || 20.00) : 20.00;
-                const rewardPerTask = parseFloat((dailyProfit / maxTasks).toFixed(2));
-                const cycleInfo = currentPkg ? getPack24hCycle(currentPkg) : { daysLeft: 7, countdown: '24h 00m 00s' };
+                // Sort packages chronologically by purchase / claim date (earliest first)
+                const sortedPackages = [...userActivePackages].sort((a, b) => (a.activatedAt || 0) - (b.activatedAt || 0));
 
-                const totalTasks = Array.from({ length: maxTasks }, (_, i) => i);
-                const runningTasks = totalTasks.filter((i) => !completedIndices.includes(i));
-                const finishedTasks = totalTasks.filter((i) => completedIndices.includes(i));
+                // Build all tasks sequentially: First package's 5 tasks, then next package's 5 tasks, etc.!
+                const allTasks = [];
+                let totalDailyIncome = 0;
+
+                sortedPackages.forEach((pkg) => {
+                  const tasksCount = parseInt(pkg.tasks) || 5;
+                  const dailyProfit = parseFloat(pkg.daily) || 20.00;
+                  totalDailyIncome += dailyProfit;
+                  const rewardPerTask = parseFloat((dailyProfit / tasksCount).toFixed(2));
+                  const doneIndices = getCompletedIndicesForPack(pkg);
+                  const cycleInfo = getPack24hCycle(pkg);
+
+                  for (let i = 0; i < tasksCount; i++) {
+                    const uniqueId = `${pkg.instanceId || pkg.packId}_${i}`;
+                    const isDone = doneIndices.includes(i);
+                    allTasks.push({
+                      pkg,
+                      taskIndex: i,
+                      uniqueId,
+                      taskTitle: `${pkg.level} Mission #${i + 1}`,
+                      pkgLevel: pkg.level,
+                      reward: rewardPerTask,
+                      cycleInfo,
+                      isCompleted: isDone
+                    });
+                  }
+                });
+
+                const runningTasks = allTasks.filter((t) => !t.isCompleted);
+                const finishedTasks = allTasks.filter((t) => t.isCompleted);
+                const totalTasksCount = allTasks.length;
+                const completedTasksCount = finishedTasks.length;
 
                 return (
                   <div className="px-3.5 py-3 space-y-3">
-                    {/* Multi-Package Pill Switcher (Minimal & Clean) */}
-                    {userActivePackages.length > 1 && (
-                      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-                        {userActivePackages.map((pkg) => {
-                          const isSelected = pkg.instanceId === currentPkg?.instanceId;
-                          const pkgDone = getCompletedIndicesForPack(pkg);
-                          const pkgTotal = parseInt(pkg.tasks) || 5;
-
-                          return (
-                            <button
-                              key={pkg.instanceId}
-                              type="button"
-                              onClick={() => setSelectedTaskPackId(pkg.instanceId)}
-                              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-xs ${
-                                isSelected
-                                  ? 'bg-[#05132d] text-white'
-                                  : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50'
-                              }`}
-                            >
-                              <span>{pkg.level}</span>
-                              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                                isSelected ? 'bg-cyan-400/25 text-cyan-300' : 'bg-slate-100 text-slate-500'
-                              }`}>
-                                {pkgDone.length}/{pkgTotal}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Active Plan Mission Header (Clean & Minimal) */}
-                    {hasActivePlans && currentPkg ? (
+                    {/* Header Card */}
+                    {hasActivePlans ? (
                       <div className="bg-gradient-to-br from-[#071739] via-[#0b2457] to-[#05132d] rounded-2xl p-4 text-white shadow-md border border-cyan-500/20 space-y-3">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
                             <span className="font-extrabold text-sm text-white">
-                              {currentPkg.level}
+                              Daily Mission Center
                             </span>
                             <span className="bg-amber-400/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-400/30">
-                              Active
+                              {sortedPackages.length} {sortedPackages.length > 1 ? 'Packs Active' : 'Active'}
                             </span>
                           </div>
 
@@ -4174,32 +4169,45 @@ export default function App() {
                           )}
                         </div>
 
+                        {/* Active Packages Pills / Validity list */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {sortedPackages.map((p) => {
+                            const pInfo = getPack24hCycle(p);
+                            return (
+                              <span
+                                key={p.instanceId}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/10 text-white border border-white/10"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                <span>{p.level}</span>
+                                <span className="text-amber-300 font-mono font-medium">({pInfo.daysLeft}d left)</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+
                         {/* 3 Crisp Stat Columns */}
                         <div className="grid grid-cols-3 gap-2 bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
                           <div>
-                            <span className="text-[10px] text-slate-400 block">Daily</span>
-                            <b className="text-xs font-bold text-emerald-400">+৳{currentPkg.daily}</b>
+                            <span className="text-[10px] text-slate-400 block">Daily Total</span>
+                            <b className="text-xs font-bold text-emerald-400">+৳{totalDailyIncome.toFixed(2)}</b>
                           </div>
                           <div className="border-x border-white/10">
-                            <span className="text-[10px] text-slate-400 block">Per Mission</span>
-                            <b className="text-xs font-bold text-cyan-300">+৳{rewardPerTask.toFixed(2)}</b>
+                            <span className="text-[10px] text-slate-400 block">Total Missions</span>
+                            <b className="text-xs font-bold text-cyan-300">{totalTasksCount} Daily</b>
                           </div>
                           <div>
-                            <span className="text-[10px] text-slate-400 block">Validity</span>
-                            <b className="text-xs font-bold text-amber-300">{cycleInfo.daysLeft}d left</b>
+                            <span className="text-[10px] text-slate-400 block">Completed</span>
+                            <b className="text-xs font-bold text-amber-300">{completedTasksCount} / {totalTasksCount}</b>
                           </div>
                         </div>
 
                         {/* Minimal Progress Bar */}
                         <div className="space-y-1">
-                          <div className="flex justify-between items-center text-[10px] text-slate-300">
-                            <span>Today's Progress</span>
-                            <span className="font-mono font-bold">{completedIndices.length} / {maxTasks}</span>
-                          </div>
                           <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
                             <div
                               className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-300"
-                              style={{ width: `${Math.min(100, (completedIndices.length / maxTasks) * 100)}%` }}
+                              style={{ width: `${totalTasksCount > 0 ? Math.min(100, (completedTasksCount / totalTasksCount) * 100) : 0}%` }}
                             />
                           </div>
                         </div>
@@ -4255,8 +4263,8 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Clean Tasks List */}
-                    {hasActivePlans && currentPkg && (
+                    {/* Sequential Tasks List (All Packages In Order!) */}
+                    {hasActivePlans && (
                       <div className="space-y-2">
                         {taskTab === 'running' ? (
                           runningTasks.length === 0 ? (
@@ -4264,25 +4272,25 @@ export default function App() {
                               <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
                               <h3 className="text-xs font-bold text-slate-900">All tasks completed today!</h3>
                               <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                                You finished all {maxTasks} tasks for {currentPkg.level}. Resets in <b className="text-cyan-600 font-mono">{timeUntilReset}</b>.
+                                You have finished all {totalTasksCount} daily missions across your active packages. Resets in <b className="text-cyan-600 font-mono">{timeUntilReset}</b>.
                               </p>
                             </div>
                           ) : (
-                            runningTasks.map((taskIdx) => (
+                            runningTasks.map((task, overallIdx) => (
                               <div
-                                key={taskIdx}
+                                key={task.uniqueId}
                                 className="bg-white rounded-xl p-3 shadow-xs border border-slate-100/90 flex items-center justify-between gap-3 hover:shadow-sm transition"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                   <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-900 font-black text-xs flex items-center justify-center shrink-0">
-                                    {taskIdx + 1}
+                                    {overallIdx + 1}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <div className="text-xs font-bold text-slate-800 truncate">
-                                      Verification Mission #{taskIdx + 1}
+                                    <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5">
+                                      <span>{task.taskTitle}</span>
                                     </div>
                                     <div className="text-[11px] text-slate-400">
-                                      Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
+                                      Reward: <b className="text-emerald-600 font-bold">+৳{task.reward.toFixed(2)}</b>
                                     </div>
                                   </div>
                                 </div>
@@ -4291,10 +4299,10 @@ export default function App() {
                                   <button
                                     type="button"
                                     disabled={taskProcessingIdx !== null}
-                                    onClick={() => handleCompleteTask(taskIdx, rewardPerTask, currentPkg)}
+                                    onClick={() => handleCompleteTask(task.taskIndex, task.reward, task.pkg)}
                                     className="h-8 bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 rounded-full shadow-xs active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
-                                    {taskProcessingIdx === taskIdx ? (
+                                    {taskProcessingIdx === task.uniqueId ? (
                                       <>
                                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                         <span>{taskCountdown}s</span>
@@ -4313,9 +4321,9 @@ export default function App() {
                               <p className="text-xs font-medium">No completed tasks yet today.</p>
                             </div>
                           ) : (
-                            finishedTasks.map((taskIdx) => (
+                            finishedTasks.map((task) => (
                               <div
-                                key={taskIdx}
+                                key={task.uniqueId}
                                 className="bg-white/80 rounded-xl p-3 border border-emerald-100 flex items-center justify-between gap-3"
                               >
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -4324,7 +4332,7 @@ export default function App() {
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="text-xs font-bold text-slate-700 truncate">
-                                      Verification Mission #{taskIdx + 1}
+                                      {task.taskTitle}
                                     </div>
                                     <div className="text-[10px] text-emerald-600 font-medium">
                                       Completed • Credited
@@ -4334,7 +4342,7 @@ export default function App() {
 
                                 <div className="shrink-0">
                                   <span className="text-xs font-black text-emerald-600">
-                                    +৳{rewardPerTask.toFixed(2)}
+                                    +৳{task.reward.toFixed(2)}
                                   </span>
                                 </div>
                               </div>
