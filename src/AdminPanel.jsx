@@ -1223,11 +1223,10 @@ export default function AdminPanel({ onNavigateToApp }) {
       if (isMatch) {
         const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
         const prevBal = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
-        const newBal = parseFloat((prevBal + rec.amount).toFixed(2));
 
         return {
           ...u,
-          balance: newBal,
+          balance: prevBal,
           recharge: newRecharge
         };
       }
@@ -1966,7 +1965,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                       <div className="text-xs font-black text-cyan-300 mt-0.5">+৳{vip.daily}</div>
                     </div>
                     <div>
-                      <div className="text-[9px] text-slate-400 uppercase font-bold">Total Return</div>
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Payable</div>
                       <div className="text-xs font-black text-emerald-400 mt-0.5">৳{vip.total}</div>
                     </div>
                     <div>
@@ -2016,7 +2015,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <th className="py-3 px-4">Daily Tasks</th>
                     <th className="py-3 px-4">Task Reward</th>
                     <th className="py-3 px-4">Daily Profit</th>
-                    <th className="py-3 px-4">Total Return (80% Return)</th>
+                    <th className="py-3 px-4">Payable</th>
                     <th className="py-3 px-4">Capital Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
@@ -4242,7 +4241,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Total Return (৳)</label>
+                  <label className="block text-slate-400 mb-1">Payable (৳)</label>
                   <input
                     type="text"
                     value={vipForm.total}

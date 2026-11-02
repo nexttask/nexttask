@@ -772,7 +772,6 @@ export default {
                   )
                 );
                 if (u) {
-                  u.balance = parseFloat(((parseFloat(u.balance) || 0) + parsed.amount).toFixed(2));
                   u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + parsed.amount).toFixed(2));
 
                   // Recharge adds to balance; customer purchases VIP manually without auto-activation
@@ -951,7 +950,6 @@ export default {
           );
 
           if (u) {
-            u.balance = parseFloat(((parseFloat(u.balance) || 0) + amount).toFixed(2));
             u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + amount).toFixed(2));
 
             let vipActivated = false;
