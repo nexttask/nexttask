@@ -130,6 +130,203 @@ export const resolveInitialRoute = () => {
   return { tab: 'home', authMode: 'login', isAdmin: false };
 };
 
+// ================= BANNER CAROUSEL (SMOOTH HORIZONTAL SLIDE & TOUCH SWIPE) =================
+function BannerCarousel({ slides, lang, defaultSlides }) {
+  const filteredSlides = (slides || []).filter((s) => {
+    if (lang === 'bn') {
+      return s.id?.startsWith('s_bn') || /[\u0980-\u09FF]/.test(s.subtitle || '') || (s.image && s.image.includes('_bn_'));
+    } else {
+      return !s.id?.startsWith('s_bn') && !/[\u0980-\u09FF]/.test(s.subtitle || '') && !(s.image && s.image.includes('_bn_'));
+    }
+  });
+
+  let slideList = filteredSlides;
+  if (!slideList || slideList.length < 5) {
+    slideList = lang === 'bn'
+      ? defaultSlides.filter((s) => s.id?.startsWith('s_bn'))
+      : defaultSlides.filter((s) => !s.id?.startsWith('s_bn'));
+  }
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const touchStartX = useRef(0);
+  const touchDeltaX = useRef(0);
+
+  // Reset when language or slides count changes
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsTransitioning(false);
+  }, [lang, slideList.length]);
+
+  // Autoplay timer: advance right-to-left every 4.2 seconds
+  useEffect(() => {
+    if (slideList.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      setIsTransitioning(true);
+      setCurrentIndex((prev) => prev + 1);
+    }, 4200);
+
+    return () => clearInterval(interval);
+  }, [slideList.length, isPaused]);
+
+  // Seamless infinite loop handler
+  const handleTransitionEnd = () => {
+    if (currentIndex >= slideList.length) {
+      setIsTransitioning(false);
+      setCurrentIndex(0);
+    }
+  };
+
+  const handleTouchStart = (e) => {
+    setIsPaused(true);
+    touchStartX.current = e.touches[0].clientX;
+    touchDeltaX.current = 0;
+  };
+
+  const handleTouchMove = (e) => {
+    touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
+  };
+
+  const handleTouchEnd = () => {
+    setIsPaused(false);
+    const delta = touchDeltaX.current;
+    if (delta < -40) {
+      // Swiped left -> advance next
+      setIsTransitioning(true);
+      setCurrentIndex((prev) => prev + 1);
+    } else if (delta > 40) {
+      // Swiped right -> go to previous
+      if (currentIndex > 0) {
+        setIsTransitioning(true);
+        setCurrentIndex((prev) => prev - 1);
+      }
+    }
+  };
+
+  if (!slideList || slideList.length === 0) return null;
+
+  // Add cloned first slide at the end for continuous forward slide
+  const extendedSlides = slideList.length > 1 ? [...slideList, slideList[0]] : slideList;
+
+  return (
+    <div
+      className="mx-4 relative rounded-3xl overflow-hidden shadow-md bg-slate-900 border border-slate-100/10 select-none"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div
+        className="flex w-full"
+        style={{
+          transform: `translateX(-${currentIndex * 100}%)`,
+          transition: isTransitioning ? 'transform 850ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
+          willChange: 'transform'
+        }}
+        onTransitionEnd={handleTransitionEnd}
+      >
+        {extendedSlides.map((slide, idx) => {
+          const isDefaultTheme = !slide.gradient || slide.gradient === 'default' || slide.gradient === 'none';
+          const showTextOverlay = !isDefaultTheme && (slide.subtitle || slide.badge);
+
+          if (slide.image) {
+            return (
+              <div
+                key={`${slide.id || 'slide'}-${idx}`}
+                className="w-full shrink-0 min-w-full relative h-[150px] sm:h-[165px] flex items-center justify-center overflow-hidden"
+              >
+                <img
+                  src={slide.image}
+                  alt={slide.subtitle || 'Banner Slide'}
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                  fetchPriority={idx === 0 ? 'high' : 'auto'}
+                  draggable={false}
+                />
+                {showTextOverlay && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 z-10 pointer-events-none">
+                    {slide.badge && (
+                      <span className="inline-block bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full w-fit mb-1 shadow-sm uppercase">
+                        {slide.badge}
+                      </span>
+                    )}
+                    {slide.subtitle && (
+                      <span className="text-white text-xs font-bold drop-shadow">
+                        {slide.subtitle}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const gradientTheme = (!slide.gradient || slide.gradient === 'default')
+            ? 'from-amber-500 via-orange-500 to-yellow-400'
+            : slide.gradient;
+
+          return (
+            <div
+              key={`${slide.id || 'slide'}-${idx}`}
+              className={`w-full shrink-0 min-w-full bg-gradient-to-r ${gradientTheme} p-5 text-white relative h-[150px] sm:h-[165px] flex items-center overflow-hidden`}
+            >
+              <div className="relative z-10 max-w-[210px]">
+                {slide.badge && (
+                  <div className="inline-block bg-white text-orange-600 font-black text-xl px-2 py-0.5 rounded shadow-sm tracking-tight mb-1">
+                    {slide.badge}
+                  </div>
+                )}
+                <div className="text-3xl font-black text-red-700 leading-none tracking-tight drop-shadow-sm">
+                  {slide.amount}
+                </div>
+                <div className="text-xs font-black tracking-widest text-slate-900 mt-1 uppercase">
+                  {slide.subtitle}
+                </div>
+                {slide.description && (
+                  <div className="text-[10px] text-white/90 mt-1 font-medium line-clamp-2">
+                    {slide.description}
+                  </div>
+                )}
+              </div>
+              <div className="absolute right-2 bottom-0 top-0 flex items-center opacity-95 pointer-events-none">
+                <div className="w-32 h-32 rounded-full bg-white/20 backdrop-blur flex items-center justify-center shadow-inner">
+                  <TrendingUp className="w-16 h-16 text-white drop-shadow-lg" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Carousel Indicator Dots */}
+      {slideList.length > 1 && (
+        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 pointer-events-auto">
+          {slideList.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                setIsTransitioning(true);
+                setCurrentIndex(i);
+              }}
+              aria-label={`Slide ${i + 1}`}
+              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                (currentIndex % slideList.length) === i
+                  ? 'w-5 bg-white shadow-sm'
+                  : 'w-1.5 bg-white/50 hover:bg-white/80'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const initialRoute = resolveInitialRoute();
 
@@ -256,7 +453,6 @@ export default function App() {
   const [slides, setSlides] = useState(() => getStoredData('slides', DEFAULT_SLIDES));
   const [supportChannels, setSupportChannels] = useState(() => getStoredData('support_channels', DEFAULT_SUPPORT_CHANNELS));
   const [showSupportChoiceModal, setShowSupportChoiceModal] = useState(false);
-  const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
 
   const formatSupportUrl = (channel) => {
     if (!channel || !channel.link) return '';
@@ -419,14 +615,6 @@ export default function App() {
     }
     handleFloatingSupportClick();
   };
-
-  useEffect(() => {
-    if (slides.length <= 1) return;
-    const timer = setInterval(() => {
-      setCurrentSlideIdx((prev) => (prev + 1) % slides.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [slides.length]);
 
   // Preload banners and payment logos for zero-lag instant rendering on mobile
   useEffect(() => {
@@ -3195,118 +3383,9 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Dynamic Promotional Banner Carousel (Admin Managed & Language Filtered) */}
+                  {/* Dynamic Promotional Banner Carousel (Smooth Horizontal Sliding & Touch Swipe) */}
                   {slides.length > 0 && (
-                    <div className="mx-4 relative">
-                      {(() => {
-                        const filteredSlides = slides.filter((s) => {
-                          if (lang === 'bn') {
-                            return s.id?.startsWith('s_bn') || /[\u0980-\u09FF]/.test(s.subtitle || '') || (s.image && s.image.includes('_bn_'));
-                          } else {
-                            return !s.id?.startsWith('s_bn') && !/[\u0980-\u09FF]/.test(s.subtitle || '') && !(s.image && s.image.includes('_bn_'));
-                          }
-                        });
-                        let slideList = filteredSlides;
-                        if (!slideList || slideList.length < 5) {
-                          slideList = lang === 'bn'
-                            ? DEFAULT_SLIDES.filter((s) => s.id?.startsWith('s_bn'))
-                            : DEFAULT_SLIDES.filter((s) => !s.id?.startsWith('s_bn'));
-                        }
-                        const activeSlide = slideList[currentSlideIdx % slideList.length] || slideList[0];
-                        if (activeSlide.image) {
-                          const isDefaultTheme = !activeSlide.gradient || activeSlide.gradient === 'default' || activeSlide.gradient === 'none';
-                          const showTextOverlay = !isDefaultTheme && (activeSlide.subtitle || activeSlide.badge);
-
-                          return (
-                            <div className="rounded-3xl overflow-hidden shadow-md relative min-h-[145px] max-h-[165px] flex items-center justify-center transition-all duration-500 bg-slate-900 border border-slate-100/10">
-                              <img
-                                src={activeSlide.image}
-                                alt={activeSlide.subtitle || 'Banner Slide'}
-                                className="w-full h-full object-cover rounded-3xl"
-                                loading="eager"
-                                fetchPriority="high"
-                                decoding="async"
-                              />
-                              {showTextOverlay && (
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 z-10">
-                                  {activeSlide.badge && (
-                                    <span className="inline-block bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full w-fit mb-1 shadow-sm uppercase">
-                                      {activeSlide.badge}
-                                    </span>
-                                  )}
-                                  {activeSlide.subtitle && (
-                                    <span className="text-white text-xs font-bold drop-shadow">
-                                      {activeSlide.subtitle}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                              {/* Carousel indicator dots */}
-                              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
-                                {slideList.map((_, i) => (
-                                  <button
-                                    key={i}
-                                    onClick={() => setCurrentSlideIdx(i)}
-                                    className={`h-1.5 rounded-full transition-all ${
-                                      (currentSlideIdx % slideList.length) === i
-                                        ? 'w-5 bg-white'
-                                        : 'w-2 bg-white/50 hover:bg-white'
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        }
-                        const gradientTheme = (!activeSlide.gradient || activeSlide.gradient === 'default')
-                          ? 'from-amber-500 via-orange-500 to-yellow-400'
-                          : activeSlide.gradient;
-                        return (
-                          <div className={`rounded-3xl overflow-hidden shadow-md bg-gradient-to-r ${gradientTheme} p-5 text-white relative min-h-[140px] flex items-center transition-all duration-500`}>
-                            <div className="relative z-10 max-w-[210px]">
-                              {activeSlide.badge && (
-                                <div className="inline-block bg-white text-orange-600 font-black text-xl px-2 py-0.5 rounded shadow-sm tracking-tight mb-1">
-                                  {activeSlide.badge}
-                                </div>
-                              )}
-                              <div className="text-3xl font-black text-red-700 leading-none tracking-tight drop-shadow-sm">
-                                {activeSlide.amount}
-                              </div>
-                              <div className="text-xs font-black tracking-widest text-slate-900 mt-1 uppercase">
-                                {activeSlide.subtitle}
-                              </div>
-                              {activeSlide.description && (
-                                <div className="text-[10px] text-white/90 mt-1 font-medium line-clamp-2">
-                                  {activeSlide.description}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Banner Illustration */}
-                            <div className="absolute right-2 bottom-0 top-0 flex items-center opacity-95">
-                              <div className="w-32 h-32 rounded-full bg-white/20 backdrop-blur flex items-center justify-center shadow-inner">
-                                <TrendingUp className="w-16 h-16 text-white drop-shadow-lg" />
-                              </div>
-                            </div>
-
-                            {/* Carousel indicator dots */}
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
-                              {slideList.map((_, i) => (
-                                <button
-                                  key={i}
-                                  onClick={() => setCurrentSlideIdx(i)}
-                                  className={`h-1.5 rounded-full transition-all ${
-                                    (currentSlideIdx % slideList.length) === i
-                                      ? 'w-5 bg-slate-900'
-                                      : 'w-2 bg-white/70 hover:bg-white'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                    <BannerCarousel slides={slides} lang={lang} defaultSlides={DEFAULT_SLIDES} />
                   )}
 
                   {/* ================= TASK HALL SECTION ================= */}
