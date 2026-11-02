@@ -801,31 +801,26 @@ export default function AdminPanel({ onNavigateToApp }) {
     setVipForm((prev) => {
       const next = { ...prev, [field]: value };
       const dep = parseFloat(String(field === 'deposit' ? value : next.deposit).replace(/,/g, '')) || 0;
-      const profitPct = parseFloat(field === 'profitPercent' ? value : next.profitPercent) || 80;
-      const tasks = parseInt(field === 'tasks' ? value : next.tasks) || 10;
-      const totalReturn = dep * (1 + profitPct / 100);
+      const profitPct = parseFloat(field === 'profitPercent' ? value : next.profitPercent) || 0;
+      const tasks = parseInt(field === 'tasks' ? value : next.tasks) || 5;
+      const days = parseInt(field === 'days' ? value : next.days) || 20;
 
       if (field === 'deposit' || field === 'profitPercent') {
-        const days = parseInt(next.days) || 20;
-        const dailyProfit = days > 0 ? (totalReturn / days) : 0;
-        const rewardPerTask = tasks > 0 ? (dailyProfit / tasks) : 0;
-        next.total = totalReturn.toFixed(2);
-        next.daily = dailyProfit.toFixed(2);
-        next.interest = rewardPerTask.toFixed(2);
-      } else if (field === 'days') {
-        const days = parseInt(value) || 20;
-        const dailyProfit = days > 0 ? (totalReturn / days) : 0;
-        const rewardPerTask = tasks > 0 ? (dailyProfit / tasks) : 0;
-        next.total = totalReturn.toFixed(2);
-        next.daily = dailyProfit.toFixed(2);
-        next.interest = rewardPerTask.toFixed(2);
+        if (dep > 0 && profitPct > 0) {
+          const totalReturn = dep * (1 + profitPct / 100);
+          const dailyProfit = days > 0 ? (totalReturn / days) : 0;
+          const rewardPerTask = tasks > 0 ? (dailyProfit / tasks) : 0;
+          next.total = totalReturn.toFixed(2);
+          next.daily = dailyProfit.toFixed(2);
+          next.interest = rewardPerTask.toFixed(2);
+        }
       } else if (field === 'daily') {
         const daily = parseFloat(value) || 0;
-        if (daily > 0) {
-          next.days = Math.max(1, Math.round(totalReturn / daily));
-          next.interest = tasks > 0 ? (daily / tasks).toFixed(2) : '0.00';
-        }
-        next.total = totalReturn.toFixed(2);
+        next.interest = tasks > 0 ? (daily / tasks).toFixed(2) : '0.00';
+        next.total = (daily * days).toFixed(2);
+      } else if (field === 'days') {
+        const daily = parseFloat(next.daily) || 0;
+        next.total = (daily * days).toFixed(2);
       } else if (field === 'tasks') {
         const daily = parseFloat(next.daily) || 0;
         next.interest = tasks > 0 ? (daily / tasks).toFixed(2) : '0.00';
@@ -838,16 +833,17 @@ export default function AdminPanel({ onNavigateToApp }) {
   const handleOpenAddVip = () => {
     setEditingVip(null);
     const nextNum = vipTiers.length + 1;
-    const dep = 100.00;
+    const dep = 1000.00;
     const profitPct = 80;
     const days = 20;
     const total = (dep * (1 + profitPct / 100)).toFixed(2);
     const daily = (parseFloat(total) / days).toFixed(2);
-    const interest = (parseFloat(daily) / 10).toFixed(2);
+    const tasks = 5;
+    const interest = (parseFloat(daily) / tasks).toFixed(2);
     setVipForm({
       level: `VIP${nextNum}`,
       deposit: dep.toFixed(2),
-      tasks: 10,
+      tasks: tasks,
       days: days,
       profitPercent: profitPct,
       interest: interest,
@@ -861,12 +857,13 @@ export default function AdminPanel({ onNavigateToApp }) {
   const handleOpenEditVip = (vip) => {
     setEditingVip(vip);
     const dep = parseFloat(String(vip.deposit || 0).replace(/,/g, '')) || 0;
-    const profitPct = vip.profitPercent !== undefined ? parseFloat(vip.profitPercent) : 80;
-    const days = vip.days ? parseInt(vip.days) : 20;
-    const total = vip.total || (dep * (1 + profitPct / 100)).toFixed(2);
-    const daily = vip.daily || (parseFloat(total) / days).toFixed(2);
-    const tasks = vip.tasks || 10;
-    const interest = vip.interest || (parseFloat(daily) / tasks).toFixed(2);
+    const isStarter = dep === 0 || String(vip.level || '').toLowerCase().includes('starter');
+    const profitPct = vip.profitPercent !== undefined ? parseFloat(vip.profitPercent) : (isStarter ? 0 : 80);
+    const days = vip.days ? parseInt(vip.days) : (isStarter ? 7 : 20);
+    const tasks = vip.tasks ? parseInt(vip.tasks) : 5;
+    const total = vip.total || (isStarter ? '140.00' : (dep * (1 + profitPct / 100)).toFixed(2));
+    const daily = vip.daily || (isStarter ? '20.00' : (parseFloat(total) / days).toFixed(2));
+    const interest = vip.interest || (tasks > 0 ? (parseFloat(daily) / tasks).toFixed(2) : '0.00');
 
     setVipForm({
       level: vip.level,
@@ -888,13 +885,14 @@ export default function AdminPanel({ onNavigateToApp }) {
       showToast('Level name and deposit amount are required');
       return;
     }
-    const days = parseInt(vipForm.days) || 20;
-    const profitPercent = parseFloat(vipForm.profitPercent) || 0;
-    const tasks = parseInt(vipForm.tasks) || 10;
     const dep = parseFloat(String(vipForm.deposit).replace(/,/g, '')) || 0;
-    const total = vipForm.total && String(vipForm.total).trim() ? vipForm.total : (dep * (1 + profitPercent / 100)).toFixed(2);
-    const daily = vipForm.daily && String(vipForm.daily).trim() ? vipForm.daily : (parseFloat(total) / days).toFixed(2);
-    const interest = vipForm.interest && String(vipForm.interest).trim() ? vipForm.interest : (parseFloat(daily) / tasks).toFixed(2);
+    const isStarter = dep === 0 || String(vipForm.level || '').toLowerCase().includes('starter');
+    const days = parseInt(vipForm.days) || (isStarter ? 7 : 20);
+    const profitPercent = parseFloat(vipForm.profitPercent) || 0;
+    const tasks = parseInt(vipForm.tasks) || 5;
+    const daily = vipForm.daily && String(vipForm.daily).trim() ? String(vipForm.daily) : (isStarter ? '20.00' : (days > 0 ? (parseFloat(total) / days).toFixed(2) : '0.00'));
+    const total = vipForm.total && String(vipForm.total).trim() ? String(vipForm.total) : (isStarter ? '140.00' : (parseFloat(daily) * days).toFixed(2));
+    const interest = vipForm.interest && String(vipForm.interest).trim() ? String(vipForm.interest) : (tasks > 0 ? (parseFloat(daily) / tasks).toFixed(2) : '0.00');
 
     const payload = {
       ...vipForm,
@@ -1261,6 +1259,25 @@ export default function AdminPanel({ onNavigateToApp }) {
           }
         }
 
+        let activePackages = Array.isArray(u.activePackages) ? [...u.activePackages] : [];
+        if (matchedTier) {
+          const tasksCount = parseInt(matchedTier.tasks) || 5;
+          activePackages.push({
+            instanceId: `pkg_${matchedTier.id || Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            packId: matchedTier.id,
+            level: matchedTier.level,
+            deposit: matchedTier.deposit,
+            daily: matchedTier.daily,
+            interest: matchedTier.interest || (parseFloat(matchedTier.daily) / tasksCount).toFixed(2),
+            tasks: tasksCount,
+            days: durationDays,
+            activatedAt: now,
+            expiresAt: expiresAt,
+            logo: matchedTier.logo || '',
+            isStarter: false
+          });
+        }
+
         return {
           ...u,
           recharge: newRecharge,
@@ -1268,6 +1285,7 @@ export default function AdminPanel({ onNavigateToApp }) {
           vipActivatedAt: now,
           vipDurationDays: durationDays,
           vipExpiresAt: expiresAt,
+          activePackages,
           capitalReleased: false,
           pendingUpgrade: pendingUpgradeData,
           completedTasks: userCompletedTasks
@@ -4212,12 +4230,12 @@ export default function AdminPanel({ onNavigateToApp }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Deposit Amount (USDT)</label>
+                  <label className="block text-slate-400 mb-1">Deposit Amount (BDT / ৳)</label>
                   <input
                     type="text"
                     value={vipForm.deposit}
                     onChange={(e) => handleVipFormChange('deposit', e.target.value)}
-                    placeholder="10.00"
+                    placeholder="1000.00"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-amber-300 font-bold outline-none focus:border-blue-500"
                     required
                   />
@@ -4230,7 +4248,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                     onChange={(e) => handleVipFormChange('profitPercent', e.target.value)}
                     placeholder="80"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-bold outline-none focus:border-blue-500"
-                    min="1"
+                    min="0"
                     required
                   />
                 </div>
@@ -4238,7 +4256,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Package Validity (Days)</label>
+                  <label className="block text-slate-400 mb-1">Package Validity (Days / মেয়াদ)</label>
                   <input
                     type="number"
                     value={vipForm.days || 20}
@@ -4264,32 +4282,32 @@ export default function AdminPanel({ onNavigateToApp }) {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">Daily Profit ($)</label>
+                  <label className="block text-slate-400 mb-1">Daily Profit (৳)</label>
                   <input
                     type="text"
                     value={vipForm.daily}
                     onChange={(e) => handleVipFormChange('daily', e.target.value)}
-                    placeholder="0.90"
+                    placeholder="90.00"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-cyan-300 font-bold outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Task Reward ($)</label>
+                  <label className="block text-slate-400 mb-1">Task Reward (৳)</label>
                   <input
                     type="text"
                     value={vipForm.interest}
                     onChange={(e) => handleVipFormChange('interest', e.target.value)}
-                    placeholder="0.09"
+                    placeholder="18.00"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-bold outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Total Return ($)</label>
+                  <label className="block text-slate-400 mb-1">Total Return (৳)</label>
                   <input
                     type="text"
                     value={vipForm.total}
                     onChange={(e) => handleVipFormChange('total', e.target.value)}
-                    placeholder="18.00"
+                    placeholder="1800.00"
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-bold outline-none focus:border-blue-500"
                   />
                 </div>

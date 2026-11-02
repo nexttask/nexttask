@@ -1,16 +1,16 @@
 // Shared State Store with LocalStorage Persistence
 
 export const DEFAULT_VIP_TIERS = [
-  { id: '1', level: 'Starter Package', deposit: '0.00', tasks: 10, days: 20, profitPercent: 0, interest: '5.00', daily: '50.00', total: '1,000.00', logo: '/packages/starter.svg' },
-  { id: '2', level: 'Basic Package', deposit: '1,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '9.00', daily: '90.00', total: '1,800.00', logo: '/packages/basic.svg' },
-  { id: '3', level: 'Silver Package', deposit: '5,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '45.00', daily: '450.00', total: '9,000.00', logo: '/packages/silver.svg' },
-  { id: '4', level: 'Gold Package', deposit: '15,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '135.00', daily: '1,350.00', total: '27,000.00', logo: '/packages/gold.svg' },
-  { id: '5', level: 'Platinum Package', deposit: '35,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '315.00', daily: '3,150.00', total: '63,000.00', logo: '/packages/platinum.svg' },
-  { id: '6', level: 'Diamond Package', deposit: '75,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '675.00', daily: '6,750.00', total: '135,000.00', logo: '/packages/diamond.svg' },
-  { id: '7', level: 'Premium Package', deposit: '150,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '1,350.00', daily: '13,500.00', total: '270,000.00', logo: '/packages/premium.svg' },
-  { id: '8', level: 'Business Package', deposit: '350,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '3,150.00', daily: '31,500.00', total: '630,000.00', logo: '/packages/business.svg' },
-  { id: '9', level: 'Elite Package', deposit: '750,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '6,750.00', daily: '67,500.00', total: '1,350,000.00', logo: '/packages/elite.svg' },
-  { id: '10', level: 'Royal Package', deposit: '1,500,000.00', tasks: 10, days: 20, profitPercent: 80, interest: '13,500.00', daily: '135,000.00', total: '2,700,000.00', logo: '/packages/royal.svg' },
+  { id: '1', level: 'Starter Package', deposit: '0.00', tasks: 5, days: 7, profitPercent: 0, interest: '4.00', daily: '20.00', total: '140.00', logo: '/packages/starter.svg' },
+  { id: '2', level: 'Basic Package', deposit: '1,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '18.00', daily: '90.00', total: '1,800.00', logo: '/packages/basic.svg' },
+  { id: '3', level: 'Silver Package', deposit: '5,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '90.00', daily: '450.00', total: '9,000.00', logo: '/packages/silver.svg' },
+  { id: '4', level: 'Gold Package', deposit: '15,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '270.00', daily: '1,350.00', total: '27,000.00', logo: '/packages/gold.svg' },
+  { id: '5', level: 'Platinum Package', deposit: '35,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '630.00', daily: '3,150.00', total: '63,000.00', logo: '/packages/platinum.svg' },
+  { id: '6', level: 'Diamond Package', deposit: '75,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '1,350.00', daily: '6,750.00', total: '135,000.00', logo: '/packages/diamond.svg' },
+  { id: '7', level: 'Premium Package', deposit: '150,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '2,700.00', daily: '13,500.00', total: '270,000.00', logo: '/packages/premium.svg' },
+  { id: '8', level: 'Business Package', deposit: '350,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '6,300.00', daily: '31,500.00', total: '630,000.00', logo: '/packages/business.svg' },
+  { id: '9', level: 'Elite Package', deposit: '750,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '13,500.00', daily: '67,500.00', total: '1,350,000.00', logo: '/packages/elite.svg' },
+  { id: '10', level: 'Royal Package', deposit: '1,500,000.00', tasks: 5, days: 20, profitPercent: 80, interest: '27,000.00', daily: '135,000.00', total: '2,700,000.00', logo: '/packages/royal.svg' },
 ];
 
 export const DEFAULT_USERS = [
@@ -201,11 +201,11 @@ export const DEFAULT_SLIDES = [
   {
     id: 's3',
     badge: '100% FREE',
-    amount: '৳50 / DAY FREE',
-    subtitle: 'FREE STARTER PACKAGE',
+    amount: '৳20 / DAY FREE',
+    subtitle: 'FREE STARTER PACKAGE (7 DAYS)',
     image: '/banners/banner_starter_free.png',
     gradient: 'default',
-    description: 'Zero recharge required! Unlock free missions and earn ৳50.00 every day',
+    description: 'Zero recharge required! Unlock 7 days free missions and earn ৳20.00 every day',
     active: true
   },
   {
@@ -256,20 +256,26 @@ export const getStoredData = (key, fallback) => {
       return parsed.map((v) => {
         if (!v) return v;
         const dep = parseFloat(String(v.deposit || 0).replace(/,/g, '')) || 0;
-        const days = v.days !== undefined && v.days !== null && String(v.days).trim() !== '' ? parseInt(v.days) : 20;
-        const profitPct = v.profitPercent !== undefined && v.profitPercent !== null && String(v.profitPercent).trim() !== '' ? parseFloat(v.profitPercent) : 80;
-        const tot = v.total && String(v.total).trim() ? v.total : (dep * (1 + profitPct / 100)).toFixed(2);
-        const daily = v.daily && String(v.daily).trim() ? v.daily : (parseFloat(tot) / days).toFixed(2);
-        const tasks = v.tasks ? parseInt(v.tasks) : 10;
-        const interest = v.interest && String(v.interest).trim() ? v.interest : (parseFloat(daily) / tasks).toFixed(2);
+        const isStarter = dep === 0 || String(v.level || '').toLowerCase().includes('starter');
+        const defaultDays = isStarter ? 7 : 20;
+        const defaultTasks = 5;
+        const days = (v.days !== undefined && v.days !== null && String(v.days).trim() !== '') ? parseInt(v.days) : defaultDays;
+        const tasks = (v.tasks !== undefined && v.tasks !== null && String(v.tasks).trim() !== '') ? parseInt(v.tasks) : defaultTasks;
+        const profitPct = (v.profitPercent !== undefined && v.profitPercent !== null && String(v.profitPercent).trim() !== '') ? parseFloat(v.profitPercent) : (isStarter ? 0 : 80);
+        
+        let daily = (v.daily !== undefined && v.daily !== null && String(v.daily).trim() !== '') ? String(v.daily) : (isStarter ? '20.00' : '90.00');
+        let total = (v.total !== undefined && v.total !== null && String(v.total).trim() !== '') ? String(v.total) : (isStarter ? '140.00' : (parseFloat(daily) * days).toFixed(2));
+        let interest = (v.interest !== undefined && v.interest !== null && String(v.interest).trim() !== '') ? String(v.interest) : (tasks > 0 ? (parseFloat(daily) / tasks).toFixed(2) : '0.00');
+
         return {
           ...v,
+          deposit: v.deposit !== undefined && v.deposit !== null && String(v.deposit).trim() !== '' ? String(v.deposit) : (isStarter ? '0.00' : '1,000.00'),
           days,
           tasks,
           profitPercent: profitPct,
           daily,
           interest,
-          total: tot
+          total
         };
       });
     }

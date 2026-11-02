@@ -43,6 +43,7 @@ import {
   RefreshCw,
   Headphones,
   MessageCircle,
+  Gift,
   Send,
   Plus,
   Trash2,
@@ -942,34 +943,205 @@ export default function App() {
 
   // Task Tab State
   const [taskTab, setTaskTab] = useState('running'); // 'running' | 'completed'
+  const [selectedTaskPackId, setSelectedTaskPackId] = useState(null);
   const [taskProcessingIdx, setTaskProcessingIdx] = useState(null);
   const [taskCountdown, setTaskCountdown] = useState(0);
   const taskTimerRef = useRef(null);
   const [todayDateStr, setTodayDateStr] = useState(() => getLocalDateStr());
   const [timeUntilReset, setTimeUntilReset] = useState('');
 
-  // Auto-detect 24h midnight rollover (daily raat 12ta) & live countdown clock
+  // Multi-Package Active Plans Detection:
+  // User can own Starter (7 days) + multiple VIPs simultaneously.
+  // All package meyad, daily profit, tasks, and deposit are live linked with Admin settings!
+  const userActivePackages = useMemo(() => {
+    if (!currentUser) return [];
+    const list = [];
+    const now = Date.now();
+
+    // 1. Starter Package check
+    const starterTier = vipTiers.find((v) => String(v.level || '').toLowerCase().includes('starter') || v.id === '1') || vipTiers[0];
+    const starterDays = parseInt(starterTier?.days) || 7;
+    const isStarterClaimed = !!currentUser.starterClaimedAt;
+    const starterExpiresAt = currentUser.starterExpiresAt || (currentUser.starterClaimedAt ? currentUser.starterClaimedAt + starterDays * 86400000 : null);
+    const isStarterRunning = isStarterClaimed && starterExpiresAt && now < starterExpiresAt;
+
+    if (isStarterRunning) {
+      list.push({
+        instanceId: 'starter_active',
+        packId: starterTier?.id || '1',
+        level: starterTier?.level || 'Starter Package',
+        deposit: starterTier?.deposit || '0.00',
+        daily: starterTier?.daily || '20.00',
+        interest: starterTier?.interest || '4.00',
+        tasks: parseInt(starterTier?.tasks) || 5,
+        days: starterDays,
+        activatedAt: currentUser.starterClaimedAt,
+        expiresAt: starterExpiresAt,
+        logo: getPackageLogo(starterTier),
+        isStarter: true
+      });
+    }
+
+    // 2. Purchased VIP Packages in currentUser.activePackages
+    if (Array.isArray(currentUser.activePackages)) {
+      currentUser.activePackages.forEach((pkg, idx) => {
+        if (pkg && pkg.expiresAt && now < pkg.expiresAt) {
+          // Link dynamically with live admin VIP tier settings
+          const matchingTier = vipTiers.find((v) => v.id === pkg.packId || v.level === pkg.level) || pkg;
+          list.push({
+            ...pkg,
+            instanceId: pkg.instanceId || `pkg_${pkg.packId || idx}_${pkg.activatedAt}`,
+            level: matchingTier.level || pkg.level,
+            daily: matchingTier.daily || pkg.daily,
+            interest: matchingTier.interest || pkg.interest,
+            tasks: parseInt(matchingTier.tasks) || parseInt(pkg.tasks) || 5,
+            deposit: matchingTier.deposit || pkg.deposit,
+            logo: getPackageLogo(matchingTier),
+            isStarter: false
+          });
+        }
+      });
+    }
+
+    // 3. Backward compatibility: if currentUser.vip is set (e.g. VIP1) but activePackages not yet populated
+    if (currentUser.vip && currentUser.vip !== 'VIP0' && !currentUser.vip.toLowerCase().includes('starter')) {
+      const alreadyInList = list.some((p) => p.level === currentUser.vip);
+      if (!alreadyInList) {
+        const matchingTier = vipTiers.find((v) => v.level === currentUser.vip || v.id === currentUser.vip);
+        const vipDays = parseInt(matchingTier?.days) || parseInt(currentUser.vipDurationDays) || 20;
+        const activatedAt = currentUser.vipActivatedAt || (currentUser.joined ? new Date(currentUser.joined).getTime() : now);
+        const expiresAt = currentUser.vipExpiresAt || (activatedAt + vipDays * 86400000);
+        if (now < expiresAt) {
+          list.push({
+            instanceId: `legacy_vip_${currentUser.vip}`,
+            packId: matchingTier?.id || '2',
+            level: matchingTier?.level || currentUser.vip,
+            deposit: matchingTier?.deposit || '1,000.00',
+            daily: matchingTier?.daily || '90.00',
+            interest: matchingTier?.interest || '18.00',
+            tasks: parseInt(matchingTier?.tasks) || 5,
+            days: vipDays,
+            activatedAt,
+            expiresAt,
+            logo: getPackageLogo(matchingTier),
+            isStarter: false
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [currentUser, vipTiers]);
+
+  // Active selected package
+  const activePackage = userActivePackages.find((p) => p.instanceId === selectedTaskPackId) || userActivePackages[0] || null;
+
+  // Auto-select package when list updates
+  useEffect(() => {
+    if (userActivePackages.length > 0) {
+      if (!selectedTaskPackId || !userActivePackages.some((p) => p.instanceId === selectedTaskPackId)) {
+        setSelectedTaskPackId(userActivePackages[0].instanceId);
+      }
+    } else {
+      setSelectedTaskPackId(null);
+    }
+  }, [userActivePackages, selectedTaskPackId]);
+
+  // Rolling 24-hour task reset cycle from exact purchase/claim timestamp
+  const getPack24hCycle = (pkg) => {
+    if (!currentUser || !pkg) return { cycle: 0, countdown: '24h 00m 00s', key: 'default', daysLeft: 0 };
+    const uid = currentUser.id || currentUser.email || currentUser.phone || 'guest';
+    const baseTime = pkg.activatedAt || (currentUser.joined ? new Date(currentUser.joined).getTime() : Date.now());
+    const cycleMs = 86400000; // Exact 24 hours
+    const elapsed = Math.max(0, Date.now() - baseTime);
+    const cycle = Math.floor(elapsed / cycleMs);
+    const nextReset = baseTime + (cycle + 1) * cycleMs;
+    const diffMs = Math.max(0, nextReset - Date.now());
+
+    const h = String(Math.floor(diffMs / 3600000)).padStart(2, '0');
+    const m = String(Math.floor((diffMs % 3600000) / 60000)).padStart(2, '0');
+    const s = String(Math.floor((diffMs % 60000) / 1000)).padStart(2, '0');
+
+    const pkgKeyId = pkg.instanceId || pkg.packId || pkg.level || 'pack';
+    const expiresAt = pkg.expiresAt || (baseTime + (parseInt(pkg.days) || 20) * 86400000);
+    const daysLeft = Math.max(1, Math.ceil((expiresAt - Date.now()) / 86400000));
+
+    return {
+      cycle,
+      countdown: `${h}h ${m}m ${s}s`,
+      key: `nt_pack_tasks_${uid}_${pkgKeyId}_c${cycle}`,
+      daysLeft
+    };
+  };
+
+  const getCompletedIndicesForPack = (pkg) => {
+    if (!currentUser || !pkg) return [];
+    const info = getPack24hCycle(pkg);
+    try {
+      const raw = localStorage.getItem(info.key);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    const profileSaved = currentUser.packCompletedTasks?.[info.key];
+    if (Array.isArray(profileSaved)) return profileSaved;
+    return [];
+  };
+
+  // Live 24h countdown clock from package purchase/claim time
   useEffect(() => {
     const updateResetCountdown = () => {
-      const now = new Date();
-      const currentLocalDate = getLocalDateStr();
-      if (currentLocalDate !== todayDateStr) {
-        setTodayDateStr(currentLocalDate);
+      if (activePackage) {
+        const info = getPack24hCycle(activePackage);
+        setTimeUntilReset(info.countdown);
+      } else {
+        setTimeUntilReset('');
       }
-
-      // Next local midnight (raat 12ta)
-      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
-      const diffMs = Math.max(0, nextMidnight.getTime() - now.getTime());
-      const hours = String(Math.floor(diffMs / (1000 * 60 * 60))).padStart(2, '0');
-      const minutes = String(Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
-      const seconds = String(Math.floor((diffMs % (1000 * 60)) / 1000)).padStart(2, '0');
-      setTimeUntilReset(`${hours}h ${minutes}m ${seconds}s`);
     };
 
     updateResetCountdown();
     const interval = setInterval(updateResetCountdown, 1000);
     return () => clearInterval(interval);
-  }, [todayDateStr]);
+  }, [activePackage, currentUser?.starterClaimedAt, currentUser?.vipActivatedAt]);
+
+  const handleClaimStarter = () => {
+    if (!requireAuth('task', 'claim starter package')) return;
+    const starterTier = vipTiers.find((v) => String(v.level || '').toLowerCase().includes('starter') || v.id === '1') || vipTiers[0];
+    const starterDays = parseInt(starterTier?.days) || 7;
+    const now = Date.now();
+    const expiresAt = now + starterDays * 86400000;
+    const tasksCount = parseInt(starterTier?.tasks) || 5;
+
+    const starterInstance = {
+      instanceId: `pkg_starter_${currentUser.id || 'usr'}_${now}`,
+      packId: starterTier?.id || '1',
+      level: starterTier?.level || 'Starter Package',
+      deposit: starterTier?.deposit || '0.00',
+      daily: starterTier?.daily || '20.00',
+      interest: starterTier?.interest || '4.00',
+      tasks: tasksCount,
+      days: starterDays,
+      activatedAt: now,
+      expiresAt: expiresAt,
+      logo: getPackageLogo(starterTier),
+      isStarter: true
+    };
+
+    const currentActive = Array.isArray(currentUser?.activePackages) ? currentUser.activePackages : [];
+    const updatedActive = [...currentActive.filter((p) => p.instanceId !== 'starter_active'), starterInstance];
+
+    const updatedUser = {
+      ...currentUser,
+      starterClaimedAt: now,
+      starterExpiresAt: expiresAt,
+      activePackages: updatedActive,
+      vip: (!currentUser?.vip || currentUser.vip === 'VIP0') ? 'Starter Package' : currentUser.vip
+    };
+    setCurrentUser(updatedUser);
+    try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser)); } catch (e) {}
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    setStoredData('users', allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u));
+    showToast(`🎉 Free Starter Package activated! You have ${tasksCount} daily tasks for ${starterDays} days (৳${starterTier?.daily || '20.00'}/day).`);
+    setSelectedTaskPackId(starterInstance.instanceId);
+  };
 
   const getUserTasksKey = (u) => {
     const uid = u?.id || u?.email || u?.phone || 'guest';
@@ -1602,20 +1774,16 @@ export default function App() {
   };
 
   // Complete Task Handler (Runs one task at a time with verification countdown)
-  const handleCompleteTask = (taskIndex, reward) => {
+  const handleCompleteTask = (taskIndex, reward, targetPkg = activePackage) => {
     if (!requireAuth('task', 'complete task')) return;
     if (taskProcessingIdx !== null) return;
-    if (completedTaskIndices.includes(taskIndex)) return;
+    if (!targetPkg) return;
 
-    // ONLY users who bought/unlocked a VIP package (VIP1-VIP10) can complete tasks
-    if (!userVip || userVip === 'VIP0') {
-      showToast('Please purchase a VIP package from the VIP tab to unlock daily tasks!');
-      navigateToTab('vip');
-      return;
-    }
+    const currentCompleted = getCompletedIndicesForPack(targetPkg);
+    if (currentCompleted.includes(taskIndex)) return;
 
     setTaskProcessingIdx(taskIndex);
-    const durationSec = 5;
+    const durationSec = 3; // 3-second sleek verification
     setTaskCountdown(durationSec);
 
     let remaining = durationSec;
@@ -1629,50 +1797,31 @@ export default function App() {
         taskTimerRef.current = null;
         setTaskCountdown(0);
 
-        let updatedIndices = completedTaskIndices;
-        let isTransitionComplete = false;
-        let finishedPending = null;
+        const packInfo = getPack24hCycle(targetPkg);
+        const updatedIndices = [...currentCompleted, taskIndex];
 
-        const pendingUpgrade = (currentUser?.pendingUpgrade && currentUser.pendingUpgrade.date === todayDateStr && currentUser.pendingUpgrade.activeTierLevel)
-          ? currentUser.pendingUpgrade
-          : null;
-        const prevMax = pendingUpgrade ? (pendingUpgrade.previousMaxTasks || 10) : null;
+        try {
+          localStorage.setItem(packInfo.key, JSON.stringify(updatedIndices));
+          localStorage.setItem(todayTasksKey, JSON.stringify(updatedIndices));
+        } catch (e) {}
 
-        setCompletedTaskIndices((prev) => {
-          updatedIndices = prev.includes(taskIndex) ? prev : [...prev, taskIndex];
-
-          // If finishing remaining tasks of previous package:
-          if (pendingUpgrade && updatedIndices.length >= prevMax) {
-            isTransitionComplete = true;
-            finishedPending = pendingUpgrade;
-            updatedIndices = []; // Reset for newly unlocked package!
-          }
-
-          try {
-            localStorage.setItem(todayTasksKey, JSON.stringify(updatedIndices));
-          } catch (e) {
-            console.error(e);
-          }
-          return updatedIndices;
-        });
+        setCompletedTaskIndices(updatedIndices);
 
         // Add balance and update user with task history
         setBalance((prevBal) => {
           const newBal = parseFloat((prevBal + reward).toFixed(2));
           if (currentUser) {
-            const userCompleted = {
-              ...(currentUser.completedTasks || {}),
-              [todayDateStr]: updatedIndices
-            };
-            const updated = {
+            const updatedUser = {
               ...currentUser,
               balance: newBal,
-              completedTasks: userCompleted,
-              pendingUpgrade: isTransitionComplete ? null : currentUser.pendingUpgrade
+              packCompletedTasks: {
+                ...(currentUser.packCompletedTasks || {}),
+                [packInfo.key]: updatedIndices
+              }
             };
-            setCurrentUser(updated);
+            setCurrentUser(updatedUser);
             try {
-              localStorage.setItem('nt_currentUser', JSON.stringify(updated));
+              localStorage.setItem('nt_currentUser', JSON.stringify(updatedUser));
             } catch (e) {
               console.error(e);
             }
@@ -1680,7 +1829,7 @@ export default function App() {
             setStoredData('users', allUsers.map((u) => (
               (u.id && String(u.id) === String(currentUser.id)) ||
               (u.email && String(u.email).toLowerCase() === String(currentUser.email).toLowerCase())
-            ) ? { ...u, balance: newBal, completedTasks: userCompleted, pendingUpgrade: isTransitionComplete ? null : u.pendingUpgrade } : u));
+            ) ? updatedUser : u));
           }
           return newBal;
         });
@@ -1689,15 +1838,16 @@ export default function App() {
         try {
           const now = new Date();
           const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-          const currentMissionVip = (pendingUpgrade && !isTransitionComplete) ? pendingUpgrade.activeTierLevel : (userVip || 'VIP1');
+          const currentMissionName = `${targetPkg.level || 'VIP'} Mission #${taskIndex + 1}`;
+
           const newTaskRecord = {
             id: `TSK-${Date.now()}-${taskIndex + 1}`,
             userId: currentUser?.id,
             user: currentUser?.email || currentUser?.phone || currentUser?.name || `User-${currentUser?.id}`,
             missionNo: taskIndex + 1,
             taskIndex: taskIndex,
-            taskName: `${getVipDisplayName(currentMissionVip, vipTiers)} Mission #${taskIndex + 1}`,
-            vipLevel: currentMissionVip,
+            taskName: currentMissionName,
+            vipLevel: targetPkg.level || 'VIP',
             amount: parseFloat(reward.toFixed(2)),
             status: 'completed',
             date: formattedDate,
@@ -1711,11 +1861,7 @@ export default function App() {
         }
 
         setTaskProcessingIdx(null);
-        if (isTransitionComplete && finishedPending) {
-          showToast(`🎉 ${getVipDisplayName(finishedPending.activeTierLevel, vipTiers)} finished! Your new ${getVipDisplayName(finishedPending.targetTierLevel || userVip, vipTiers)} missions are now open!`);
-        } else {
-          showToast(`🎉 Mission #${taskIndex + 1} completed! +৳${reward.toFixed(2)} added.`);
-        }
+        showToast(`🎉 Mission #${taskIndex + 1} completed! +৳${reward.toFixed(2)} added.`);
       }
     }, 1000);
   };
@@ -2181,39 +2327,39 @@ export default function App() {
 
     // Free Starter package OR user has enough balance in account
     if (isFreePackage || (balance >= reqDeposit && reqDeposit > 0)) {
-      const depositDeduction = isFreePackage ? 0 : reqDeposit;
+      if (isFreePackage) {
+        handleClaimStarter();
+        return;
+      }
+
+      const depositDeduction = reqDeposit;
       const newBalance = parseFloat((balance - depositDeduction).toFixed(2));
       const newRecharge = parseFloat(((currentUser?.recharge || rechargeTotal || 0) + depositDeduction).toFixed(2));
       const durationDays = selectedVipForUnlock.days ? parseInt(selectedVipForUnlock.days) : 20;
       const now = Date.now();
       const expiresAt = now + durationDays * 86400000;
+      const tasksCount = parseInt(selectedVipForUnlock.tasks) || 5;
 
-      const prevLevel = currentUser?.vip || userVip || 'VIP0';
-      const newLevel = selectedVipForUnlock.level;
+      const newPackageInstance = {
+        instanceId: `pkg_${selectedVipForUnlock.id || Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        packId: selectedVipForUnlock.id,
+        level: selectedVipForUnlock.level,
+        deposit: selectedVipForUnlock.deposit,
+        daily: selectedVipForUnlock.daily,
+        interest: selectedVipForUnlock.interest || (parseFloat(selectedVipForUnlock.daily) / tasksCount).toFixed(2),
+        tasks: tasksCount,
+        days: durationDays,
+        activatedAt: now,
+        expiresAt: expiresAt,
+        logo: selectedVipForUnlock.logo || '',
+        isStarter: false
+      };
 
-      // VIP Task Queue: If user has unfinished tasks from their previous pack today, finish those first!
-      let pendingUpgradeData = null;
-      let userCompletedTasks = currentUser?.completedTasks || {};
-      if (prevLevel && prevLevel !== 'VIP0' && prevLevel !== newLevel) {
-        const prevTier = vipTiers.find((v) => v && (v.level === prevLevel || v.id === prevLevel)) || vipTiers[0];
-        const prevMax = prevTier?.tasks || 10;
-        const todayDone = completedTaskIndices.length;
-
-        if (todayDone > 0 && todayDone < prevMax) {
-          pendingUpgradeData = {
-            date: todayDateStr,
-            activeTierLevel: prevLevel,
-            targetTierLevel: newLevel,
-            previousMaxTasks: prevMax
-          };
-        } else if (todayDone >= prevMax) {
-          setCompletedTaskIndices([]);
-          userCompletedTasks = { ...userCompletedTasks, [todayDateStr]: [] };
-          try {
-            localStorage.setItem(todayTasksKey, JSON.stringify([]));
-          } catch (e) {}
-        }
-      }
+      const currentActiveList = Array.isArray(currentUser?.activePackages) ? currentUser.activePackages : [];
+      const updatedActivePackages = [
+        ...currentActiveList.filter((p) => p && p.expiresAt && Date.now() < p.expiresAt),
+        newPackageInstance
+      ];
 
       const updatedUserObj = {
         ...currentUser,
@@ -2223,9 +2369,10 @@ export default function App() {
         vipActivatedAt: now,
         vipDurationDays: durationDays,
         vipExpiresAt: expiresAt,
+        activePackages: updatedActivePackages,
         capitalReleased: false,
-        pendingUpgrade: pendingUpgradeData,
-        completedTasks: userCompletedTasks
+        starterClaimedAt: currentUser?.starterClaimedAt || null,
+        starterExpiresAt: currentUser?.starterExpiresAt || null
       };
       setCurrentUser(updatedUserObj);
       try { localStorage.setItem('nt_currentUser', JSON.stringify(updatedUserObj)); } catch (e) {}
@@ -2233,12 +2380,13 @@ export default function App() {
       setBalance(newBalance);
       setRechargeTotal(newRecharge);
       setUserVip(selectedVipForUnlock.level);
+      setSelectedTaskPackId(newPackageInstance.instanceId);
 
       const allUsers = getStoredData('users', DEFAULT_USERS);
       const commRate = typeof settings?.referralCommissionRate === 'number' && settings.referralCommissionRate >= 0
         ? settings.referralCommissionRate
         : (parseFloat(settings?.referralCommissionRate) || 10);
-      const commissionAmount = isFreePackage ? 0 : parseFloat((reqDeposit * (commRate / 100)).toFixed(2));
+      const commissionAmount = parseFloat((reqDeposit * (commRate / 100)).toFixed(2));
       let referrerCredited = false;
       let referrerName = '';
 
@@ -2257,9 +2405,10 @@ export default function App() {
             vipActivatedAt: now,
             vipDurationDays: durationDays,
             vipExpiresAt: expiresAt,
+            activePackages: updatedActivePackages,
             capitalReleased: false,
-            pendingUpgrade: pendingUpgradeData,
-            completedTasks: userCompletedTasks
+            starterClaimedAt: currentUser?.starterClaimedAt || null,
+            starterExpiresAt: currentUser?.starterExpiresAt || null
           };
         }
 
@@ -2300,6 +2449,7 @@ export default function App() {
       }
 
       // Record in Upgrade Log
+      const prevLevel = currentUser?.vip || userVip || 'VIP0';
       recordUpgradeLog({
         userId: currentUser?.id,
         user: currentUser?.name || currentUser?.phone || currentUser?.email || userPhone || userEmail || 'User',
@@ -2310,11 +2460,7 @@ export default function App() {
         type: isFreePackage ? 'Free Unlock' : (prevLevel === 'VIP0' ? 'Unlock' : 'Upgrade')
       });
 
-      if (isFreePackage) {
-        showToast(`🎉 Starter Package unlocked for FREE! You can now complete 10 daily tasks and earn ৳50.00 daily.`);
-      } else {
-        showToast(`🎉 Congratulations! You have unlocked ${selectedVipForUnlock.level}`);
-      }
+      showToast(`🎉 Congratulations! You have unlocked ${selectedVipForUnlock.level}`);
       return;
     }
 
@@ -3561,35 +3707,24 @@ export default function App() {
               {activeTab === 'vip' && (
                 <div className="px-3.5 py-3 space-y-3.5">
                   {(() => {
-                    const vipOrder = ['VIP0', ...vipTiers.map((v) => v.level)];
-                    const curVipIdx = vipOrder.indexOf(userVip || 'VIP0');
-
                     return vipTiers.map((vip) => {
-                      const thisTierIdx = vipOrder.indexOf(vip.level);
-                      const isCurrentUnlocked = curVipIdx > 0 && thisTierIdx === curVipIdx;
-                      const isPastUnlocked = curVipIdx > 0 && thisTierIdx < curVipIdx;
-                      const isHigherTier = thisTierIdx > curVipIdx;
+                      const isStarter = parseFloat(String(vip.deposit || 0).replace(/,/g, '')) === 0 || String(vip.level || '').toLowerCase().includes('starter');
+                      const activeInstances = userActivePackages.filter((p) => p.level === vip.level || p.packId === vip.id);
+                      const isCurrentActive = activeInstances.length > 0;
                       const vipName = getVipDisplayName(vip.level, vipTiers);
 
-                      // Compact Card styling based on unlock status
-                      const cardClass = isCurrentUnlocked
+                      // Card styling based on active plan status
+                      const cardClass = isCurrentActive
                         ? "bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/40 rounded-2xl p-3 shadow-sm border-2 border-emerald-500 relative pt-4 ring-2 ring-emerald-500/10 transition-all"
-                        : isPastUnlocked
-                        ? "bg-slate-50/75 rounded-2xl p-3 shadow-xs border border-slate-200/80 relative pt-4 opacity-80 transition-all"
                         : "bg-white rounded-2xl p-3 shadow-sm border border-slate-100/90 relative pt-4 hover:shadow-md transition-all";
 
                       return (
                         <div key={vip.level || vip.id} className={cardClass}>
                           {/* Sleek Top badge */}
-                          {isCurrentUnlocked ? (
+                          {isCurrentActive ? (
                             <div className="absolute -top-2.5 left-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
                               <CheckCircle2 className="w-3 h-3 text-white" />
-                              <span>{vipName} • {t('unlocked')}</span>
-                            </div>
-                          ) : isPastUnlocked ? (
-                            <div className="absolute -top-2.5 left-3 bg-slate-200 text-slate-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-                              <Check className="w-2.5 h-2.5 text-emerald-600" />
-                              <span>{vipName}</span>
+                              <span>{vipName} • Active {activeInstances.length > 1 ? `(${activeInstances.length} Packs)` : ''}</span>
                             </div>
                           ) : (
                             <div className="absolute -top-2.5 left-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
@@ -3601,7 +3736,7 @@ export default function App() {
                           <div className="flex gap-2.5 items-center">
                             {/* Left Badge Box (Official Package Motif) */}
                             <div className={`w-16 h-16 rounded-xl flex items-center justify-center p-1 relative shadow-inner overflow-hidden shrink-0 ${
-                              isCurrentUnlocked
+                              isCurrentActive
                                 ? "bg-gradient-to-br from-[#064e3b] via-[#022c22] to-[#043328] border border-emerald-400/50 shadow-emerald-950/20"
                                 : "bg-[#0c0d11] border border-amber-500/30"
                             }`}>
@@ -3621,7 +3756,7 @@ export default function App() {
                                   {vipName}
                                 </span>
                                 <span className="font-black text-xs text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">
-                                  {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || vip.level.toLowerCase().includes('starter') ? (
+                                  {isStarter ? (
                                     <span className="text-emerald-600 font-black">Free (৳0.00)</span>
                                   ) : (
                                     <span>Recharge: <b className="text-indigo-600">৳{vip.deposit}</b></span>
@@ -3630,7 +3765,7 @@ export default function App() {
                               </div>
 
                               <div className={`grid grid-cols-2 gap-1.5 p-2 rounded-xl text-[11px] ${
-                                isCurrentUnlocked ? "bg-emerald-50/80 border border-emerald-100" : "bg-[#f1f5fa]"
+                                isCurrentActive ? "bg-emerald-50/80 border border-emerald-100" : "bg-[#f1f5fa]"
                               }`}>
                                 <div>
                                   <span className="text-[9px] text-slate-500 block leading-tight">Daily Income</span>
@@ -3642,11 +3777,11 @@ export default function App() {
                                 </div>
                                 <div>
                                   <span className="text-[9px] text-slate-500 block leading-tight">Missions / Day</span>
-                                  <b className="text-slate-700">{vip.tasks || 10} Tasks / Day</b>
+                                  <b className="text-slate-700">{vip.tasks || 5} Tasks / Day</b>
                                 </div>
                                 <div>
                                   <span className="text-[9px] text-slate-500 block leading-tight">Package Validity</span>
-                                  <b className="text-amber-700">{vip.days || 20} Days</b>
+                                  <b className="text-amber-700">{vip.days || (isStarter ? 7 : 20)} Days</b>
                                 </div>
                               </div>
                             </div>
@@ -3654,7 +3789,7 @@ export default function App() {
 
                           {/* Action Button Bottom Bar */}
                           <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100">
-                            {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || vip.level?.toLowerCase().includes('starter') ? (
+                            {isStarter ? (
                               <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
                                 <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
                                 <span>100% Free • No Recharge Needed</span>
@@ -3666,41 +3801,44 @@ export default function App() {
                               </span>
                             )}
 
-                            {isCurrentUnlocked ? (
-                              <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
-                                <CheckCircle2 className="w-3 h-3 text-white" />
-                                <span>Active Plan</span>
+                            {isStarter ? (
+                              isCurrentActive ? (
+                                <div className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
+                                  <CheckCircle2 className="w-3 h-3 text-white" />
+                                  <span>Active (7 Days Free)</span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnlockVip(vip)}
+                                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer ring-2 ring-emerald-400/30"
+                                >
+                                  <span>Claim Free Plan</span>
+                                  <span className="text-emerald-100 font-extrabold">(৳0.00)</span>
+                                </button>
+                              )
+                            ) : isCurrentActive ? (
+                              <div className="flex items-center gap-2">
+                                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-300">
+                                  Running
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnlockVip(vip)}
+                                  className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm active:scale-95 transition cursor-pointer"
+                                >
+                                  <span>Buy More</span>
+                                  <span className="text-cyan-300 font-bold">৳{vip.deposit}</span>
+                                </button>
                               </div>
-                            ) : isPastUnlocked ? (
-                              <div className="bg-slate-200 text-slate-600 text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1">
-                                <Check className="w-3 h-3 text-emerald-600" />
-                                <span>Unlocked</span>
-                              </div>
-                            ) : curVipIdx > 0 && isHigherTier ? (
+                            ) : (
                               <button
                                 type="button"
                                 onClick={() => handleUnlockVip(vip)}
                                 className="bg-[#05132d] hover:bg-[#0b224d] text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
                               >
-                                <span>Upgrade</span>
-                                <span className="text-cyan-300 font-extrabold">
-                                  {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 ? 'Free' : `৳${vip.deposit}`}
-                                </span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleUnlockVip(vip)}
-                                className={`text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer ${
-                                  parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 || vip.level.toLowerCase().includes('starter')
-                                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 ring-2 ring-emerald-400/30'
-                                    : 'bg-[#05132d] hover:bg-[#0b224d]'
-                                }`}
-                              >
-                                <span>{parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 ? 'Unlock Free Plan' : 'Unlock'}</span>
-                                <span className="text-cyan-300 font-extrabold">
-                                  {parseFloat(String(vip.deposit).replace(/,/g, '')) === 0 ? '(৳0.00)' : `৳${vip.deposit}`}
-                                </span>
+                                <span>Unlock</span>
+                                <span className="text-cyan-300 font-extrabold">৳{vip.deposit}</span>
                               </button>
                             )}
                           </div>
@@ -4002,217 +4140,276 @@ export default function App() {
 
               {/* ================= TAB 4: TASK (CORRESPONDING TO USER VIP LEVEL) ================= */}
               {activeTab === 'task' && (() => {
-                const pendingUpgrade = (currentUser?.pendingUpgrade && currentUser.pendingUpgrade.date === todayDateStr && currentUser.pendingUpgrade.activeTierLevel)
-                  ? currentUser.pendingUpgrade
-                  : null;
-
-                const isPreviousTierPending = pendingUpgrade && completedTaskIndices.length < (pendingUpgrade.previousMaxTasks || 10);
-
-                const activeLevel = isPreviousTierPending ? pendingUpgrade.activeTierLevel : userVip;
-                const currentVipTier = vipTiers.find((v) => v && (v.level === activeLevel || v.id === activeLevel)) || vipTiers[0];
-                const maxTasks = isPreviousTierPending ? (pendingUpgrade.previousMaxTasks || currentVipTier?.tasks || 10) : (currentVipTier?.tasks || 10);
-                const dailyProfit = parseFloat(currentVipTier?.daily || '0.70') || 0.70;
+                const hasActivePlans = userActivePackages.length > 0;
+                const currentPkg = activePackage || userActivePackages[0] || null;
+                const completedIndices = currentPkg ? getCompletedIndicesForPack(currentPkg) : [];
+                const maxTasks = currentPkg ? (parseInt(currentPkg.tasks) || 5) : 5;
+                const dailyProfit = currentPkg ? (parseFloat(currentPkg.daily) || 20.00) : 20.00;
                 const rewardPerTask = parseFloat((dailyProfit / maxTasks).toFixed(2));
+                const cycleInfo = currentPkg ? getPack24hCycle(currentPkg) : { daysLeft: 7, countdown: '24h 00m 00s' };
 
                 const totalTasks = Array.from({ length: maxTasks }, (_, i) => i);
-                const runningTasks = totalTasks.filter((i) => !completedTaskIndices.includes(i));
-                const finishedTasks = totalTasks.filter((i) => completedTaskIndices.includes(i));
+                const runningTasks = totalTasks.filter((i) => !completedIndices.includes(i));
+                const finishedTasks = totalTasks.filter((i) => completedIndices.includes(i));
 
                 return (
                   <div className="px-4 py-4 space-y-4">
-                    {/* Current VIP Mission Header */}
-                    <div className="bg-gradient-to-r from-[#071739] via-[#0d2a66] to-[#05132d] rounded-3xl p-5 text-white shadow-xl border border-cyan-500/30 relative overflow-hidden">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-full shadow-sm">
-                              {getVipDisplayName(activeLevel, vipTiers)}
-                            </span>
-                            <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-2 mt-2">
-                            <span className="text-xs text-slate-200">
-                              {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+৳{rewardPerTask.toFixed(2)}</b>
-                            </span>
-                            {activeLevel && activeLevel !== 'VIP0' && parseFloat(String(currentVipTier?.deposit || '0').replace(/,/g, '')) > 0 && (
+                    {/* Multi-Package Switcher (When user owns 2 or more packages running simultaneously) */}
+                    {userActivePackages.length > 1 && (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs px-1">
+                          <span className="font-extrabold text-slate-800">Your Active Packages ({userActivePackages.length})</span>
+                          <span className="text-[10px] text-slate-400">All running simultaneously</span>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                          {userActivePackages.map((pkg) => {
+                            const isSelected = pkg.instanceId === currentPkg?.instanceId;
+                            const pkgDone = getCompletedIndicesForPack(pkg);
+                            const pkgTotal = parseInt(pkg.tasks) || 5;
+                            const pkgInfo = getPack24hCycle(pkg);
+
+                            return (
+                              <button
+                                key={pkg.instanceId}
+                                type="button"
+                                onClick={() => setSelectedTaskPackId(pkg.instanceId)}
+                                className={`flex-1 min-w-[155px] p-2.5 rounded-2xl border transition-all text-left cursor-pointer shrink-0 ${
+                                  isSelected
+                                    ? 'bg-[#05132d] border-cyan-400/50 text-white shadow-md shadow-cyan-950/20'
+                                    : 'bg-white border-slate-200/80 text-slate-700 hover:border-slate-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className={`text-xs font-black truncate ${isSelected ? 'text-amber-400' : 'text-slate-900'}`}>
+                                    {pkg.level}
+                                  </span>
+                                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold shrink-0 ${
+                                    isSelected ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {pkgDone.length}/{pkgTotal}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] mt-1.5 text-slate-400">
+                                  <span className="font-semibold text-emerald-500">+৳{pkg.daily}/day</span>
+                                  <span className="text-[9px] font-medium">{pkgInfo.daysLeft}d left</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Active Plan Mission Header */}
+                    {hasActivePlans && currentPkg ? (
+                      <div className="bg-gradient-to-r from-[#071739] via-[#0d2a66] to-[#05132d] rounded-3xl p-5 text-white shadow-xl border border-cyan-500/30 relative overflow-hidden">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-xs px-2.5 py-0.5 rounded-full shadow-sm">
+                                {currentPkg.level}
+                              </span>
+                              <span className="text-xs font-bold text-cyan-300">{t('dailyMissionCenter')}</span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              <span className="text-xs text-slate-200">
+                                {t('rewardPerMission')} <b className="text-amber-400 font-bold ml-1">+৳{rewardPerTask.toFixed(2)}</b>
+                              </span>
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-xs">
                                 <span>⏳ Validity:</span>
-                                <b>
-                                  {currentUser?.capitalReleased || (currentUser?.vipExpiresAt && Date.now() >= currentUser.vipExpiresAt)
-                                    ? 'Expired (Capital Released)'
-                                    : currentUser?.vipExpiresAt
-                                    ? `${Math.max(1, Math.ceil((currentUser.vipExpiresAt - Date.now()) / 86400000))} Days left`
-                                    : `${currentVipTier?.days || 20} Days`}
-                                </b>
+                                <b>{cycleInfo.daysLeft} Days left</b>
                               </span>
-                            )}
-                            {timeUntilReset && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-xs">
-                                <Clock className="w-2.5 h-2.5 text-cyan-400" />
-                                <span>Reset: <b>{timeUntilReset}</b></span>
-                              </span>
-                            )}
+                              {timeUntilReset && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shadow-xs">
+                                  <Clock className="w-2.5 h-2.5 text-cyan-400" />
+                                  <span>Reset: <b>{timeUntilReset}</b></span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <div className="text-[10px] text-slate-300 uppercase font-bold">{t('todaysProgress')}</div>
+                            <div className="text-2xl font-black text-white mt-0.5">
+                              {completedIndices.length} <span className="text-xs text-slate-400 font-medium">/ {maxTasks}</span>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          <div className="text-[10px] text-slate-300 uppercase font-bold">{t('todaysProgress')}</div>
-                          <div className="text-2xl font-black text-white mt-0.5">
-                            {completedTaskIndices.length} <span className="text-xs text-slate-400 font-medium">/ {maxTasks}</span>
-                          </div>
+                        {/* Progress Bar */}
+                        <div className="mt-4 w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, (completedIndices.length / maxTasks) * 100)}%` }}
+                          />
                         </div>
                       </div>
-
-                      {/* Progress Bar */}
-                      <div className="mt-4 w-full bg-white/10 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(100, (completedTaskIndices.length / maxTasks) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Pending Upgrade Queue Banner */}
-                    {isPreviousTierPending && (
-                      <div className="bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/10 border border-amber-500/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 text-xs text-amber-200 shadow-sm animate-fade-in">
-                        <div className="flex items-start gap-2.5">
-                          <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                          <div>
-                            <div className="font-extrabold text-amber-300">
-                              Finish Remaining {getVipDisplayName(pendingUpgrade.activeTierLevel, vipTiers)} Missions
-                            </div>
-                            <div className="text-[11px] text-slate-300 mt-0.5">
-                              Complete your remaining <b>{runningTasks.length}</b> missions for today. Once finished, your new <b>{getVipDisplayName(pendingUpgrade.targetTierLevel || userVip, vipTiers)}</b> missions will start immediately!
-                            </div>
-                          </div>
+                    ) : (
+                      /* Free Starter Claim / VIP Unlock Card if user has 0 active packages */
+                      <div className="bg-gradient-to-br from-[#071739] via-[#0b2457] to-[#05132d] rounded-3xl p-6 text-white shadow-xl border border-amber-500/30 space-y-4 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20">
+                          <Gift className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <h3 className="text-base font-extrabold text-white">Claim 7 Days Free Starter Package!</h3>
+                          <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
+                            Start earning instantly without recharge! Receive 5 daily verification tasks and earn <b className="text-amber-400">৳20.00 daily for 7 days</b>.
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 pt-1 max-w-xs mx-auto">
+                          <button
+                            type="button"
+                            onClick={handleClaimStarter}
+                            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white font-extrabold py-3 px-4 rounded-full text-xs shadow-md transition cursor-pointer"
+                          >
+                            🎁 Claim Free Starter Now
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigateToTab('vip')}
+                            className="w-full bg-white/10 hover:bg-white/20 text-cyan-300 font-bold py-3 px-4 rounded-full text-xs border border-cyan-400/30 transition cursor-pointer"
+                          >
+                            Explore VIP Packages
+                          </button>
                         </div>
                       </div>
                     )}
 
                     {/* Tabs: Running vs Completed */}
-                    <div className="flex bg-[#e8eef8] p-1 rounded-2xl text-xs font-bold text-slate-600">
-                      <button
-                        type="button"
-                        onClick={() => setTaskTab('running')}
-                        className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'running' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
-                      >
-                        Running ({runningTasks.length})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTaskTab('completed')}
-                        className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'completed' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
-                      >
-                        Completed ({finishedTasks.length})
-                      </button>
-                    </div>
-
-                    {/* VIP Locked Warning Banner if VIP0 */}
-                    {(!userVip || userVip === 'VIP0') && (
-                      <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 rounded-2xl p-4 text-center space-y-2.5">
-                        <div className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
-                          <Crown className="w-5 h-5" />
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-900">VIP Package Required</h4>
-                        <p className="text-[11px] text-slate-500 max-w-xs mx-auto">
-                          You are currently on <b className="text-slate-800">VIP0</b>. Please unlock any VIP package (VIP1–VIP10) from the VIP tab to start completing daily tasks and earning rewards.
-                        </p>
+                    {hasActivePlans && (
+                      <div className="flex bg-[#e8eef8] p-1 rounded-2xl text-xs font-bold text-slate-600">
                         <button
                           type="button"
-                          onClick={() => navigateToTab('vip')}
-                          className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-2 rounded-full shadow-md active:scale-95 transition cursor-pointer"
+                          onClick={() => setTaskTab('running')}
+                          className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'running' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
                         >
-                          Unlock VIP Package Now
+                          Running ({runningTasks.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTaskTab('completed')}
+                          className={`flex-1 py-2 rounded-xl transition cursor-pointer ${taskTab === 'completed' ? 'bg-white text-slate-900 shadow-sm font-extrabold' : 'hover:text-slate-900'}`}
+                        >
+                          Completed ({finishedTasks.length})
                         </button>
                       </div>
                     )}
 
                     {/* Tasks List */}
-                    <div className="space-y-3">
-                      {taskTab === 'running' ? (
-                        runningTasks.length === 0 ? (
-                          <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm space-y-3">
-                            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
-                            <h3 className="text-sm font-bold text-slate-900">All tasks completed today!</h3>
-                            <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                              You have finished all {maxTasks} daily tasks for {getVipDisplayName(activeLevel, vipTiers)}. Next daily tasks unlock in <b className="text-cyan-600">{timeUntilReset}</b>.
-                            </p>
-                          </div>
-                        ) : (
-                          runningTasks.map((taskIdx) => (
-                            <div
-                              key={taskIdx}
-                              className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between gap-3 transition hover:shadow-md"
-                            >
-                              <div className="space-y-1 min-w-0 flex-1">
-                                <div className="text-xs font-bold text-slate-900 truncate">
-                                  {getVipDisplayName(activeLevel, vipTiers)} Verification Mission #{taskIdx + 1}
+                    {hasActivePlans && currentPkg && (
+                      <div className="space-y-3">
+                        {taskTab === 'running' ? (
+                          runningTasks.length === 0 ? (
+                            <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm space-y-3">
+                              <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto animate-bounce" />
+                              <h3 className="text-sm font-bold text-slate-900">All tasks completed today!</h3>
+                              <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                                You have finished all {maxTasks} daily tasks for {currentPkg.level}. Next daily tasks unlock in <b className="text-cyan-600">{timeUntilReset}</b>.
+                              </p>
+                              {userActivePackages.length > 1 && (
+                                <p className="text-[11px] text-amber-600 font-semibold">
+                                  💡 You have other active packages! Select them from the tabs above to finish their daily tasks.
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            runningTasks.map((taskIdx) => (
+                              <div
+                                key={taskIdx}
+                                className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between gap-3 transition hover:shadow-md"
+                              >
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="text-xs font-bold text-slate-900 truncate">
+                                    {currentPkg.level} Verification Mission #{taskIdx + 1}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">
+                                    Daily Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
+                                  </div>
                                 </div>
-                                <div className="text-[11px] text-slate-500">
-                                  Daily Reward: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
+
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="h-8 inline-flex items-center justify-center gap-1.5 text-[11px] bg-amber-50 text-amber-700 font-bold px-3 rounded-full border border-amber-200 shadow-xs leading-none">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                    Running
+                                  </span>
+                                  <button
+                                    type="button"
+                                    disabled={taskProcessingIdx !== null}
+                                    onClick={() => handleCompleteTask(taskIdx, rewardPerTask, currentPkg)}
+                                    className="h-8 bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 rounded-full shadow-md active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed leading-none"
+                                  >
+                                    {taskProcessingIdx === taskIdx ? (
+                                      <>
+                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Verifying ({taskCountdown}s)...</span>
+                                      </>
+                                    ) : (
+                                      <span>Complete</span>
+                                    )}
+                                  </button>
                                 </div>
                               </div>
+                            ))
+                          )
+                        ) : (
+                          finishedTasks.length === 0 ? (
+                            <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm text-slate-400">
+                              <Clock className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                              <p className="text-xs font-medium">No completed tasks yet today for {currentPkg.level}.</p>
+                            </div>
+                          ) : (
+                            finishedTasks.map((taskIdx) => (
+                              <div
+                                key={taskIdx}
+                                className="bg-white/80 rounded-2xl p-4 border border-emerald-100 flex items-center justify-between gap-3"
+                              >
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="text-xs font-bold text-slate-700 truncate">
+                                    {currentPkg.level} Verification Mission #{taskIdx + 1}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500">
+                                    Credited: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
+                                  </div>
+                                </div>
 
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="h-8 inline-flex items-center justify-center gap-1.5 text-[11px] bg-amber-50 text-amber-700 font-bold px-3 rounded-full border border-amber-200 shadow-xs leading-none">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                                  Running
-                                </span>
-                                <button
-                                  type="button"
-                                  disabled={taskProcessingIdx !== null}
-                                  onClick={() => handleCompleteTask(taskIdx, rewardPerTask)}
-                                  className="h-8 bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 rounded-full shadow-md active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed leading-none"
-                                >
-                                  {taskProcessingIdx === taskIdx ? (
-                                    <>
-                                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                      <span>Verifying ({taskCountdown}s)...</span>
-                                    </>
-                                  ) : (
-                                    <span>Complete</span>
-                                  )}
-                                </button>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-full border border-emerald-200">
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                    Completed
+                                  </span>
+                                  <span className="text-xs font-black text-emerald-600">
+                                    +৳{rewardPerTask.toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))
+                          )
+                        )}
+
+                        {/* Multi-Package Add Banner */}
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => navigateToTab('vip')}
+                            className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border border-blue-200/80 rounded-2xl p-3 flex items-center justify-between text-xs transition cursor-pointer text-left"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                                <Plus className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-blue-950">Add Another Package</div>
+                                <div className="text-[10px] text-slate-500">Unlock multiple packages simultaneously (+5 daily tasks each)</div>
                               </div>
                             </div>
-                          ))
-                        )
-                      ) : (
-                        finishedTasks.length === 0 ? (
-                          <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-sm text-slate-400">
-                            <Clock className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-                            <p className="text-xs font-medium">No completed tasks yet today.</p>
-                          </div>
-                        ) : (
-                          finishedTasks.map((taskIdx) => (
-                            <div
-                              key={taskIdx}
-                              className="bg-white/80 rounded-2xl p-4 border border-emerald-100 flex items-center justify-between gap-3"
-                            >
-                              <div className="space-y-1 min-w-0 flex-1">
-                                <div className="text-xs font-bold text-slate-700 truncate">
-                                  {getVipDisplayName(userVip, vipTiers)} Verification Mission #{taskIdx + 1}
-                                </div>
-                                <div className="text-[11px] text-slate-500">
-                                  Credited: <b className="text-emerald-600 font-bold">+৳{rewardPerTask.toFixed(2)}</b>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1.5 rounded-full border border-emerald-200">
-                                  <Check className="w-3 h-3 text-emerald-600" />
-                                  Completed
-                                </span>
-                                <span className="text-xs font-black text-emerald-600">
-                                  +৳{rewardPerTask.toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          ))
-                        )
-                      )}
-                    </div>
+                            <span className="text-[11px] font-bold text-blue-600 bg-white px-2.5 py-1 rounded-full shadow-xs border border-blue-200 shrink-0">
+                              Explore VIP &gt;
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
