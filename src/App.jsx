@@ -880,6 +880,7 @@ export default function App() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMethod, setWithdrawMethod] = useState('bKash');
   const [withdrawAccountInput, setWithdrawAccountInput] = useState('');
+  const [withdrawalSuccessDetails, setWithdrawalSuccessDetails] = useState(null);
 
   // Automatically select the user's first configured withdrawal account
   useEffect(() => {
@@ -1667,7 +1668,7 @@ export default function App() {
       return;
     }
     if (num > balance) {
-      showToast('Insufficient withdrawable task earnings! VIP recharge is locked.');
+      showToast('Insufficient balance for withdrawal');
       return;
     }
     const minWth = typeof settings?.minWithdrawal === 'number' && settings.minWithdrawal > 0
@@ -1743,7 +1744,13 @@ export default function App() {
     setShowWithdrawModal(false);
     setWithdrawAmount('');
     setWithdrawAccountInput('');
-    showToast(`Withdrawal of ৳${num.toFixed(2)} submitted successfully!`);
+    setWithdrawalSuccessDetails({
+      id: newWth.id,
+      amount: num,
+      method: withdrawMethod,
+      account: finalAccount,
+      date: newWth.date
+    });
   };
 
   // Complete Task Handler (Runs one task at a time with verification countdown)
@@ -2281,9 +2288,18 @@ export default function App() {
     showToast('Logged out');
   };
 
-  // Click on VIP package -> opens unlock confirmation popup (matching user screenshot)
+  // Click on VIP package -> if insufficient balance, redirects directly to recharge; otherwise opens sleek confirmation popup
   const handleUnlockVip = (vip) => {
     if (!requireAuth('vip', `unlock ${vip.level}`)) return;
+    const reqDeposit = parseFloat(String(vip.deposit || 0).replace(/,/g, '')) || 0;
+    const isFree = reqDeposit === 0 || String(vip.level || '').toLowerCase().includes('starter');
+
+    if (!isFree && balance < reqDeposit) {
+      showToast(`Insufficient balance (৳${balance.toFixed(2)}). Please recharge ৳${vip.deposit} to purchase ${vip.level}.`);
+      openRechargeModal(vip.deposit);
+      return;
+    }
+
     setSelectedVipForUnlock(vip);
     setShowUnlockConfirmModal(true);
   };
@@ -5143,26 +5159,28 @@ export default function App() {
           );
         })()}
 
-        {/* ================= VIP UNLOCK CONFIRMATION POPUP (MATCHING USER SCREENSHOT) ================= */}
+        {/* ================= VIP PURCHASE CONFIRMATION POPUP ================= */}
         {showUnlockConfirmModal && selectedVipForUnlock && (() => {
           const reqDep = parseFloat(String(selectedVipForUnlock.deposit || 0).replace(/,/g, '')) || 0;
           const isFree = reqDep === 0 || String(selectedVipForUnlock.level || '').toLowerCase().includes('starter');
-          const hasSufficient = balance >= reqDep;
+          const daysCount = selectedVipForUnlock.days || (isFree ? 7 : 20);
+          const tasksCount = selectedVipForUnlock.tasks || 5;
 
           return (
             <div
               onClick={() => setShowUnlockConfirmModal(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-6 animate-fade-in cursor-pointer"
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-5 animate-fade-in cursor-pointer"
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl w-full max-w-[320px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 cursor-default"
+                className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 cursor-default"
               >
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-amber-500/20 to-cyan-500/20 border border-amber-400/30 flex items-center justify-center p-1.5 shadow-sm">
+                {/* Package Icon */}
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-[#071739] border border-amber-500/20 flex items-center justify-center p-2.5 shadow-md">
                   <img
                     src={getPackageLogo(selectedVipForUnlock)}
                     alt={selectedVipForUnlock.level}
-                    className="w-10 h-10 object-contain drop-shadow"
+                    className="w-11 h-11 object-contain drop-shadow"
                   />
                 </div>
 
@@ -5170,39 +5188,60 @@ export default function App() {
                   <h4 className="text-base font-extrabold text-slate-900 tracking-tight">
                     {selectedVipForUnlock.level}
                   </h4>
-                  <p className="text-slate-600 text-xs leading-relaxed mt-2 px-1">
-                    {isFree ? (
-                      <span>
-                        Starter Package is <b>100% Free</b> for all members! Claim now to receive <b>{selectedVipForUnlock.tasks || 5} daily tasks</b> and earn <b>৳{selectedVipForUnlock.daily || '20.00'} BDT</b> daily for {selectedVipForUnlock.days || 7} days.
-                      </span>
-                    ) : hasSufficient ? (
-                      <span>
-                        Upgrade to <b>{selectedVipForUnlock.level}</b> using your current balance? <b>৳{selectedVipForUnlock.deposit} BDT</b> will be activated for {selectedVipForUnlock.days || 20} days (Earn <b>৳{selectedVipForUnlock.daily}/day</b>, Total <b>৳{selectedVipForUnlock.total}</b>).
-                      </span>
-                    ) : (
-                      <span>
-                        Upgrading to <b>{selectedVipForUnlock.level}</b> requires a deposit of <b>৳{selectedVipForUnlock.deposit} BDT</b> for {selectedVipForUnlock.days || 20} days validity (Daily <b>৳{selectedVipForUnlock.daily}</b>). Please recharge your account to activate.
-                      </span>
-                    )}
-                  </p>
+                  <span className="inline-block mt-0.5 text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    {isFree ? 'Free Trial Package' : 'VIP Package Activation'}
+                  </span>
+                </div>
+
+                {/* Financial Deduction Breakdown */}
+                {!isFree ? (
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-left space-y-2 text-xs">
+                    <div className="flex justify-between items-center text-slate-500">
+                      <span>Available Balance:</span>
+                      <span className="font-bold text-slate-800 font-mono">৳{balance.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-rose-600 font-semibold">
+                      <span>Package Price:</span>
+                      <span className="font-bold font-mono">-৳{selectedVipForUnlock.deposit}</span>
+                    </div>
+                    <div className="border-t border-slate-200 pt-2 flex justify-between items-center font-bold text-slate-900">
+                      <span>Balance After Purchase:</span>
+                      <span className="font-black text-emerald-600 font-mono">৳{(balance - reqDep).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 text-xs text-emerald-800 font-medium">
+                    Starter Package is <b>100% Free</b> for all members. Zero recharge or deduction needed!
+                  </div>
+                )}
+
+                {/* Yield Breakdown */}
+                <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-2.5 text-[11px] text-slate-600 flex items-center justify-between font-medium">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Daily</span>
+                    <b className="text-emerald-600 font-bold">+৳{selectedVipForUnlock.daily}</b>
+                  </div>
+                  <div className="border-x border-slate-200 px-2">
+                    <span className="text-[10px] text-slate-400 block">Missions</span>
+                    <b className="text-slate-800 font-bold">{tasksCount}/day</b>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Total Return</span>
+                    <b className="text-cyan-700 font-bold">৳{selectedVipForUnlock.total}</b>
+                  </div>
                 </div>
 
                 <div className="space-y-2 pt-1">
                   <button
+                    type="button"
                     onClick={handleConfirmUnlock}
-                    className={`w-full text-white font-bold py-3 px-5 rounded-full shadow-lg active:scale-95 transition text-xs tracking-wide cursor-pointer ${
+                    className={`w-full text-white font-bold py-3.5 px-5 rounded-full shadow-lg active:scale-95 transition text-xs tracking-wide cursor-pointer flex items-center justify-center gap-1.5 ${
                       isFree
                         ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 shadow-emerald-500/25'
-                        : hasSufficient
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 shadow-blue-500/25'
-                        : 'bg-[#ff3b30] hover:bg-red-600 shadow-red-500/25'
+                        : 'bg-[#05132d] hover:bg-[#0b2457] shadow-blue-950/25'
                     }`}
                   >
-                    {isFree
-                      ? 'Claim Free Starter (৳0.00)'
-                      : hasSufficient
-                      ? `Confirm Upgrade (৳${selectedVipForUnlock.deposit})`
-                      : `Recharge to Upgrade (৳${selectedVipForUnlock.deposit})`}
+                    <span>{isFree ? '🎁 Claim Free Starter' : `Confirm Purchase (৳${selectedVipForUnlock.deposit})`}</span>
                   </button>
                   <button
                     type="button"
@@ -5851,6 +5890,91 @@ export default function App() {
                   </>
                 );
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* ================= WITHDRAWAL SUBMISSION SUCCESS MODAL ================= */}
+        {withdrawalSuccessDetails && (
+          <div
+            onClick={() => setWithdrawalSuccessDetails(null)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in cursor-pointer"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 cursor-default"
+            >
+              {/* Animated checkmark circle */}
+              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                <CheckCircle2 className="w-9 h-9 text-emerald-600" />
+              </div>
+
+              <div>
+                <h4 className="text-lg font-black text-slate-900 tracking-tight">
+                  Withdrawal Submitted!
+                </h4>
+                <p className="text-xs text-slate-500 mt-1">
+                  Thank you! Your payout request has been queued for review and processing.
+                </p>
+              </div>
+
+              {/* Transaction details card */}
+              <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70 text-left space-y-2 text-xs font-medium">
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Amount:</span>
+                  <span className="font-bold text-slate-900 font-mono text-sm text-emerald-600">
+                    ৳{withdrawalSuccessDetails.amount.toFixed(2)} BDT
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Method:</span>
+                  <span className="font-bold text-slate-800">{withdrawalSuccessDetails.method}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500">
+                  <span>Target Account:</span>
+                  <span className="font-bold font-mono text-slate-800">{withdrawalSuccessDetails.account}</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-400 text-[11px] border-t border-slate-200/60 pt-1.5">
+                  <span>Request ID:</span>
+                  <span className="font-mono">{withdrawalSuccessDetails.id}</span>
+                </div>
+              </div>
+
+              {/* Highlighted Expected Processing Time Banner */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 text-center space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-center gap-1.5 text-amber-900 font-black text-xs">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <span>Processing Time: 15 Min – 2 Hours</span>
+                </div>
+                <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+                  Your funds will be sent directly to your <b>{withdrawalSuccessDetails.method}</b> account within <b>15 minutes to 2 hours</b>.
+                </p>
+                <p className="text-[10px] text-amber-800/90 pt-0.5 border-t border-amber-200/60 mt-1">
+                  If you experience any delay exceeding 2 hours, please contact our 24/7 Telegram Support desk.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setWithdrawalSuccessDetails(null)}
+                  className="w-full bg-[#05132d] hover:bg-[#0b2457] text-white font-bold py-3 px-5 rounded-full shadow-lg active:scale-95 transition text-xs cursor-pointer"
+                >
+                  OK, Got It
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWithdrawalSuccessDetails(null);
+                    const rawBot = (settings?.telegramBotUsername || '@NextTask_SupportBot').replace(/^@/, '').trim();
+                    window.open(`https://t.me/${rawBot}`, '_blank');
+                  }}
+                  className="w-full text-blue-600 hover:text-blue-800 font-bold py-1.5 text-xs transition cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Send className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Contact 24/7 Telegram Support</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
