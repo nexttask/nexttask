@@ -323,12 +323,19 @@ export const getStoredData = (key, fallback) => {
       });
     }
 
-    // Ensure settings numbers are parsed cleanly from admin inputs
+    // Ensure settings numbers are parsed cleanly from admin inputs and default bot tokens are preserved
     if (key === 'settings' && parsed && typeof parsed === 'object') {
       return {
+        ...DEFAULT_SETTINGS,
         ...parsed,
-        minWithdrawal: typeof parsed.minWithdrawal === 'number' ? parsed.minWithdrawal : (parseFloat(parsed.minWithdrawal) || 10.0),
-        minDeposit: typeof parsed.minDeposit === 'number' ? parsed.minDeposit : (parseFloat(parsed.minDeposit) || 10.0)
+        telegramBotToken: parsed.telegramBotToken && String(parsed.telegramBotToken).trim() !== ''
+          ? parsed.telegramBotToken
+          : DEFAULT_SETTINGS.telegramBotToken,
+        telegramBotUsername: parsed.telegramBotUsername && String(parsed.telegramBotUsername).trim() !== ''
+          ? parsed.telegramBotUsername
+          : DEFAULT_SETTINGS.telegramBotUsername,
+        minWithdrawal: typeof parsed.minWithdrawal === 'number' ? parsed.minWithdrawal : (parseFloat(parsed.minWithdrawal) || 500.0),
+        minDeposit: typeof parsed.minDeposit === 'number' ? parsed.minDeposit : (parseFloat(parsed.minDeposit) || 500.0)
       };
     }
 

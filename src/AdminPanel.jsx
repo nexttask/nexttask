@@ -3629,11 +3629,11 @@ export default function AdminPanel({ onNavigateToApp }) {
                   </div>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                  settings.telegramBotToken
-                    ? 'bg-sky-950/80 text-sky-400 border-sky-800/60'
+                  (settings.telegramBotToken || DEFAULT_SETTINGS.telegramBotToken)
+                    ? 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60'
                     : 'bg-slate-800 text-slate-400 border-slate-700'
                 }`}>
-                  {settings.telegramBotToken ? 'Configured' : 'Needs Setup'}
+                  {(settings.telegramBotToken || DEFAULT_SETTINGS.telegramBotToken) ? '✓ Configured' : 'Needs Setup'}
                 </span>
               </div>
 
