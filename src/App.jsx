@@ -2296,6 +2296,7 @@ export default function App() {
           setIsAdminRoute(false);
           setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
           setSettings(getStoredData('settings', DEFAULT_SETTINGS));
+          setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
         }}
       />
     );
@@ -3110,11 +3111,11 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4 text-center">
                       <div className="bg-white/5 py-2.5 px-3 rounded-2xl border border-white/10">
                         <div className="text-[11px] text-slate-300 font-medium mb-0.5">{t('totalBalance')}</div>
-                        <div className="text-2xl font-black tracking-tight text-emerald-400">${balance.toFixed(2)}</div>
+                        <div className="text-2xl font-black tracking-tight text-emerald-400">৳{balance.toFixed(2)}</div>
                       </div>
                       <div className="bg-white/5 py-2.5 px-3 rounded-2xl border border-white/10">
                         <div className="text-[11px] text-slate-300 font-medium mb-0.5">{t('rechargeAmount')}</div>
-                        <div className="text-2xl font-black tracking-tight text-amber-300">${rechargeTotal.toFixed(2)}</div>
+                        <div className="text-2xl font-black tracking-tight text-amber-300">৳{rechargeTotal.toFixed(2)}</div>
                       </div>
                     </div>
                   </div>
@@ -3979,7 +3980,7 @@ export default function App() {
                               </div>
 
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="inline-flex items-center gap-1 text-[10px] bg-amber-50 text-amber-700 font-bold px-2.5 py-1.5 rounded-full border border-amber-200">
+                                <span className="h-8 inline-flex items-center justify-center gap-1.5 text-[11px] bg-amber-50 text-amber-700 font-bold px-3 rounded-full border border-amber-200 shadow-xs leading-none">
                                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                   Running
                                 </span>
@@ -3987,7 +3988,7 @@ export default function App() {
                                   type="button"
                                   disabled={taskProcessingIdx !== null}
                                   onClick={() => handleCompleteTask(taskIdx, rewardPerTask)}
-                                  className="bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-md active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="h-8 bg-[#05132d] hover:bg-[#0b2457] text-white text-xs font-bold px-4 rounded-full shadow-md active:scale-95 transition cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed leading-none"
                                 >
                                   {taskProcessingIdx === taskIdx ? (
                                     <>
@@ -5554,8 +5555,12 @@ export default function App() {
 
           const userTaskRecords = [...todayRecords, ...pastTaskRecords];
 
-          const totalDeposited = userRecharges.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-          const totalWithdrawn = userWithdrawals.reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
+          const totalDeposited = userRecharges
+            .filter((r) => r && (String(r.status || '').toLowerCase() === 'approved' || String(r.status || '').toLowerCase() === 'completed'))
+            .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+          const totalWithdrawn = userWithdrawals
+            .filter((w) => w && (String(w.status || '').toLowerCase() === 'approved' || String(w.status || '').toLowerCase() === 'completed'))
+            .reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
           const totalTaskIncome = userTaskRecords.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
           return (

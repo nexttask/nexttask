@@ -446,8 +446,8 @@ export const setStoredData = (key, value) => {
           const errText = await res.text();
           console.error(`D1 Cloud sync failed for ${key} [HTTP ${res.status}]:`, errText);
         } else {
-          // Keep lock briefly to let write propagate across network
-          setTimeout(() => localUpdateTimestamps.delete(key), 3000);
+          // Renew the timestamp so that background cloud sync does not overwrite with stale data
+          localUpdateTimestamps.set(key, Date.now());
         }
       }).catch((err) => {
         console.warn('D1 Cloud sync background push warning:', err);
