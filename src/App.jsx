@@ -1917,6 +1917,14 @@ export default function App() {
     setStoredData('users', allUsers.map(u => u.id === currentUser.id ? { ...u, balance: newBal } : u));
 
     // Save real withdrawal record
+    const feeRate = typeof settings?.withdrawalFeeRate === 'number'
+      ? settings.withdrawalFeeRate
+      : (settings?.withdrawalFeeRate !== undefined && settings?.withdrawalFeeRate !== null && !isNaN(parseFloat(settings?.withdrawalFeeRate))
+          ? parseFloat(settings.withdrawalFeeRate)
+          : 5);
+    const feeAmount = parseFloat(((num * feeRate) / 100).toFixed(2));
+    const netPayout = parseFloat((num - feeAmount).toFixed(2));
+
     const currentWithdrawals = getStoredData('withdrawals', DEFAULT_WITHDRAWALS);
     const newWth = {
       id: `WTH-${Math.floor(100 + Math.random() * 900)}`,
@@ -1925,6 +1933,9 @@ export default function App() {
       userEmail: currentUser?.email || '',
       userPhone: currentUser?.phone || '',
       amount: num,
+      feeRate: feeRate,
+      feeAmount: feeAmount,
+      netPayout: netPayout,
       method: withdrawMethod,
       account: finalAccount,
       address: finalAccount,
@@ -1935,7 +1946,7 @@ export default function App() {
     addUserNotification(
       currentUser?.id,
       'Withdrawal Submitted',
-      `Your withdrawal request of ৳${num.toFixed(2)} BDT via ${withdrawMethod} has been submitted and is pending verification.`,
+      `Your withdrawal request of ৳${num.toFixed(2)} BDT via ${withdrawMethod} has been submitted (Platform Charge: ৳${feeAmount.toFixed(2)}, Net: ৳${netPayout.toFixed(2)} BDT) and is pending verification.`,
       'withdraw'
     );
 
@@ -1945,6 +1956,9 @@ export default function App() {
     setWithdrawalSuccessDetails({
       id: newWth.id,
       amount: num,
+      feeRate: feeRate,
+      feeAmount: feeAmount,
+      netPayout: netPayout,
       method: withdrawMethod,
       account: finalAccount,
       date: newWth.date
@@ -6097,6 +6111,33 @@ export default function App() {
                           </button>
                         ))}
                       </div>
+
+                      {/* Live Fee & Net Payout Calculation */}
+                      {(() => {
+                        const parsedAmt = parseFloat(withdrawAmount) || 0;
+                        const currentFeeRate = typeof settings?.withdrawalFeeRate === 'number'
+                          ? settings.withdrawalFeeRate
+                          : (parseFloat(settings?.withdrawalFeeRate) || 5);
+                        const calculatedFee = parseFloat(((parsedAmt * currentFeeRate) / 100).toFixed(2));
+                        const calculatedNet = Math.max(0, parseFloat((parsedAmt - calculatedFee).toFixed(2)));
+
+                        return (
+                          <div className="mt-3 bg-slate-50 border border-slate-200/90 rounded-2xl p-3 space-y-1.5 text-xs">
+                            <div className="flex justify-between items-center text-slate-500">
+                              <span>Withdrawal Amount:</span>
+                              <span className="font-bold text-slate-800">৳{parsedAmt.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-slate-500">
+                              <span>Platform Charge ({currentFeeRate}%):</span>
+                              <span className="font-bold text-rose-600">-৳{calculatedFee.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center pt-2 border-t border-slate-200/80 text-slate-900 font-bold">
+                              <span className="text-slate-700">You Will Receive:</span>
+                              <span className="text-emerald-600 font-mono text-sm font-black">৳{calculatedNet.toFixed(2)} BDT</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <button
@@ -6139,11 +6180,23 @@ export default function App() {
               <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70 text-left space-y-2 text-xs font-medium">
                 <div className="flex justify-between items-center text-slate-500">
                   <span>Amount:</span>
-                  <span className="font-bold text-slate-900 font-mono text-sm text-emerald-600">
+                  <span className="font-bold text-slate-900 font-mono text-sm">
                     ৳{withdrawalSuccessDetails.amount.toFixed(2)} BDT
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-slate-500">
+                  <span>Platform Charge ({withdrawalSuccessDetails.feeRate !== undefined ? withdrawalSuccessDetails.feeRate : (settings?.withdrawalFeeRate ?? 5)}%):</span>
+                  <span className="font-bold text-rose-600 font-mono">
+                    -৳{(withdrawalSuccessDetails.feeAmount !== undefined ? Number(withdrawalSuccessDetails.feeAmount) : (withdrawalSuccessDetails.amount * ((settings?.withdrawalFeeRate ?? 5) / 100))).toFixed(2)} BDT
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-1.5 border-t border-slate-200/80 text-slate-900">
+                  <span className="font-bold text-slate-700">You Will Receive:</span>
+                  <span className="font-black text-emerald-600 font-mono text-sm">
+                    ৳{(withdrawalSuccessDetails.netPayout !== undefined ? Number(withdrawalSuccessDetails.netPayout) : (withdrawalSuccessDetails.amount - (withdrawalSuccessDetails.amount * ((settings?.withdrawalFeeRate ?? 5) / 100)))).toFixed(2)} BDT
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-slate-500 pt-1 border-t border-slate-200/60">
                   <span>Method:</span>
                   <span className="font-bold text-slate-800">{withdrawalSuccessDetails.method}</span>
                 </div>

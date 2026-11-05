@@ -3923,12 +3923,18 @@ export default function AdminPanel({ onNavigateToApp }) {
                     {/* Amount & Method */}
                     <div className="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
                       <div>
-                        <div className="text-[9px] text-slate-400 uppercase font-bold">Requested Payout</div>
-                        <div className="text-base font-black text-amber-400 mt-0.5">৳{w.amount.toFixed(2)} BDT</div>
+                        <div className="text-[9px] text-slate-400 uppercase font-bold">Gross Requested</div>
+                        <div className="text-sm font-bold text-slate-300 mt-0.5">৳{w.amount.toFixed(2)}</div>
+                        <div className="text-[10px] text-rose-400 font-medium">
+                          Fee ({w.feeRate !== undefined ? w.feeRate : (settings.withdrawalFeeRate ?? 5)}%): -৳{(w.feeAmount !== undefined ? Number(w.feeAmount) : (w.amount * ((w.feeRate !== undefined ? w.feeRate : (settings.withdrawalFeeRate ?? 5)) / 100))).toFixed(2)}
+                        </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[9px] text-slate-400 uppercase font-bold">Payout Method</div>
-                        <span className="inline-block bg-indigo-950 text-indigo-300 font-bold px-2 py-0.5 rounded text-[10px] mt-0.5 border border-indigo-800/50">
+                        <div className="text-[9px] text-emerald-400 uppercase font-bold">Net Payout to Send</div>
+                        <div className="text-base font-black text-emerald-400 mt-0.5">
+                          ৳{(w.netPayout !== undefined ? Number(w.netPayout) : (w.amount - (w.amount * ((w.feeRate !== undefined ? w.feeRate : (settings.withdrawalFeeRate ?? 5)) / 100)))).toFixed(2)} BDT
+                        </div>
+                        <span className="inline-block bg-indigo-950 text-indigo-300 font-bold px-2 py-0.5 rounded text-[10px] mt-1 border border-indigo-800/50">
                           {w.method || 'USDT'}
                         </span>
                       </div>
@@ -3993,7 +3999,8 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <tr>
                     <th className="py-3 px-4">ID</th>
                     <th className="py-3 px-4">User</th>
-                    <th className="py-3 px-4">Amount</th>
+                    <th className="py-3 px-4">Requested / Fee</th>
+                    <th className="py-3 px-4">Net Payout (To Send)</th>
                     <th className="py-3 px-4">Method & Target Account</th>
                     <th className="py-3 px-4">Date</th>
                     <th className="py-3 px-4">Status</th>
@@ -4003,7 +4010,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <tbody className="divide-y divide-slate-800">
                   {withdrawals.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="py-8 text-center text-slate-500">
+                      <td colSpan="8" className="py-8 text-center text-slate-500">
                         No withdrawal requests found.
                       </td>
                     </tr>
@@ -4012,7 +4019,17 @@ export default function AdminPanel({ onNavigateToApp }) {
                       <tr key={w.id} className="hover:bg-slate-900/50 transition">
                         <td className="py-3 px-4 font-mono text-slate-400">{w.id}</td>
                         <td className="py-3 px-4 font-bold text-white">{w.user}</td>
-                        <td className="py-3 px-4 font-black text-amber-400">৳{w.amount.toFixed(2)}</td>
+                        <td className="py-3 px-4 text-slate-300">
+                          <div className="font-bold text-white">৳{w.amount.toFixed(2)}</div>
+                          <div className="text-[10px] text-rose-400 font-medium">
+                            Fee ({w.feeRate !== undefined ? w.feeRate : (settings.withdrawalFeeRate ?? 5)}%): -৳{(w.feeAmount !== undefined ? Number(w.feeAmount) : (w.amount * ((w.feeRate !== undefined ? w.feeRate : (settings.withdrawalFeeRate ?? 5)) / 100))).toFixed(2)}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-black text-emerald-400 text-sm">
+                            ৳{(w.netPayout !== undefined ? Number(w.netPayout) : (w.amount - (w.amount * ((w.feeRate !== undefined ? w.feeRate : (settings.withdrawalFeeRate ?? 5)) / 100)))).toFixed(2)}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 text-slate-300">
                           <span className="font-bold text-white">{w.method || 'USDT'}</span>
                           <div className="font-mono text-cyan-400 text-[11px] font-bold select-all">{w.account || w.address || 'N/A'}</div>
@@ -4085,47 +4102,8 @@ export default function AdminPanel({ onNavigateToApp }) {
               </div>
 
               <div className="space-y-5 text-xs">
-                {/* Company Profile Quick Shortcut Card */}
-                <div className="bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-cyan-950/40 border border-blue-800/50 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold shrink-0">
-                      <Building2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white text-xs sm:text-sm">Company Profile & Official License</h4>
-                      <p className="text-[11px] text-slate-400">Edit company background, our work model, mission, vision, and upload certificate photo</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentTab('company')}
-                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white flex items-center gap-1.5 shadow-md shadow-cyan-600/20 transition cursor-pointer self-start sm:self-auto shrink-0"
-                  >
-                    <span>Manage Profile</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                {/* Platform USDT Deposit Address */}
-                <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="text-slate-300 font-bold flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                      Platform USDT Deposit Address (TRC20)
-                    </label>
-                    <span className="text-[10px] text-cyan-400 font-mono font-semibold">User Recharge Target</span>
-                  </div>
-                  <input
-                    type="text"
-                    value={settings.trc20Address}
-                    onChange={(e) => setSettings({ ...settings, trc20Address: e.target.value })}
-                    className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-slate-100 font-mono text-xs outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 transition shadow-inner"
-                    placeholder="TRC20 Wallet Address"
-                  />
-                  <p className="text-[10px] text-slate-500">This TRC20 wallet address is presented to users in the app when recharging via crypto.</p>
-                </div>
-
-                {/* Min Deposit, Min Withdrawal & Referral Commission Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Min Deposit, Min Withdrawal, Withdrawal Fee & Referral Commission Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
                     <div className="flex justify-between items-center">
                       <label className="text-slate-300 font-bold">Minimum Recharge</label>
@@ -4168,6 +4146,29 @@ export default function AdminPanel({ onNavigateToApp }) {
                       />
                     </div>
                     <p className="text-[10px] text-slate-500">User withdrawal modal will enforce this minimum amount.</p>
+                  </div>
+
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-slate-300 font-bold">Withdrawal Fee / Charge</label>
+                      <span className="text-[10px] font-bold text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-800/40">% Charge</span>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-xs">%</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={settings.withdrawalFeeRate ?? 5}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSettings((prev) => ({ ...prev, withdrawalFeeRate: val === '' ? 0 : parseFloat(val) }));
+                        }}
+                        className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl pl-8 pr-3.5 py-2.5 text-slate-100 font-bold text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400/20 transition shadow-inner"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500">Auto-deducted from user withdrawals; user receives net amount.</p>
                   </div>
 
                   <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl space-y-1.5">
@@ -4215,11 +4216,12 @@ export default function AdminPanel({ onNavigateToApp }) {
                         ...settings,
                         minDeposit: typeof settings.minDeposit === 'number' ? settings.minDeposit : (parseFloat(settings.minDeposit) || 0),
                         minWithdrawal: typeof settings.minWithdrawal === 'number' ? settings.minWithdrawal : (parseFloat(settings.minWithdrawal) || 0),
+                        withdrawalFeeRate: typeof settings.withdrawalFeeRate === 'number' ? settings.withdrawalFeeRate : (parseFloat(settings.withdrawalFeeRate) || 0),
                         referralCommissionRate: typeof settings.referralCommissionRate === 'number' ? settings.referralCommissionRate : (parseFloat(settings.referralCommissionRate) || 10)
                       };
                       setSettings(payload);
                       updateSettings(payload);
-                      showToast(`Settings saved! Min Recharge: ৳${payload.minDeposit}, Min Withdrawal: ৳${payload.minWithdrawal}, Referral Commission: ${payload.referralCommissionRate}%`);
+                      showToast(`Settings saved! Min Recharge: ৳${payload.minDeposit}, Min Withdrawal: ৳${payload.minWithdrawal}, Fee: ${payload.withdrawalFeeRate}%, Referral: ${payload.referralCommissionRate}%`);
                     }}
                     className="w-full sm:w-auto justify-center bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs py-3 px-7 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.98] transition cursor-pointer flex items-center gap-2"
                   >

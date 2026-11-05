@@ -111,6 +111,7 @@ export const DEFAULT_SETTINGS = {
   trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
   minWithdrawal: 500,
   minDeposit: 500,
+  withdrawalFeeRate: 5,
   referralCommissionRate: 10,
   telegramSupport: '@NextTask_SupportBot',
   floatingSupportEnabled: true,
@@ -335,7 +336,12 @@ export const getStoredData = (key, fallback) => {
           ? parsed.telegramBotUsername
           : DEFAULT_SETTINGS.telegramBotUsername,
         minWithdrawal: typeof parsed.minWithdrawal === 'number' ? parsed.minWithdrawal : (parseFloat(parsed.minWithdrawal) || 500.0),
-        minDeposit: typeof parsed.minDeposit === 'number' ? parsed.minDeposit : (parseFloat(parsed.minDeposit) || 500.0)
+        minDeposit: typeof parsed.minDeposit === 'number' ? parsed.minDeposit : (parseFloat(parsed.minDeposit) || 500.0),
+        withdrawalFeeRate: typeof parsed.withdrawalFeeRate === 'number'
+          ? parsed.withdrawalFeeRate
+          : (parsed.withdrawalFeeRate !== undefined && parsed.withdrawalFeeRate !== null && !isNaN(parseFloat(parsed.withdrawalFeeRate))
+              ? parseFloat(parsed.withdrawalFeeRate)
+              : 5)
       };
     }
 
