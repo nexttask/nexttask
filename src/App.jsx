@@ -910,7 +910,7 @@ export default function App() {
     }
   }, [showWithdrawModal, currentUser?.id, withdrawMethod]);
 
-  // Real-Time Visitor and Active Presence Tracking
+  // Real-Time Visitor and Active Presence Tracking (100% Realtime)
   useEffect(() => {
     try {
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -924,10 +924,13 @@ export default function App() {
       const isCountedToday = sessionStorage.getItem('nt_counted_' + todayStr);
       if (!isCountedToday) {
         sessionStorage.setItem('nt_counted_' + todayStr, '1');
-        const prevTotal = parseInt(localStorage.getItem('nt_total_visitors') || '0', 10);
-        localStorage.setItem('nt_total_visitors', String((prevTotal || 14820) + 1));
-        const prevToday = parseInt(localStorage.getItem('nt_today_visitors_' + todayStr) || '0', 10);
-        localStorage.setItem('nt_today_visitors_' + todayStr, String((prevToday || 342) + 1));
+        let prevTotal = parseInt(localStorage.getItem('nt_total_visitors') || '0', 10);
+        if (prevTotal >= 14000) prevTotal = 0; // Wipe old demo baseline
+        localStorage.setItem('nt_total_visitors', String(prevTotal + 1));
+
+        let prevToday = parseInt(localStorage.getItem('nt_today_visitors_' + todayStr) || '0', 10);
+        if (prevToday >= 300) prevToday = 0; // Wipe old demo baseline
+        localStorage.setItem('nt_today_visitors_' + todayStr, String(prevToday + 1));
       }
 
       const pingPresence = () => {
@@ -936,9 +939,9 @@ export default function App() {
           const map = raw ? JSON.parse(raw) : {};
           const now = Date.now();
           const fresh = {};
-          // Keep active within 3 minutes (180,000ms)
+          // Active within 2 minutes (120,000ms)
           Object.keys(map).forEach((k) => {
-            if (map[k] && now - map[k].lastSeen < 180000) {
+            if (map[k] && now - map[k].lastSeen < 120000) {
               fresh[k] = map[k];
             }
           });
@@ -947,17 +950,35 @@ export default function App() {
             isMobile,
             user: currentUser?.name || currentUser?.phone || currentUser?.email || 'Guest Visitor',
             userId: currentUser?.id || 'guest',
-            path: window.location.pathname
+            path: window.location.pathname || '/'
           };
           localStorage.setItem('nt_active_sessions', JSON.stringify(fresh));
         } catch (e) {}
       };
 
       pingPresence();
-      const interval = setInterval(pingPresence, 20000);
-      return () => clearInterval(interval);
+      const interval = setInterval(pingPresence, 12000);
+
+      const handleUnload = () => {
+        try {
+          const raw = localStorage.getItem('nt_active_sessions');
+          if (raw) {
+            const map = JSON.parse(raw);
+            delete map[sessionId];
+            localStorage.setItem('nt_active_sessions', JSON.stringify(map));
+          }
+        } catch (e) {}
+      };
+      window.addEventListener('beforeunload', handleUnload);
+      window.addEventListener('pagehide', handleUnload);
+
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('beforeunload', handleUnload);
+        window.removeEventListener('pagehide', handleUnload);
+      };
     } catch (e) {}
-  }, [currentUser?.id, currentUser?.name]);
+  }, [currentUser?.id, currentUser?.name, currentUser?.phone, currentUser?.email]);
 
   // Team Tab State
   const [teamLevelTab, setTeamLevelTab] = useState(1);

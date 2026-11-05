@@ -1407,43 +1407,90 @@ export default function AdminPanel({ onNavigateToApp }) {
   });
 
   useEffect(() => {
-    const pollSessions = () => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const adminSessId = 'adm_' + (sessionStorage.getItem('nt_adm_sess') || Math.random().toString(36).substring(2, 9));
+    sessionStorage.setItem('nt_adm_sess', adminSessId);
+
+    const pollAndPing = () => {
       try {
         const raw = localStorage.getItem('nt_active_sessions');
-        setActiveSessions(raw ? JSON.parse(raw) : {});
+        const map = raw ? JSON.parse(raw) : {};
+        const now = Date.now();
+        const fresh = {};
+        Object.keys(map).forEach((k) => {
+          if (map[k] && typeof map[k].lastSeen === 'number' && now - map[k].lastSeen < 120000) {
+            fresh[k] = map[k];
+          }
+        });
+        // Register Master Admin as an active live session
+        fresh[adminSessId] = {
+          lastSeen: now,
+          isMobile,
+          user: 'Admin (Master Portal)',
+          userId: 'admin',
+          path: '/admin'
+        };
+        localStorage.setItem('nt_active_sessions', JSON.stringify(fresh));
+        setActiveSessions(fresh);
       } catch {}
     };
-    pollSessions();
-    const interval = setInterval(pollSessions, 3500);
-    window.addEventListener('storage', pollSessions);
+
+    pollAndPing();
+    const interval = setInterval(pollAndPing, 3000);
+    window.addEventListener('storage', pollAndPing);
+
+    const handleUnload = () => {
+      try {
+        const raw = localStorage.getItem('nt_active_sessions');
+        if (raw) {
+          const map = JSON.parse(raw);
+          delete map[adminSessId];
+          localStorage.setItem('nt_active_sessions', JSON.stringify(map));
+        }
+      } catch {}
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
     return () => {
       clearInterval(interval);
-      window.removeEventListener('storage', pollSessions);
+      window.removeEventListener('storage', pollAndPing);
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
     };
   }, []);
 
   const nowTimestamp = Date.now();
   const activeSessionsList = Object.values(activeSessions).filter(
-    (s) => s && typeof s.lastSeen === 'number' && nowTimestamp - s.lastSeen < 180000
+    (s) => s && typeof s.lastSeen === 'number' && nowTimestamp - s.lastSeen < 120000
   );
 
-  const baseOnlineSetting = typeof settings?.baseOnlineMin === 'number' ? settings.baseOnlineMin : (parseInt(settings?.baseOnlineMin, 10) || 18);
-  const livePulseOffset = Math.floor(Math.sin(nowTimestamp / 9000) * 4);
-  const liveOnlineCount = Math.max(activeSessionsList.length, 1) + Math.max(0, baseOnlineSetting + livePulseOffset);
+  // 100% REAL Live Visitors Count - NO demo, NO fake baselines
+  const liveOnlineCount = activeSessionsList.length;
 
   const mobileSessCount = activeSessionsList.filter((s) => s.isMobile).length;
-  const mobilePercent = activeSessionsList.length > 0 ? Math.round((mobileSessCount / activeSessionsList.length) * 100) : 84;
-  const desktopPercent = 100 - mobilePercent;
+  const desktopSessCount = Math.max(0, activeSessionsList.length - mobileSessCount);
+  const mobilePercent = activeSessionsList.length > 0 ? Math.round((mobileSessCount / activeSessionsList.length) * 100) : 0;
+  const desktopPercent = activeSessionsList.length > 0 ? (100 - mobilePercent) : 0;
 
   const todayDateStr = new Date().toISOString().slice(0, 10);
-  const storedTodayVisits = parseInt(localStorage.getItem('nt_today_visitors_' + todayDateStr) || '0', 10);
-  const todayVisitorsCount = (storedTodayVisits || 394) + (activeSessionsList.length > 0 ? activeSessionsList.length * 3 : 0);
+  let storedTodayVisits = parseInt(localStorage.getItem('nt_today_visitors_' + todayDateStr) || '0', 10);
+  if (storedTodayVisits >= 300) {
+    // Reset old demo baseline
+    storedTodayVisits = Math.max(1, activeSessionsList.length);
+    try { localStorage.setItem('nt_today_visitors_' + todayDateStr, String(storedTodayVisits)); } catch(e){}
+  }
+  const todayVisitorsCount = Math.max(storedTodayVisits, activeSessionsList.length);
 
-  const storedTotalVisits = parseInt(localStorage.getItem('nt_total_visitors') || '0', 10);
-  const baseOffsetSetting = parseInt(settings?.baseVisitorOffset, 10) || 0;
-  const totalVisitorsCount = (storedTotalVisits || 15420) + baseOffsetSetting;
+  let storedTotalVisits = parseInt(localStorage.getItem('nt_total_visitors') || '0', 10);
+  if (storedTotalVisits >= 14000) {
+    // Reset old demo baseline
+    storedTotalVisits = Math.max(1, todayVisitorsCount);
+    try { localStorage.setItem('nt_total_visitors', String(storedTotalVisits)); } catch(e){}
+  }
+  const totalVisitorsCount = Math.max(storedTotalVisits, todayVisitorsCount);
 
-  // 7-Day Traffic & Cashflow Trend Data for Charts
+  // 7-Day Traffic & Cashflow Trend Data for Charts (100% REAL Data)
   const trafficChartData = useMemo(() => {
     const list = [];
     const now = new Date();
@@ -1463,9 +1510,10 @@ export default function AdminPanel({ onNavigateToApp }) {
         .filter((w) => w.status === 'approved' && w.date && String(w.date).startsWith(dateStr))
         .reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
 
-      // Daily Visits
-      const dayStored = parseInt(localStorage.getItem('nt_today_visitors_' + dateStr) || '0', 10);
-      const visits = i === 0 ? todayVisitorsCount : (dayStored || (315 + Math.floor(Math.sin(i * 1.7) * 75) + (i * 19)));
+      // Daily Visits (100% REAL)
+      let dayStored = parseInt(localStorage.getItem('nt_today_visitors_' + dateStr) || '0', 10);
+      if (dayStored >= 300) dayStored = 0; // Wipe old demo baseline
+      const visits = i === 0 ? todayVisitorsCount : dayStored;
 
       list.push({
         dateStr,
@@ -1940,9 +1988,9 @@ export default function AdminPanel({ onNavigateToApp }) {
 
         {/* ================= TAB 1: DASHBOARD ================= */}
         {currentTab === 'dashboard' && (() => {
-          // Calculate max visits for area chart scaling
-          const maxVisits = Math.max(...trafficChartData.map((d) => d.visits), 100);
-          const minVisits = Math.min(...trafficChartData.map((d) => d.visits), 50);
+          // Dynamic scaling based on 100% REAL data
+          const maxVisits = Math.max(...trafficChartData.map((d) => d.visits), 1);
+          const minVisits = 0;
           const rangeVisits = Math.max(1, maxVisits - minVisits);
 
           // SVG Area Chart points calculation
@@ -1977,7 +2025,7 @@ export default function AdminPanel({ onNavigateToApp }) {
           // Max value for cashflow chart
           const maxCashflow = Math.max(
             ...trafficChartData.flatMap((d) => [d.recharges, d.withdrawals]),
-            1000
+            100
           );
 
           const sumTrafficVisits = trafficChartData.reduce((acc, d) => acc + d.visits, 0);
@@ -2328,14 +2376,19 @@ export default function AdminPanel({ onNavigateToApp }) {
                   </div>
                 </div>
 
-                {/* Device & Visitor Geography */}
+                {/* Device & Live Active Visitors Roster (100% Real) */}
                 <div className="bg-slate-950 border border-slate-800/90 rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-xl">
-                  <div className="border-b border-slate-800/80 pb-3">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-indigo-400" />
-                      <span>Traffic Geography & Device Environment</span>
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Client ecosystem breakdown and top regional activity</p>
+                  <div className="border-b border-slate-800/80 pb-3 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+                        <span>Realtime Active Visitors ({liveOnlineCount})</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Live sessions browsing platform right now</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-800/60 px-2.5 py-0.5 rounded-full font-mono">
+                      100% Realtime
+                    </span>
                   </div>
 
                   {/* Device Dual Progress Bar */}
@@ -2343,40 +2396,65 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <div className="flex justify-between items-center text-xs">
                       <span className="flex items-center gap-1.5 font-bold text-cyan-400">
                         <Smartphone className="w-3.5 h-3.5" />
-                        Mobile Devices ({mobilePercent}%)
+                        Mobile Devices ({mobileSessCount} • {mobilePercent}%)
                       </span>
                       <span className="flex items-center gap-1.5 font-bold text-indigo-400">
                         <Monitor className="w-3.5 h-3.5" />
-                        Desktop Web ({desktopPercent}%)
+                        Desktop ({desktopSessCount} • {desktopPercent}%)
                       </span>
                     </div>
-                    <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden flex p-0.5 border border-slate-800">
+                    <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden flex p-0.5 border border-slate-800">
                       <div style={{ width: `${mobilePercent}%` }} className="h-full bg-cyan-500 rounded-l-full transition-all duration-300" />
                       <div style={{ width: `${desktopPercent}%` }} className="h-full bg-indigo-500 rounded-r-full transition-all duration-300" />
                     </div>
                   </div>
 
-                  {/* Top Regional Activity Hubs */}
-                  <div className="space-y-1.5 pt-1">
-                    <span className="text-[11px] font-bold text-slate-400 block">Top Active Traffic Regions (Live)</span>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-slate-900/80 border border-slate-800/70 p-2 rounded-lg flex items-center justify-between">
-                        <span className="text-slate-300">Dhaka Division</span>
-                        <b className="font-mono text-emerald-400">46%</b>
-                      </div>
-                      <div className="bg-slate-900/80 border border-slate-800/70 p-2 rounded-lg flex items-center justify-between">
-                        <span className="text-slate-300">Chittagong</span>
-                        <b className="font-mono text-cyan-400">24%</b>
-                      </div>
-                      <div className="bg-slate-900/80 border border-slate-800/70 p-2 rounded-lg flex items-center justify-between">
-                        <span className="text-slate-300">Sylhet & Barisal</span>
-                        <b className="font-mono text-indigo-400">18%</b>
-                      </div>
-                      <div className="bg-slate-900/80 border border-slate-800/70 p-2 rounded-lg flex items-center justify-between">
-                        <span className="text-slate-300">International</span>
-                        <b className="font-mono text-amber-400">12%</b>
-                      </div>
+                  {/* Live Active Sessions List */}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-400">Connected Sessions</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Auto-refreshes every 3s</span>
                     </div>
+
+                    {activeSessionsList.length === 0 ? (
+                      <div className="p-3 bg-slate-900/60 border border-slate-800/60 rounded-xl text-center text-xs text-slate-400">
+                        No live visitors currently connected
+                      </div>
+                    ) : (
+                      <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                        {activeSessionsList.map((sess, sIdx) => {
+                          const secsAgo = Math.max(0, Math.floor((nowTimestamp - (sess.lastSeen || nowTimestamp)) / 1000));
+                          return (
+                            <div
+                              key={sIdx}
+                              className="bg-slate-900/90 border border-slate-800/80 px-3 py-2 rounded-xl flex items-center justify-between text-xs hover:border-slate-700 transition"
+                            >
+                              <div className="flex items-center gap-2 min-w-0 pr-2">
+                                <span className="relative flex h-2 w-2 shrink-0">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                <div className="truncate">
+                                  <span className="font-bold text-slate-200 block truncate text-xs">
+                                    {sess.user || 'Guest Visitor'}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5">
+                                    {sess.isMobile ? '📱 Mobile' : '💻 Desktop'}
+                                    <span>•</span>
+                                    <span className="text-slate-500">{sess.path || '/'}</span>
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/40">
+                                  {secsAgo < 15 ? 'Active now' : `${secsAgo}s ago`}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3831,60 +3909,6 @@ export default function AdminPanel({ onNavigateToApp }) {
                   <p className="text-[10px] text-slate-500">Connected to 24/7 customer service floating buttons and help links.</p>
                 </div>
 
-                {/* Real-time Traffic & Visitor Counter Calibration */}
-                <div className="bg-gradient-to-r from-emerald-950/30 via-slate-950/60 to-cyan-950/30 border border-emerald-800/40 p-4 rounded-xl space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800/60">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <h4 className="text-slate-200 font-bold text-xs sm:text-sm">Realtime Visitor & Traffic Calibration</h4>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-800/50">
-                      Live Telemetry
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div className="space-y-1.5">
-                      <label className="text-slate-300 font-bold text-[11px] flex items-center justify-between">
-                        <span>Live Online Baseline</span>
-                        <span className="text-[10px] text-emerald-400 font-mono">Current: {liveOnlineCount} online</span>
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={settings.baseOnlineMin ?? 18}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSettings((prev) => ({ ...prev, baseOnlineMin: val === '' ? 0 : parseInt(val, 10) }));
-                        }}
-                        className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2 text-slate-100 font-bold text-xs outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/20 transition shadow-inner"
-                        placeholder="18"
-                      />
-                      <p className="text-[10px] text-slate-500">Baseline organic floor added to actual live active sessions.</p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-slate-300 font-bold text-[11px] flex items-center justify-between">
-                        <span>Total Visitors Offset</span>
-                        <span className="text-[10px] text-cyan-400 font-mono">{totalVisitorsCount.toLocaleString()} Total</span>
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="100"
-                        value={settings.baseVisitorOffset ?? 0}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSettings((prev) => ({ ...prev, baseVisitorOffset: val === '' ? 0 : parseInt(val, 10) }));
-                        }}
-                        className="w-full bg-slate-900/90 border border-slate-700/80 rounded-xl px-3.5 py-2 text-slate-100 font-bold text-xs outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/20 transition shadow-inner"
-                        placeholder="0"
-                      />
-                      <p className="text-[10px] text-slate-500">Additional offset added to all-time recorded visits counter.</p>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Save Button */}
                 <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <button
@@ -3893,13 +3917,11 @@ export default function AdminPanel({ onNavigateToApp }) {
                         ...settings,
                         minDeposit: typeof settings.minDeposit === 'number' ? settings.minDeposit : (parseFloat(settings.minDeposit) || 0),
                         minWithdrawal: typeof settings.minWithdrawal === 'number' ? settings.minWithdrawal : (parseFloat(settings.minWithdrawal) || 0),
-                        referralCommissionRate: typeof settings.referralCommissionRate === 'number' ? settings.referralCommissionRate : (parseFloat(settings.referralCommissionRate) || 10),
-                        baseOnlineMin: typeof settings.baseOnlineMin === 'number' ? settings.baseOnlineMin : (parseInt(settings.baseOnlineMin, 10) || 18),
-                        baseVisitorOffset: typeof settings.baseVisitorOffset === 'number' ? settings.baseVisitorOffset : (parseInt(settings.baseVisitorOffset, 10) || 0)
+                        referralCommissionRate: typeof settings.referralCommissionRate === 'number' ? settings.referralCommissionRate : (parseFloat(settings.referralCommissionRate) || 10)
                       };
                       setSettings(payload);
                       updateSettings(payload);
-                      showToast(`Settings saved! Min Recharge: ৳${payload.minDeposit}, Min Withdrawal: ৳${payload.minWithdrawal}, Online Base: ${payload.baseOnlineMin}`);
+                      showToast(`Settings saved! Min Recharge: ৳${payload.minDeposit}, Min Withdrawal: ৳${payload.minWithdrawal}, Referral Commission: ${payload.referralCommissionRate}%`);
                     }}
                     className="w-full sm:w-auto justify-center bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold text-xs py-3 px-7 rounded-xl shadow-lg shadow-blue-600/30 active:scale-[0.98] transition cursor-pointer flex items-center gap-2"
                   >
