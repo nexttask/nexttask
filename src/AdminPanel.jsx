@@ -1761,6 +1761,34 @@ export default function AdminPanel({ onNavigateToApp }) {
     });
   }, [vipTiers, users, totalUserCount]);
 
+  const totalPending = pendingRecharges.length + pendingWithdrawals.length;
+
+  const navItems = useMemo(() => {
+    const allItems = [
+      { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: LayoutDashboard },
+      { id: 'recharges', label: 'Recharge Requests', shortLabel: 'Recharges', icon: ArrowDownLeft, badge: pendingRecharges.length, permKey: 'recharges' },
+      { id: 'withdrawals', label: 'Withdrawal Requests', shortLabel: 'Withdrawals', icon: ArrowUpRight, badge: pendingWithdrawals.length, permKey: 'withdrawals' },
+      { id: 'users', label: 'Users Management', shortLabel: 'Users', icon: Users, permKey: 'users' },
+      { id: 'payments', label: 'Payment Methods', shortLabel: 'Payments', icon: Smartphone, permKey: 'payments' },
+      { id: 'vips', label: 'VIP Packages', shortLabel: 'VIPs', icon: Gem, permKey: 'vips' },
+      { id: 'slides', label: 'Home Page Banners', shortLabel: 'Banners', icon: ImageIcon, permKey: 'slides' },
+      { id: 'company', label: 'Company Profile', shortLabel: 'Company', icon: Building2, permKey: 'company' },
+      { id: 'settings', label: 'System Settings', shortLabel: 'Settings', icon: Settings, permKey: 'settings' },
+    ];
+
+    if (currentAdminUser?.role === 'master') {
+      return [
+        ...allItems,
+        { id: 'subadmins', label: 'Sub-Admins & Roles', shortLabel: 'Sub-Admins', icon: UserCheck, badge: subAdmins.length }
+      ];
+    }
+    const perms = currentAdminUser?.permissions || {};
+    return allItems.filter((item) => {
+      if (item.id === 'dashboard') return true;
+      return !!perms[item.permKey || item.id];
+    });
+  }, [currentAdminUser, subAdmins.length, pendingRecharges.length, pendingWithdrawals.length]);
+
   // If not authenticated as Master Admin, show Admin Login Portal
   if (!isAdminAuth) {
     return (
@@ -1863,34 +1891,6 @@ export default function AdminPanel({ onNavigateToApp }) {
       </div>
     );
   }
-
-  const allNavItems = [
-    { id: 'dashboard', label: 'Dashboard', shortLabel: 'Dashboard', icon: LayoutDashboard },
-    { id: 'recharges', label: 'Recharge Requests', shortLabel: 'Recharges', icon: ArrowDownLeft, badge: pendingRecharges.length, permKey: 'recharges' },
-    { id: 'withdrawals', label: 'Withdrawal Requests', shortLabel: 'Withdrawals', icon: ArrowUpRight, badge: pendingWithdrawals.length, permKey: 'withdrawals' },
-    { id: 'users', label: 'Users Management', shortLabel: 'Users', icon: Users, permKey: 'users' },
-    { id: 'payments', label: 'Payment Methods', shortLabel: 'Payments', icon: Smartphone, permKey: 'payments' },
-    { id: 'vips', label: 'VIP Packages', shortLabel: 'VIPs', icon: Gem, permKey: 'vips' },
-    { id: 'slides', label: 'Home Page Banners', shortLabel: 'Banners', icon: ImageIcon, permKey: 'slides' },
-    { id: 'company', label: 'Company Profile', shortLabel: 'Company', icon: Building2, permKey: 'company' },
-    { id: 'settings', label: 'System Settings', shortLabel: 'Settings', icon: Settings, permKey: 'settings' },
-  ];
-
-  const navItems = useMemo(() => {
-    if (currentAdminUser?.role === 'master') {
-      return [
-        ...allNavItems,
-        { id: 'subadmins', label: 'Sub-Admins & Roles', shortLabel: 'Sub-Admins', icon: UserCheck, badge: subAdmins.length }
-      ];
-    }
-    const perms = currentAdminUser?.permissions || {};
-    return allNavItems.filter((item) => {
-      if (item.id === 'dashboard') return true;
-      return !!perms[item.permKey || item.id];
-    });
-  }, [allNavItems, currentAdminUser, subAdmins.length]);
-
-  const totalPending = pendingRecharges.length + pendingWithdrawals.length;
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col md:flex-row font-sans">
