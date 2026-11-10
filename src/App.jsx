@@ -2809,10 +2809,15 @@ export default function App() {
             const data = await res.json();
             if (data && data.autoApproved) {
               const creditedAmt = typeof data.amount === 'number' ? data.amount : numAmount;
+              setBalance((prev) => parseFloat(((prev || 0) + creditedAmt).toFixed(2)));
               setRechargeTotal((prev) => parseFloat(((prev || 0) + creditedAmt).toFixed(2)));
               setCurrentUser((prev) => {
                 if (!prev) return prev;
-                const nextUser = { ...prev, recharge: parseFloat(((prev.recharge || 0) + creditedAmt).toFixed(2)) };
+                const nextUser = {
+                  ...prev,
+                  balance: parseFloat(((prev.balance || 0) + creditedAmt).toFixed(2)),
+                  recharge: parseFloat(((prev.recharge || 0) + creditedAmt).toFixed(2))
+                };
                 try { localStorage.setItem('nt_currentUser', JSON.stringify(nextUser)); } catch (e) {}
                 return nextUser;
               });

@@ -1461,7 +1461,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
         return {
           ...u,
-          balance: prevBal,
+          balance: parseFloat((prevBal + rec.amount).toFixed(2)),
           recharge: newRecharge
         };
       }

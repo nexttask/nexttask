@@ -1093,6 +1093,7 @@ export default {
           );
 
           if (u) {
+            u.balance = parseFloat(((parseFloat(u.balance) || 0) + finalCreditedAmount).toFixed(2));
             u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + finalCreditedAmount).toFixed(2));
 
             const commRate = parseFloat(settings.referralCommissionRate) || 10;
