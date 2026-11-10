@@ -55,6 +55,99 @@ function parsePaymentSms(body, sender = '') {
   };
 }
 
+
+// High-Reliability Tron TRC20 USDT On-Chain Verification Engine
+async function verifyTronUsdtTransaction(rawTxHash, targetWallet, usdtRate = 125) {
+  const cleanTxId = String(rawTxHash || '').trim().replace(/^0x/i, '');
+  if (cleanTxId.length !== 64) {
+    return { verified: false, reason: 'Invalid Tron transaction hash length' };
+  }
+
+  const cleanTarget = String(targetWallet || 'TWnrTJYNdJ78iz3LXNUcxKLp51miFD4bPW').trim().toLowerCase();
+  const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'.toLowerCase();
+
+  // 1. Primary: TronScan REST API (Decodes exact TRC20 transfer info, confirmations & status)
+  try {
+    const tsUrl = `https://apilist.tronscanapi.com/api/transaction-info?hash=${cleanTxId}`;
+    const tsRes = await fetch(tsUrl, {
+      headers: { 'User-Agent': 'NextTask-Blockchain-Verifier/1.0' }
+    });
+    if (tsRes.ok) {
+      const tsData = await tsRes.json();
+      if (tsData && tsData.contractRet === 'SUCCESS' && !tsData.revert) {
+        const transfers = Array.isArray(tsData.trc20TransferInfo) ? tsData.trc20TransferInfo : [];
+        const match = transfers.find(t =>
+          t &&
+          String(t.to_address || '').trim().toLowerCase() === cleanTarget &&
+          (String(t.contract_address || '').trim().toLowerCase() === USDT_CONTRACT || String(t.symbol || '').toUpperCase() === 'USDT')
+        );
+
+        if (match) {
+          const dec = parseInt(match.decimals || 6, 10);
+          const rawAmt = parseFloat(match.amount_str || match.amount || 0);
+          const usdtAmount = parseFloat((rawAmt / Math.pow(10, dec)).toFixed(4));
+          if (usdtAmount > 0) {
+            const bdtAmount = parseFloat((usdtAmount * usdtRate).toFixed(2));
+            return {
+              verified: true,
+              usdtAmount,
+              bdtAmount,
+              fromAddress: match.from_address || '',
+              toAddress: match.to_address || targetWallet,
+              txHash: cleanTxId,
+              timestamp: tsData.timestamp || Date.now(),
+              confirmed: !!tsData.confirmed,
+              source: 'TronScan On-Chain (TRC20)'
+            };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('TronScan API error:', err);
+  }
+
+  // 2. Fallback: TronGrid REST API (Official Tron Developer Grid)
+  try {
+    const tgUrl = `https://api.trongrid.io/v1/accounts/${targetWallet}/transactions/trc20?limit=30&contract_address=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`;
+    const tgRes = await fetch(tgUrl, {
+      headers: { 'User-Agent': 'NextTask-Blockchain-Verifier/1.0' }
+    });
+    if (tgRes.ok) {
+      const tgData = await tgRes.json();
+      const transfers = Array.isArray(tgData?.data) ? tgData.data : [];
+      const match = transfers.find(t =>
+        t &&
+        String(t.transaction_id || '').trim().toLowerCase() === cleanTxId.toLowerCase() &&
+        String(t.to || '').trim().toLowerCase() === cleanTarget
+      );
+      if (match) {
+        const dec = parseInt(match.token_info?.decimals || 6, 10);
+        const rawAmt = parseFloat(match.value || 0);
+        const usdtAmount = parseFloat((rawAmt / Math.pow(10, dec)).toFixed(4));
+        if (usdtAmount > 0) {
+          const bdtAmount = parseFloat((usdtAmount * usdtRate).toFixed(2));
+          return {
+            verified: true,
+            usdtAmount,
+            bdtAmount,
+            fromAddress: match.from || '',
+            toAddress: match.to || targetWallet,
+            txHash: cleanTxId,
+            timestamp: match.block_timestamp || Date.now(),
+            confirmed: true,
+            source: 'TronGrid On-Chain (TRC20)'
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('TronGrid API error:', err);
+  }
+
+  return { verified: false, reason: 'Transaction not found on Tron blockchain or recipient does not match target wallet' };
+}
+
 const JSON_RES = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -886,30 +979,32 @@ export default {
           }, 400);
         }
 
-        // 3. Check for matching inbound SMS in verified_sms_logs
-        const smsMatch = smsLogs.find(s => 
-          s && s.trxId === trxId && 
-          s.status !== 'claimed' &&
-          Math.abs(parseFloat(s.amount) - amount) <= 1.0
-        );
+        // 3. Determine method type: USDT (TRC20 Auto Blockchain) vs bKash/Nagad/Rocket (Manual Admin Review)
+        const isCryptoMethod = method.includes('USDT') || method.includes('TRC20') || method.includes('Crypto');
 
-        // 4. Also check Crypto USDT on-chain if TRC20
-        let cryptoVerified = false;
-        if (method.includes('USDT') && trxId.length >= 64) {
-          try {
-            const tronRes = await fetch(`https://api.trongrid.io/v1/transactions/${trxId}`);
-            if (tronRes.ok) {
-              const tronData = await tronRes.json();
-              if (tronData?.data?.[0]?.ret?.[0]?.contractRet === 'SUCCESS') {
-                cryptoVerified = true;
-              }
-            }
-          } catch {}
+        let smsMatch = null;
+        if (!isCryptoMethod && settings.paymentGatewayMode === 'automated') {
+          smsMatch = smsLogs.find(s => 
+            s && s.trxId === trxId && 
+            s.status !== 'claimed' &&
+            Math.abs(parseFloat(s.amount) - amount) <= 1.0
+          );
         }
 
-        const isAutoVerified = Boolean(smsMatch || cryptoVerified);
+        // 4. Crypto USDT Real-Time On-Chain Verification (TRC20)
+        let cryptoResult = null;
+        if (isCryptoMethod) {
+          const targetWallet = (settings.trc20Address || 'TWnrTJYNdJ78iz3LXNUcxKLp51miFD4bPW').trim();
+          const usdtRate = parseFloat(settings.usdtRate || 125);
+          cryptoResult = await verifyTronUsdtTransaction(trxId, targetWallet, usdtRate);
+        }
 
-        // 5. If Auto-Verified:
+        const isAutoVerified = Boolean((cryptoResult && cryptoResult.verified) || smsMatch);
+        const finalCreditedAmount = (cryptoResult && cryptoResult.verified && cryptoResult.bdtAmount > 0)
+          ? cryptoResult.bdtAmount
+          : amount;
+
+        // 5. If Auto-Verified (Instant on-chain approval):
         if (isAutoVerified) {
           if (smsMatch) {
             smsMatch.status = 'claimed';
@@ -922,21 +1017,24 @@ export default {
               id: `rec_${Date.now()}`,
               userId,
               user: userIdentifier,
-              amount,
+              amount: finalCreditedAmount,
               method,
-              senderAccount,
+              senderAccount: senderAccount || (cryptoResult?.fromAddress || 'TRC20 Wallet'),
               trxId,
               targetVip: targetVip || '',
               status: 'approved',
               autoVerified: true,
-              source: cryptoVerified ? 'Auto Crypto Blockchain' : 'Auto SMS Bot',
+              usdtAmount: cryptoResult?.usdtAmount || null,
+              source: cryptoResult?.source || 'Auto Tron Blockchain',
               date: new Date().toISOString().slice(0, 19).replace('T', ' ')
             };
             recharges.unshift(recEntry);
           } else {
             recEntry.status = 'approved';
+            recEntry.amount = finalCreditedAmount;
             recEntry.autoVerified = true;
-            recEntry.source = cryptoVerified ? 'Auto Crypto Blockchain' : 'Auto SMS Bot';
+            recEntry.usdtAmount = cryptoResult?.usdtAmount || recEntry.usdtAmount;
+            recEntry.source = cryptoResult?.source || recEntry.source || 'Auto Tron Blockchain';
           }
 
           // Credit User balance & VIP activation
@@ -950,10 +1048,7 @@ export default {
           );
 
           if (u) {
-            u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + amount).toFixed(2));
-
-            let vipActivated = false;
-            // Recharge adds to balance; customer purchases VIP manually without auto-activation
+            u.recharge = parseFloat(((parseFloat(u.recharge) || 0) + finalCreditedAmount).toFixed(2));
 
             const commRate = parseFloat(settings.referralCommissionRate) || 10;
             if (u.referredBy && commRate > 0) {
@@ -966,7 +1061,7 @@ export default {
                 )
               );
               if (referrer) {
-                const commission = parseFloat(((amount * commRate) / 100).toFixed(2));
+                const commission = parseFloat(((finalCreditedAmount * commRate) / 100).toFixed(2));
                 referrer.balance = parseFloat(((parseFloat(referrer.balance) || 0) + commission).toFixed(2));
               }
             }
@@ -988,11 +1083,14 @@ export default {
             success: true,
             verified: true,
             autoApproved: true,
-            amount,
+            amount: finalCreditedAmount,
+            usdtAmount: cryptoResult?.usdtAmount || null,
             method,
             user: updatedUser,
             vipActivated: Boolean(targetVip),
-            message: 'Payment verified and credited to your account instantly!'
+            message: cryptoResult?.usdtAmount
+              ? `USDT Deposit of ${cryptoResult.usdtAmount} USDT (৳${finalCreditedAmount} BDT) confirmed on Tron Blockchain and credited to your balance instantly!`
+              : 'Payment verified and credited to your account instantly!'
           });
         }
 
@@ -1003,14 +1101,14 @@ export default {
             id: `rec_${Date.now()}`,
             userId,
             user: userIdentifier,
-            amount,
+            amount: finalCreditedAmount,
             method,
             senderAccount,
             trxId,
             targetVip: targetVip || '',
             status: 'pending',
             autoVerified: false,
-            source: 'Manual Submission',
+            source: isCryptoMethod ? 'Tron Blockchain (Awaiting Block Confirmation)' : 'Manual Submission',
             date: new Date().toISOString().slice(0, 19).replace('T', ' ')
           };
           recharges.unshift(existingPending);
@@ -1024,7 +1122,11 @@ export default {
           verified: false,
           pending: true,
           rechargeId: existingPending.id,
-          message: 'Payment received. In verification queue.'
+          amount: finalCreditedAmount,
+          method,
+          message: isCryptoMethod
+            ? 'Tron TRC20 transaction submitted. It will automatically verify and credit as soon as the block confirms (usually 15-60 seconds).'
+            : 'Payment request submitted! It is in queue for manual verification by Admin.'
         });
       } catch (err) {
         return JSON_RES({ success: false, error: err.message }, 500);

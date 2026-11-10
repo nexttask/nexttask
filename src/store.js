@@ -33,7 +33,7 @@ export const DEFAULT_USERS = [
       bkash: '',
       nagad: '',
       rocket: '',
-      trc20: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
+      trc20: 'TWnrTJYNdJ78iz3LXNUcxKLp51miFD4bPW',
       bankName: '',
       bankAccount: '',
       bankHolder: ''
@@ -108,7 +108,8 @@ export const DEFAULT_SETTINGS = {
   platformName: 'NextTask',
   currency: 'BDT',
   currencySymbol: '৳',
-  trc20Address: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ',
+  trc20Address: 'TWnrTJYNdJ78iz3LXNUcxKLp51miFD4bPW',
+  usdtRate: 125,
   minWithdrawal: 500,
   minDeposit: 500,
   withdrawalFeeRate: 5,
@@ -175,7 +176,7 @@ export const DEFAULT_PAYMENT_METHODS = [
   { id: 'pm_1', method: 'bKash', type: 'Personal', number: '01712345678', rate: 1, logo: '/logos/bkash.svg', active: true, instructions: 'Please Send Money (Personal) to the official bKash number below, then enter your 11-digit Sender Number & TrxID.' },
   { id: 'pm_2', method: 'Nagad', type: 'Personal', number: '01812345678', rate: 1, logo: '/logos/nagad.svg', active: true, instructions: 'Please Send Money (Personal) to the official Nagad number below, then enter your 11-digit Sender Number & TrxID.' },
   { id: 'pm_3', method: 'Rocket', type: 'Personal', number: '01912345678', rate: 1, logo: '/logos/rocket.svg', active: false, instructions: 'Please Send Money to the official Rocket number below, then enter your 11-digit Sender Number & TrxID.' },
-  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ', rate: 125, logo: '/logos/usdt.svg', active: true, instructions: 'Transfer USDT via TRC20 network (1 USDT = 125 BDT) and submit TxID below' }
+  { id: 'pm_4', method: 'USDT (TRC20)', type: 'Crypto', number: 'TWnrTJYNdJ78iz3LXNUcxKLp51miFD4bPW', rate: 125, logo: '/logos/usdt.svg', active: true, instructions: 'Transfer USDT via TRC20 network (1 USDT = 125 BDT) and submit TxID below for Instant Auto-Approval' }
 ];
 
 export const DEFAULT_SLIDES = [
@@ -308,27 +309,31 @@ export const getStoredData = (key, fallback) => {
       return parsed.filter((w) => w && !['WTH-400', 'WTH-401'].includes(String(w.id || '')) && !String(w.user || '').toLowerCase().includes('demo'));
     }
 
-    // Ensure payment method instructions are in English
+    // Ensure payment method instructions and real TRC20 address are active
     if (key === 'payments' && Array.isArray(parsed)) {
       return parsed.map((p) => {
         if (!p) return p;
-        if (p.instructions && (p.instructions.includes('করুন') || p.instructions.includes('নিচে দিন') || p.instructions.includes('নেটওয়ার্কে'))) {
-          return {
-            ...p,
-            instructions: p.method === 'USDT (TRC20)'
-              ? 'Transfer USDT via TRC20 network and submit TxID below'
-              : 'Please Send Money and enter TrxID below'
-          };
+        let updated = { ...p };
+        if (p.method === 'USDT (TRC20)' && (!p.number || p.number.includes('TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ') || p.number === '')) {
+          updated.number = 'TWnrTJYNdJ78iz3LXNUcxKLp51miFD4bPW';
         }
-        return p;
+        if (p.instructions && (p.instructions.includes('করুন') || p.instructions.includes('নিচে দিন') || p.instructions.includes('নেটওয়ার্কে'))) {
+          updated.instructions = p.method === 'USDT (TRC20)'
+            ? 'Transfer USDT via TRC20 network (1 USDT = 125 BDT) and submit TxID below for Instant Auto-Approval'
+            : 'Please Send Money and enter TrxID below';
+        }
+        return updated;
       });
     }
 
     // Ensure settings numbers are parsed cleanly from admin inputs and default bot tokens are preserved
     if (key === 'settings' && parsed && typeof parsed === 'object') {
+      const isOldTrc20 = !parsed.trc20Address || parsed.trc20Address.includes('TXk9rM8h4K2pQv9xYzN1L3s87AbCdEfGhJ');
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
+        trc20Address: isOldTrc20 ? 'TWnrTJYNdJ78iz3LXNUcxKLp51miFD4bPW' : parsed.trc20Address,
+        usdtRate: typeof parsed.usdtRate === 'number' ? parsed.usdtRate : (parseFloat(parsed.usdtRate) || 125),
         telegramBotToken: parsed.telegramBotToken && String(parsed.telegramBotToken).trim() !== ''
           ? parsed.telegramBotToken
           : DEFAULT_SETTINGS.telegramBotToken,

@@ -2715,7 +2715,7 @@ export default function App() {
     const currentMethod = selectedPaymentMethod?.method || 'bKash';
     const isCrypto = currentMethod.toLowerCase().includes('usdt') || currentMethod.toLowerCase().includes('crypto');
 
-    // Validation for mobile banking (bKash, Nagad, Rocket, etc.)
+    // Validation for mobile banking vs crypto
     if (!isCrypto) {
       const rawDigits = senderAccount.replace(/\D/g, '');
       const senderDigits = rawDigits.startsWith('88') ? rawDigits.slice(2) : rawDigits;
@@ -2727,6 +2727,12 @@ export default function App() {
       const cleanTrx = transactionId.trim();
       if (!cleanTrx || cleanTrx.length < 4) {
         showToast('Please enter a valid Transaction ID (TrxID)');
+        return;
+      }
+    } else {
+      const cleanTrx = transactionId.trim().replace(/^0x/i, '');
+      if (cleanTrx.length < 32) {
+        showToast('Please enter a valid Tron Transaction Hash / TxID (64 characters)');
         return;
       }
     }
@@ -2780,8 +2786,8 @@ export default function App() {
     setSenderAccount('');
     setTransactionId('');
 
-    // If auto gateway is on, trigger background verify
-    if (settings?.paymentGatewayMode === 'automated') {
+    // Trigger background verify: Always for TRC20 Crypto (On-Chain Auto Approval) or when automated SMS is active
+    if (isCrypto || settings?.paymentGatewayMode === 'automated') {
       try {
         fetch('/api/verify-recharge', {
           method: 'POST',
@@ -2795,18 +2801,45 @@ export default function App() {
             trxId: cleanTrxId,
             targetVip: targetVipLevel
           })
+        }).then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.autoApproved) {
+              const creditedAmt = typeof data.amount === 'number' ? data.amount : numAmount;
+              setRechargeTotal((prev) => parseFloat(((prev || 0) + creditedAmt).toFixed(2)));
+              setCurrentUser((prev) => {
+                if (!prev) return prev;
+                const nextUser = { ...prev, recharge: parseFloat(((prev.recharge || 0) + creditedAmt).toFixed(2)) };
+                try { localStorage.setItem('nt_currentUser', JSON.stringify(nextUser)); } catch (e) {}
+                return nextUser;
+              });
+              setRechargeSuccessDetails((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  amount: creditedAmt,
+                  usdtAmount: data.usdtAmount || null,
+                  isAutoApproved: true
+                };
+              });
+              showToast(data.message || 'USDT Deposit auto-approved and credited to your balance!');
+              setTimeout(fetchCloudDataNow, 400);
+            }
+          }
         }).catch(() => {});
       } catch (e) {}
     }
 
-    // Trigger the Thank You confirmation popup (1 to 15 minutes)
+    // Trigger confirmation popup
     setRechargeSuccessDetails({
       id: newRecord.id,
       amount: numAmount,
       method: currentMethod,
-      senderAccount: cleanSender,
+      senderAccount: cleanSender || (isCrypto ? 'TRC20 Wallet' : ''),
       trxId: cleanTrxId,
-      date: newRecord.date
+      date: newRecord.date,
+      isCrypto,
+      isAutoApproved: false
     });
   };
 
@@ -5780,22 +5813,24 @@ export default function App() {
                   <form onSubmit={handleSubmitRecharge} className="space-y-3 pt-1">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                        <span>Sender Account Number</span>
-                        <span className="text-[10px] font-semibold text-slate-400">Required</span>
+                        <span>{selectedPaymentMethod?.method === 'USDT (TRC20)' ? 'Your TRC20 Wallet Address' : 'Sender Account Number'}</span>
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          {selectedPaymentMethod?.method === 'USDT (TRC20)' ? 'Optional' : 'Required'}
+                        </span>
                       </label>
                       <input
                         type="text"
-                        required
+                        required={selectedPaymentMethod?.method !== 'USDT (TRC20)'}
                         value={senderAccount}
                         onChange={(e) => setSenderAccount(e.target.value)}
-                        placeholder="Sender Account Number"
+                        placeholder={selectedPaymentMethod?.method === 'USDT (TRC20)' ? 'Your TRC20 Wallet Address (Optional)' : 'Sender Account Number'}
                         className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 outline-none transition font-medium"
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                        <span>Transaction ID (TrxID)</span>
+                        <span>{selectedPaymentMethod?.method === 'USDT (TRC20)' ? 'Tron Transaction Hash / TxID' : 'Transaction ID (TrxID)'}</span>
                         <span className="text-[10px] font-semibold text-slate-400">Required</span>
                       </label>
                       <input
@@ -5803,7 +5838,7 @@ export default function App() {
                         required
                         value={transactionId}
                         onChange={(e) => setTransactionId(e.target.value)}
-                        placeholder="Transaction ID"
+                        placeholder={selectedPaymentMethod?.method === 'USDT (TRC20)' ? 'Paste 64-character Tron TxID / Hash' : 'Transaction ID'}
                         className="w-full bg-slate-50 focus:bg-white border border-slate-200 focus:border-cyan-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono outline-none transition uppercase"
                       />
                     </div>
@@ -5813,7 +5848,7 @@ export default function App() {
                       className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-700 hover:brightness-110 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer mt-2"
                     >
                       <CheckCircle2 className="w-4 h-4 text-cyan-300" />
-                      {settings?.paymentGatewayMode === 'automated' ? 'Submit & Auto-Verify Payment' : 'Submit Recharge Request'}
+                      {selectedPaymentMethod?.method === 'USDT (TRC20)' ? 'Submit & Auto-Verify on Blockchain' : (settings?.paymentGatewayMode === 'automated' ? 'Submit & Auto-Verify Payment' : 'Submit Recharge Request')}
                     </button>
                   </form>
                 </div>
@@ -6264,10 +6299,12 @@ export default function App() {
 
               <div>
                 <h4 className="text-lg font-black text-slate-900 tracking-tight">
-                  Recharge Submitted!
+                  {rechargeSuccessDetails.isAutoApproved ? 'Recharge Approved!' : 'Recharge Submitted!'}
                 </h4>
                 <p className="text-xs text-slate-500 mt-1">
-                  Thank you! Your deposit request has been submitted successfully.
+                  {rechargeSuccessDetails.isAutoApproved
+                    ? 'Your deposit has been verified on Tron Blockchain and credited to your balance!'
+                    : 'Thank you! Your deposit request has been submitted successfully.'}
                 </p>
               </div>
 
@@ -6279,17 +6316,25 @@ export default function App() {
                     ৳{rechargeSuccessDetails.amount.toFixed(2)} BDT
                   </span>
                 </div>
+                {rechargeSuccessDetails.usdtAmount && (
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>USDT Value:</span>
+                    <span className="font-bold font-mono text-cyan-600">
+                      {rechargeSuccessDetails.usdtAmount} USDT
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-slate-500">
                   <span>Payment Gateway:</span>
                   <span className="font-bold text-slate-800">{rechargeSuccessDetails.method}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-500">
                   <span>Sender Account:</span>
-                  <span className="font-bold font-mono text-slate-800">{rechargeSuccessDetails.senderAccount}</span>
+                  <span className="font-bold font-mono text-slate-800 break-all">{rechargeSuccessDetails.senderAccount}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-500">
-                  <span>Transaction ID (TrxID):</span>
-                  <span className="font-bold font-mono text-slate-800">{rechargeSuccessDetails.trxId}</span>
+                  <span>Transaction ID:</span>
+                  <span className="font-bold font-mono text-slate-800 text-[11px] break-all">{rechargeSuccessDetails.trxId}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-400 text-[11px] border-t border-slate-200/60 pt-1.5">
                   <span>Request ID:</span>
@@ -6297,19 +6342,41 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Highlighted Expected Processing Time Banner (1 to 15 Minutes) */}
-              <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/80 rounded-2xl p-3.5 text-center space-y-1.5 shadow-2xs">
-                <div className="flex items-center justify-center gap-1.5 text-emerald-950 font-black text-xs">
-                  <Clock className="w-4 h-4 text-emerald-600" />
-                  <span>Processing Time: 1 Min – 15 Minutes</span>
+              {/* Status Banner */}
+              {rechargeSuccessDetails.isAutoApproved ? (
+                <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100 border border-emerald-300 rounded-2xl p-3.5 text-center space-y-1 shadow-2xs">
+                  <div className="flex items-center justify-center gap-1.5 text-emerald-900 font-black text-xs">
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span>Instant Blockchain Approval</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-950 leading-relaxed font-semibold">
+                    Funds have been credited directly to your <b>Balance</b>. You can now unlock packages or withdraw!
+                  </p>
                 </div>
-                <p className="text-[11px] text-emerald-950 leading-relaxed font-medium">
-                  Your funds will be verified and added to your <b>Balance</b> within <b>1 minute to 15 minutes</b>.
-                </p>
-                <p className="text-[10px] text-emerald-900/80 pt-0.5 border-t border-emerald-200/60 mt-1">
-                  If balance is not credited after 15 minutes, please tap below to contact our 24/7 Telegram Support desk with your TrxID.
-                </p>
-              </div>
+              ) : rechargeSuccessDetails.isCrypto ? (
+                <div className="bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 border border-cyan-200/80 rounded-2xl p-3.5 text-center space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-center gap-1.5 text-cyan-950 font-black text-xs">
+                    <Clock className="w-4 h-4 text-cyan-600" />
+                    <span>Tron Blockchain Auto-Verifying</span>
+                  </div>
+                  <p className="text-[11px] text-cyan-950 leading-relaxed font-medium">
+                    Your TRC20 deposit is submitted. It will automatically verify and credit as soon as the Tron block confirms (usually 15-60 seconds).
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border border-emerald-200/80 rounded-2xl p-3.5 text-center space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-center gap-1.5 text-emerald-950 font-black text-xs">
+                    <Clock className="w-4 h-4 text-emerald-600" />
+                    <span>Processing Time: 1 Min – 15 Minutes</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-950 leading-relaxed font-medium">
+                    Your funds will be verified and added to your <b>Balance</b> within <b>1 minute to 15 minutes</b>.
+                  </p>
+                  <p className="text-[10px] text-emerald-900/80 pt-0.5 border-t border-emerald-200/60 mt-1">
+                    If balance is not credited after 15 minutes, please tap below to contact our 24/7 Telegram Support desk with your TrxID.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2 pt-1">
                 <button
