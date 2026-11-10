@@ -486,6 +486,27 @@ export const setStoredData = (key, value) => {
 let activeSyncPromise = null;
 export let hasEverSyncedFromCloud = false;
 
+export const restoreAllUsersFromCloud = async () => {
+  if (typeof fetch === 'undefined') return { success: false };
+  try {
+    const res = await fetch('/api/data?key=users', { headers: getAuthHeaders() });
+    if (!res.ok) return { success: false };
+    const json = await res.json();
+    if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+      memoryCache.set('users', json.data);
+      try {
+        localStorage.setItem('nt_users', JSON.stringify(json.data));
+      } catch {}
+      localUpdateTimestamps.delete('users');
+      window.dispatchEvent(new CustomEvent('cloud-sync', { detail: { hasUpdates: true } }));
+      return { success: true, count: json.data.length, users: json.data };
+    }
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+  return { success: false };
+};
+
 export const fetchCloudDataNow = async () => {
   if (typeof fetch === 'undefined' || typeof window === 'undefined') return { success: false };
   if (activeSyncPromise) {

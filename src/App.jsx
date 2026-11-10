@@ -47,7 +47,8 @@ import {
   Send,
   Plus,
   Trash2,
-  X
+  X,
+  XCircle
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import {
@@ -2819,10 +2820,39 @@ export default function App() {
                   ...prev,
                   amount: creditedAmt,
                   usdtAmount: data.usdtAmount || null,
-                  isAutoApproved: true
+                  isAutoApproved: true,
+                  isRejected: false
                 };
               });
               showToast(data.message || 'USDT Deposit auto-approved and credited to your balance!');
+              setTimeout(fetchCloudDataNow, 400);
+            } else if (data && data.rejected) {
+              // Mark record as rejected in local store
+              const allRecs = getStoredData('recharges', DEFAULT_RECHARGES);
+              const updatedWithReject = allRecs.map((r) =>
+                (r.id === newRecord.id || String(r.trxId || '').toUpperCase() === cleanTrxId)
+                  ? { ...r, status: 'rejected', rejectReason: data.reason || 'Verification failed on Tron Blockchain' }
+                  : r
+              );
+              setStoredData('recharges', updatedWithReject);
+
+              setRechargeSuccessDetails((prev) => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  isRejected: true,
+                  isAutoApproved: false,
+                  rejectReason: data.reason || 'TxID could not be verified on the Tron Blockchain.'
+                };
+              });
+
+              addUserNotification(
+                currentUser?.id,
+                'Recharge Rejected',
+                `Your TRC20 deposit (TxID: ${cleanTrxId}) was rejected: ${data.reason || 'Verification failed on Tron Blockchain'}`,
+                'recharge'
+              );
+              showToast('❌ Recharge Rejected: Fake or unverified TxID!');
               setTimeout(fetchCloudDataNow, 400);
             }
           }
@@ -5669,9 +5699,27 @@ export default function App() {
                     >
                       <span>← Change Amount</span>
                     </button>
-                    <div className="text-xs font-black text-slate-800 font-mono">
-                      Payable: <span className="text-emerald-600 font-extrabold text-sm">৳{(parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0).toLocaleString()} BDT</span>
-                    </div>
+                    {(() => {
+                      const numAmount = parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0;
+                      const isCrypto = selectedPaymentMethod?.method === 'USDT (TRC20)' || selectedPaymentMethod?.type === 'Crypto';
+                      const usdtRate = parseFloat(selectedPaymentMethod?.rate || settings?.usdtRate || 125);
+                      const payableUsdt = usdtRate > 0 ? (numAmount / usdtRate).toFixed(2) : '0.00';
+
+                      return (
+                        <div className="text-xs font-black text-slate-800 font-mono">
+                          {isCrypto ? (
+                            <>
+                              Payable: <span className="text-cyan-600 font-extrabold text-sm">{payableUsdt} USDT</span>
+                              <span className="text-slate-400 text-[11px] font-semibold ml-1.5">(৳{numAmount.toLocaleString()} BDT)</span>
+                            </>
+                          ) : (
+                            <>
+                              Payable: <span className="text-emerald-600 font-extrabold text-sm">৳{numAmount.toLocaleString()} BDT</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Payment Methods Selection Tabs */}
@@ -5774,22 +5822,54 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Rate conversion for BDT methods */}
-                      {selectedPaymentMethod.rate > 1 && (
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-2 flex justify-between items-center text-xs">
-                          <div className="space-y-0.5">
-                            <div className="text-slate-300 text-[11px] font-medium">Payable in BDT:</div>
-                            <div className="text-[10px] text-cyan-300 font-mono">
-                              Rate: 1 USDT = {selectedPaymentMethod.rate} BDT
+                      {/* Dynamic Rate Conversion (BDT <-> USDT Crypto) */}
+                      {(() => {
+                        const numAmount = parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0;
+                        const isCrypto = selectedPaymentMethod?.method === 'USDT (TRC20)' || selectedPaymentMethod?.type === 'Crypto';
+                        const usdtRate = parseFloat(selectedPaymentMethod?.rate || settings?.usdtRate || 125);
+                        const payableUsdt = usdtRate > 0 ? (numAmount / usdtRate).toFixed(2) : '0.00';
+
+                        if (isCrypto) {
+                          return (
+                            <div className="bg-gradient-to-r from-cyan-950/80 via-blue-950/70 to-slate-900 border border-cyan-400/40 rounded-xl p-2.5 flex justify-between items-center text-xs shadow-inner">
+                              <div className="space-y-0.5">
+                                <div className="text-cyan-300 text-[11px] font-bold flex items-center gap-1">
+                                  <span>Transfer in USDT (TRC20):</span>
+                                </div>
+                                <div className="text-[10px] text-slate-300 font-mono">
+                                  Rate: 1 USDT = ৳{usdtRate} BDT (৳{numAmount.toLocaleString()} ÷ {usdtRate})
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-black text-cyan-300 text-base tracking-tight font-mono">
+                                  {payableUsdt} USDT
+                                </span>
+                                <div className="text-[9px] text-emerald-400 font-mono font-bold">Auto-Approved</div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-black text-emerald-400 text-sm tracking-tight font-mono">
-                              {( (parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0) * selectedPaymentMethod.rate ).toLocaleString()} BDT
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                          );
+                        }
+
+                        if (selectedPaymentMethod.rate > 1) {
+                          return (
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-2 flex justify-between items-center text-xs">
+                              <div className="space-y-0.5">
+                                <div className="text-slate-300 text-[11px] font-medium">Payable in BDT:</div>
+                                <div className="text-[10px] text-cyan-300 font-mono">
+                                  Rate: 1 Unit = {selectedPaymentMethod.rate} BDT
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-black text-emerald-400 text-sm tracking-tight font-mono">
+                                  {(numAmount * selectedPaymentMethod.rate).toLocaleString()} BDT
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return null;
+                      })()}
 
                       {/* Custom instruction notice */}
                       {selectedPaymentMethod.instructions ? (
@@ -5848,7 +5928,13 @@ export default function App() {
                       className="w-full bg-gradient-to-r from-[#071739] via-blue-900 to-cyan-700 hover:brightness-110 text-white font-black py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-blue-950/30 flex items-center justify-center gap-2 active:scale-[0.99] transition cursor-pointer mt-2"
                     >
                       <CheckCircle2 className="w-4 h-4 text-cyan-300" />
-                      {selectedPaymentMethod?.method === 'USDT (TRC20)' ? 'Submit & Auto-Verify on Blockchain' : (settings?.paymentGatewayMode === 'automated' ? 'Submit & Auto-Verify Payment' : 'Submit Recharge Request')}
+                      {selectedPaymentMethod?.method === 'USDT (TRC20)'
+                        ? `Transfer ${(() => {
+                            const num = parseFloat(rechargeAmount.toString().replace(/,/g, '')) || 0;
+                            const rate = parseFloat(selectedPaymentMethod?.rate || settings?.usdtRate || 125);
+                            return rate > 0 ? (num / rate).toFixed(2) : '0';
+                          })()} USDT & Auto-Verify`
+                        : (settings?.paymentGatewayMode === 'automated' ? 'Submit & Auto-Verify Payment' : 'Submit Recharge Request')}
                     </button>
                   </form>
                 </div>
@@ -6292,17 +6378,29 @@ export default function App() {
             <div
               className="bg-white rounded-3xl w-full max-w-[340px] p-6 shadow-2xl space-y-4 text-center animate-scale-up border border-slate-100 relative z-[101]"
             >
-              {/* Animated checkmark circle */}
-              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
-                <CheckCircle2 className="w-9 h-9 text-emerald-600" />
-              </div>
+              {/* Status icon circle */}
+              {rechargeSuccessDetails.isRejected ? (
+                <div className="w-16 h-16 mx-auto rounded-full bg-rose-50 border-2 border-rose-200 text-rose-600 flex items-center justify-center shadow-lg shadow-rose-500/10">
+                  <XCircle className="w-9 h-9 text-rose-600" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                  <CheckCircle2 className="w-9 h-9 text-emerald-600" />
+                </div>
+              )}
 
               <div>
                 <h4 className="text-lg font-black text-slate-900 tracking-tight">
-                  {rechargeSuccessDetails.isAutoApproved ? 'Recharge Approved!' : 'Recharge Submitted!'}
+                  {rechargeSuccessDetails.isRejected
+                    ? 'Recharge Rejected!'
+                    : rechargeSuccessDetails.isAutoApproved
+                    ? 'Recharge Approved!'
+                    : 'Recharge Submitted!'}
                 </h4>
                 <p className="text-xs text-slate-500 mt-1">
-                  {rechargeSuccessDetails.isAutoApproved
+                  {rechargeSuccessDetails.isRejected
+                    ? 'This transaction could not be verified on the Tron Blockchain. The deposit has been rejected.'
+                    : rechargeSuccessDetails.isAutoApproved
                     ? 'Your deposit has been verified on Tron Blockchain and credited to your balance!'
                     : 'Thank you! Your deposit request has been submitted successfully.'}
                 </p>
@@ -6312,7 +6410,7 @@ export default function App() {
               <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70 text-left space-y-2 text-xs font-medium">
                 <div className="flex justify-between items-center text-slate-500">
                   <span>Recharge Amount:</span>
-                  <span className="font-bold text-slate-900 font-mono text-sm text-emerald-600">
+                  <span className={`font-bold font-mono text-sm ${rechargeSuccessDetails.isRejected ? 'text-rose-600 line-through' : 'text-emerald-600'}`}>
                     ৳{rechargeSuccessDetails.amount.toFixed(2)} BDT
                   </span>
                 </div>
@@ -6343,7 +6441,25 @@ export default function App() {
               </div>
 
               {/* Status Banner */}
-              {rechargeSuccessDetails.isAutoApproved ? (
+              {rechargeSuccessDetails.isRejected ? (
+                <div className="bg-gradient-to-br from-rose-50 via-red-50 to-rose-100 border border-rose-300 rounded-2xl p-3.5 text-center space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-center gap-1.5 text-rose-900 font-black text-xs">
+                    <XCircle className="w-4 h-4 text-rose-600" />
+                    <span>Blockchain Verification Failed</span>
+                  </div>
+                  <p className="text-[11px] text-rose-950 leading-relaxed font-semibold">
+                    {rechargeSuccessDetails.rejectReason || 'Fake or invalid TxID. No confirmed USDT transfer found on Tron Blockchain.'}
+                  </p>
+                  <a
+                    href={`https://tronscan.org/#/transaction/${rechargeSuccessDetails.trxId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-rose-700 hover:text-rose-900 font-bold underline mt-1"
+                  >
+                    Check TxID on TronScan ↗
+                  </a>
+                </div>
+              ) : rechargeSuccessDetails.isAutoApproved ? (
                 <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100 border border-emerald-300 rounded-2xl p-3.5 text-center space-y-1 shadow-2xs">
                   <div className="flex items-center justify-center gap-1.5 text-emerald-900 font-black text-xs">
                     <CheckCircle className="w-4 h-4 text-emerald-600" />

@@ -999,6 +999,51 @@ export default {
           cryptoResult = await verifyTronUsdtTransaction(trxId, targetWallet, usdtRate);
         }
 
+        // If TRC20 Crypto was submitted, but verification failed on Tron Blockchain, REJECT IMMEDIATELY!
+        if (isCryptoMethod && (!cryptoResult || !cryptoResult.verified)) {
+          const rejectReason = cryptoResult?.reason || 'Transaction not found on Tron blockchain or recipient does not match target wallet.';
+          
+          let recEntry = recharges.find(r => String(r.trxId || '').trim().toUpperCase() === trxId);
+          if (!recEntry) {
+            recEntry = {
+              id: `rec_${Date.now()}`,
+              userId,
+              user: userIdentifier,
+              amount,
+              method,
+              senderAccount: senderAccount || 'TRC20 Wallet',
+              trxId,
+              targetVip: targetVip || '',
+              status: 'rejected',
+              autoVerified: false,
+              rejectReason,
+              source: 'Auto-Rejected (Tron Blockchain Verification Failed)',
+              date: new Date().toISOString().slice(0, 19).replace('T', ' ')
+            };
+            recharges.unshift(recEntry);
+          } else {
+            recEntry.status = 'rejected';
+            recEntry.rejectReason = rejectReason;
+            recEntry.source = 'Auto-Rejected (Tron Blockchain Verification Failed)';
+          }
+
+          await env.DB.prepare('INSERT OR REPLACE INTO app_state (key, value, updated_at) VALUES (?, ?, ?)')
+            .bind('recharges', JSON.stringify(recharges), Date.now()).run();
+
+          return JSON_RES({
+            success: false,
+            verified: false,
+            rejected: true,
+            status: 'rejected',
+            rechargeId: recEntry.id,
+            amount,
+            method,
+            trxId,
+            reason: rejectReason,
+            message: `Recharge Rejected: ${rejectReason}`
+          }, 200);
+        }
+
         const isAutoVerified = Boolean((cryptoResult && cryptoResult.verified) || smsMatch);
         const finalCreditedAmount = (cryptoResult && cryptoResult.verified && cryptoResult.bdtAmount > 0)
           ? cryptoResult.bdtAmount

@@ -83,7 +83,8 @@ import {
   DEFAULT_SUPPORT_AVATAR,
   getPaymentLogo,
   isReferredByUser,
-  getAuthHeaders
+  getAuthHeaders,
+  restoreAllUsersFromCloud
 } from './store';
 
 export default function AdminPanel({ onNavigateToApp }) {
@@ -375,6 +376,12 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   useEffect(() => {
     fetchCloudDataNow();
+    // Auto-restore all 32 cloud accounts if local storage has fewer accounts
+    restoreAllUsersFromCloud().then((res) => {
+      if (res?.success && Array.isArray(res.users) && res.users.length > 0) {
+        setUsers(res.users);
+      }
+    }).catch(() => {});
     syncData();
     const handleSync = (e) => {
       if (e?.detail && e.detail.hasUpdates === false) return;
@@ -3379,7 +3386,25 @@ export default function AdminPanel({ onNavigateToApp }) {
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    showToast('Syncing & restoring all accounts from Cloud Database...');
+                    const res = await restoreAllUsersFromCloud();
+                    if (res?.success) {
+                      setUsers(res.users);
+                      showToast(`✓ Successfully restored ${res.count} accounts from Cloud D1!`);
+                    } else {
+                      showToast('Cloud sync completed');
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-600/30 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/40 transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                  title="Restore all accounts from Cloud Database"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Restore Accounts ({users.length})</span>
+                </button>
                 {['all', 'active', 'banned'].map((st) => (
                   <button
                     key={st}
