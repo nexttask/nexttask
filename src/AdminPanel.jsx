@@ -3753,21 +3753,39 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <div className="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800/60 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-slate-400 uppercase font-semibold">TxID / Reference</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(r.txid);
-                            showToast('TrxID copied to clipboard');
-                          }}
-                          className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-bold"
-                        >
-                          <Copy className="w-3 h-3" />
-                          <span>Copy</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {(r.network?.includes('USDT') || r.method?.includes('USDT') || (r.txid || r.trxId)?.length >= 64) && (
+                            <a
+                              href={`https://tronscan.org/#/transaction/${r.txid || r.trxId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>TronScan</span>
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(r.txid || r.trxId);
+                              showToast('TrxID copied to clipboard');
+                            }}
+                            className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer font-bold"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </button>
+                        </div>
                       </div>
                       <div className="font-mono font-bold text-amber-300 text-xs break-all select-all">
-                        {r.txid}
+                        {r.txid || r.trxId}
                       </div>
+                      {r.autoVerified && (
+                        <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 pt-0.5">
+                          ✓ Auto-Verified on Tron Blockchain
+                        </div>
+                      )}
                     </div>
 
                     {/* Action Buttons */}
@@ -3832,7 +3850,20 @@ export default function AdminPanel({ onNavigateToApp }) {
                         </td>
                         <td className="py-3 px-4 font-black text-emerald-400">৳{r.amount.toFixed(2)}</td>
                         <td className="py-3 px-4 text-slate-300 font-bold">{r.network}</td>
-                        <td className="py-3 px-4 font-mono text-amber-300 text-[11px] font-bold select-all">{r.txid}</td>
+                        <td className="py-3 px-4 font-mono text-amber-300 text-[11px] font-bold select-all">
+                          <div>{r.txid || r.trxId}</div>
+                          {(r.network?.includes('USDT') || r.method?.includes('USDT') || (r.txid || r.trxId)?.length >= 64) && (
+                            <a
+                              href={`https://tronscan.org/#/transaction/${r.txid || r.trxId}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:underline font-bold mt-0.5"
+                            >
+                              <span>TronScan</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </td>
                         <td className="py-3 px-4 text-slate-500 text-[10px]">{r.date}</td>
                         <td className="py-3 px-4">
                           <span
