@@ -48,9 +48,11 @@ import {
   Plus,
   Trash2,
   X,
-  XCircle
+  XCircle,
+  CheckCircle
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
+import ErrorBoundary from './ErrorBoundary';
 import {
   getStoredData,
   setStoredData,
@@ -2881,30 +2883,32 @@ export default function App() {
 
   if (isAdminRoute) {
     return (
-      <AdminPanel
-        onNavigateToApp={() => {
-          const raw = localStorage.getItem('nt_currentUser');
-          if (raw) {
-            try {
-              const u = JSON.parse(raw);
-              setCurrentUser(u);
-              setIsLoggedIn(true);
-              setBalance(typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0));
-              setRechargeTotal(typeof u.recharge === 'number' ? u.recharge : (parseFloat(u.recharge) || 0));
-              setUserVip(u.vip || 'VIP0');
-              setUserEmail(u.email || '');
-              setUserPhone(u.phone || '');
-              setActiveTab('me');
-            } catch (e) {}
-          }
-          window.history.pushState({}, '', '/me');
-          window.location.hash = '';
-          setIsAdminRoute(false);
-          setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
-          setSettings(getStoredData('settings', DEFAULT_SETTINGS));
-          setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
-        }}
-      />
+      <ErrorBoundary>
+        <AdminPanel
+          onNavigateToApp={() => {
+            const raw = localStorage.getItem('nt_currentUser');
+            if (raw) {
+              try {
+                const u = JSON.parse(raw);
+                setCurrentUser(u);
+                setIsLoggedIn(true);
+                setBalance(typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0));
+                setRechargeTotal(typeof u.recharge === 'number' ? u.recharge : (parseFloat(u.recharge) || 0));
+                setUserVip(u.vip || 'VIP0');
+                setUserEmail(u.email || '');
+                setUserPhone(u.phone || '');
+                setActiveTab('me');
+              } catch (e) {}
+            }
+            window.history.pushState({}, '', '/me');
+            window.location.hash = '';
+            setIsAdminRoute(false);
+            setVipTiers(getStoredData('vips', DEFAULT_VIP_TIERS));
+            setSettings(getStoredData('settings', DEFAULT_SETTINGS));
+            setPaymentMethods(getStoredData('payments', DEFAULT_PAYMENT_METHODS));
+          }}
+        />
+      </ErrorBoundary>
     );
   }
 

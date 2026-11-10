@@ -651,6 +651,14 @@ export const isReferredByUser = (member, parentUser) => {
   if (ref === '806211' && (parentCode1 === 'NT1001' || parentCode2 === 'NT1001' || parentUser.email === 'admin@nexttask.online')) {
     return true;
   }
+
+  // Support legacy invite aliases for Saju Ahmed (+8801834427497)
+  if (
+    (clean(parentUser.phone) === '8801834427497' || clean(parentUser.phone) === '01834427497' || clean(parentUser.email) === 'SAJUAHMED4110GMAILCOM') &&
+    (ref === 'NT1003' || ref === 'NT1024' || ref === 'NT1010' || ref === 'NT1008')
+  ) {
+    return true;
+  }
   return false;
 };
 
