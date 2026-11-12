@@ -3101,13 +3101,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Gateway & Validity Badge */}
-              <div className="mx-4 mt-2.5 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 relative z-10">
-                <div className="flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded bg-[#e2136e] text-white text-[9px] font-black tracking-tight">bKash</span>
-                  <span className="font-semibold text-slate-700">Official Gateway</span>
-                </div>
-                <span className="text-[10px] text-slate-400 font-medium">Valid until 12:00 AM</span>
+              {/* Official Gateway Badge (Centered) */}
+              <div className="mx-4 mt-2.5 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-700 relative z-10">
+                <span className="px-1.5 py-0.5 rounded bg-[#e2136e] text-white text-[9px] font-black tracking-tight">bKash</span>
+                <span className="font-bold">Official Gateway</span>
               </div>
 
               {/* CTA Action Button */}
@@ -3115,11 +3112,9 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handlePromoRechargeClick}
-                  className="w-full bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-pink-600/25 flex items-center justify-center gap-2 text-sm tracking-wide transition cursor-pointer"
+                  className="w-full bg-gradient-to-r from-[#d1005b] via-[#e2136e] to-[#ff2b7f] hover:from-[#c00052] hover:to-[#f01c7b] active:scale-[0.98] text-white font-black py-3.5 px-6 rounded-2xl shadow-xl shadow-pink-500/35 border border-pink-400/40 text-[15px] tracking-wider transition cursor-pointer flex items-center justify-center"
                 >
-                  <Zap className="w-4 h-4 fill-white" />
-                  <span>Claim</span>
-                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                  Claim
                 </button>
                 <p className="text-[10px] text-slate-400 text-center mt-2 font-medium">
                   Instant automated activation upon payment verification
