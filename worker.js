@@ -233,6 +233,9 @@ async function answerTelegramCallback(token, callbackQueryId, text = '') {
 const TELEGRAM_MAIN_KEYBOARD = {
   inline_keyboard: [
     [
+      { text: '📢 Join Official Community Group', url: 'https://t.me/+e-GhVsAJ339kZDQ1' }
+    ],
+    [
       { text: '💳 How to Deposit / Recharge', callback_data: 'faq_deposit' },
       { text: '💸 How to Withdraw Money', callback_data: 'faq_withdraw' }
     ],
@@ -478,6 +481,12 @@ export default {
         if (update.message) {
           const msg = update.message;
           const chatId = msg.chat?.id;
+          const chatType = msg.chat?.type || 'private';
+
+          // Ignore regular chatter in groups/supergroups to prevent spamming
+          if (chatType === 'group' || chatType === 'supergroup') {
+            return JSON_RES({ ok: true });
+          }
           const text = (msg.text || '').trim();
           const fromUser = msg.from || {};
           const userName = fromUser.first_name || fromUser.username || 'User';

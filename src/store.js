@@ -58,11 +58,18 @@ export const DEFAULT_SUPPORT_CHANNELS = [
     active: true
   },
   {
+    id: 'sup_tg_group',
+    name: 'Official Telegram Community Group',
+    type: 'telegram_group',
+    link: 'https://t.me/+e-GhVsAJ339kZDQ1',
+    active: true
+  },
+  {
     id: 'sup_wa',
     name: 'WhatsApp Customer Service',
     type: 'whatsapp',
     link: 'https://wa.me/1234567890',
-    active: true
+    active: false
   }
 ];
 
