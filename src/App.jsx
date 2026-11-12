@@ -3021,38 +3021,35 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= SPECIAL BKASH PROMOTIONAL POPUP MODAL (LIGHT THEME) ================= */}
+        {/* ================= SPECIAL BKASH PROMOTIONAL POPUP MODAL (CLEAN & PROFESSIONAL) ================= */}
         {showPromoPopup && !isInitialSyncing && (
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-[88] flex items-center justify-center p-3 sm:p-4 animate-fade-in select-none">
-            <div className="w-full max-w-[340px] rounded-[30px] overflow-hidden shadow-2xl shadow-slate-950/40 border border-slate-100 bg-white text-slate-800 flex flex-col relative animate-scale-up">
+            <div className="w-full max-w-[340px] rounded-[28px] overflow-hidden shadow-2xl shadow-slate-900/20 border border-slate-100 bg-white text-slate-800 flex flex-col relative animate-scale-up">
               
-              {/* Top ambient luxury rosy gradient aura */}
-              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-pink-200/60 via-rose-100/40 to-transparent rounded-full blur-2xl pointer-events-none" />
-              <div className="absolute top-20 -right-8 w-28 h-28 bg-amber-200/40 rounded-full blur-xl pointer-events-none" />
+              {/* Subtle ambient luxury rosy aura */}
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-pink-200/50 via-rose-100/30 to-transparent rounded-full blur-2xl pointer-events-none" />
 
-              {/* Dedicated Top Header Bar (Zero Overlap Guaranteed) */}
+              {/* Top Header Bar */}
               <div className="flex items-center justify-between w-full pt-4 px-4 pb-1 relative z-20">
-                {/* Left: Compact Flash Sale Badge */}
-                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-pink-50 border border-pink-200/80 text-[10px] font-black uppercase tracking-wider text-[#e2136e] shadow-xs">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-50 border border-pink-100 text-[10px] font-bold text-[#e2136e]">
                   <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>FLASH SALE</span>
+                  <span>Flash Promotion</span>
                 </div>
 
-                {/* Right: Midnight Countdown Timer + Close Button */}
                 <div className="flex items-center gap-1.5">
                   <div 
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 text-white shadow-xs border border-slate-800"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 text-white shadow-xs"
                     title="Offer ends at 12:00 AM midnight"
                   >
                     <Clock className="w-3 h-3 text-pink-400 animate-pulse" />
-                    <span className="text-[10px] font-mono font-bold tracking-tight">
+                    <span className="text-[11px] font-mono font-semibold tracking-wider">
                       {promoCountdown.hours}:{promoCountdown.minutes}:{promoCountdown.seconds}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowPromoPopup(false)}
-                    className="w-7 h-7 rounded-full bg-slate-100/90 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition border border-slate-200/80 cursor-pointer shadow-xs"
+                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer shadow-xs"
                     title="Close"
                   >
                     <X className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -3060,69 +3057,75 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="px-5 pb-5 pt-2 text-center flex flex-col items-center relative z-10">
-                {/* Co-Branding Badges */}
-                <div className="flex items-center justify-center gap-3 mb-2.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#05132d] p-1.5 border border-slate-200 shadow-md shadow-slate-900/10 flex items-center justify-center overflow-hidden">
-                    <img src="/app-logo.png" alt="NextTask" className="w-8 h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                  </div>
-                  <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs font-black shadow-xs">
-                    +
-                  </div>
-                  <div className="w-12 h-12 rounded-2xl bg-[#e2136e] p-1 shadow-md shadow-pink-500/20 flex items-center justify-center border border-pink-400/40">
-                    <span className="font-black text-white text-[13px] tracking-tighter">bKash</span>
-                  </div>
-                </div>
-
-                {/* Main English Headline */}
-                <h3 className="text-base sm:text-[17px] font-black text-slate-900 leading-snug tracking-tight mt-1 px-1">
-                  Buy Basic for <span className="text-[#e2136e] font-black underline decoration-pink-300 underline-offset-4">৳500</span> &amp; Get <span className="text-indigo-600 font-black">৳1,000 Silver Package</span>!
+              {/* Header Title & Subtitle */}
+              <div className="px-5 pt-2 text-center relative z-10">
+                <h3 className="text-base sm:text-[17px] font-extrabold text-slate-900 tracking-tight leading-snug">
+                  Upgrade to <span className="text-[#05132d]">Silver Package</span> for <span className="text-[#e2136e]">৳500</span>
                 </h3>
-
-                {/* English Sub-Headline with 40-Day Validity & ৳1,800 Total Return */}
-                <p className="text-[11px] font-medium text-slate-600 leading-relaxed mt-1.5 px-1">
-                  Enjoy <b className="text-slate-900 font-bold">40 days validity</b> on the Silver Package. Receive a total return of <b className="text-emerald-700 font-extrabold">৳1,800</b> upon completion!
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                  Pay the Basic Package fee today and unlock full Silver Tier benefits for 40 days.
                 </p>
+              </div>
 
-                {/* Clean Light-Themed 3-Block Value Grid */}
-                <div className="w-full mt-3.5 grid grid-cols-3 gap-1.5 text-center">
-                  <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-2xl flex flex-col justify-between">
-                    <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-tight">Pay Today</span>
-                    <span className="text-xs sm:text-sm font-black text-[#e2136e] font-mono">৳500</span>
-                    <span className="text-[8px] text-slate-500 block font-medium mt-0.5">Basic Price</span>
+              {/* Premium Tier Card Spec Sheet */}
+              <div className="mx-4 mt-3 p-3.5 rounded-2xl bg-gradient-to-b from-slate-900 via-[#071739] to-[#05132d] text-white border border-slate-800 shadow-md relative overflow-hidden z-10">
+                <div className="absolute -right-6 -top-6 w-24 h-24 bg-pink-500/15 rounded-full blur-xl pointer-events-none" />
+
+                {/* Tier Card Header */}
+                <div className="flex items-center justify-between pb-2.5 border-b border-white/10 relative z-10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-200 flex items-center justify-center text-slate-950 shadow-xs">
+                      <Crown className="w-4 h-4 fill-slate-950" />
+                    </div>
+                    <div className="text-left">
+                      <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">VIP Tier Access</span>
+                      <span className="text-xs font-bold text-white">Silver Package</span>
+                    </div>
                   </div>
-                  <div className="bg-indigo-50/70 border border-indigo-200/80 p-2 rounded-2xl flex flex-col justify-between">
-                    <span className="text-[9px] text-indigo-500 block font-bold uppercase tracking-tight">Validity</span>
-                    <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono">40 Days</span>
-                    <span className="text-[8px] text-indigo-500 block font-medium mt-0.5">Silver Tier</span>
-                  </div>
-                  <div className="bg-emerald-50/70 border border-emerald-200/80 p-2 rounded-2xl flex flex-col justify-between">
-                    <span className="text-[9px] text-emerald-600 block font-bold uppercase tracking-tight">Total Return</span>
-                    <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">৳1,800</span>
-                    <span className="text-[8px] text-emerald-600 block font-medium mt-0.5">Guaranteed</span>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 line-through block">Worth ৳1,000</span>
+                    <span className="text-xs font-black text-emerald-400 font-mono">Today ৳500</span>
                   </div>
                 </div>
 
-                {/* Payment Condition & Midnight Expiration Notice */}
-                <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600 bg-pink-50/70 py-1.5 px-3 rounded-xl border border-pink-200/60 mt-3 w-full">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#e2136e] shrink-0 animate-ping" />
-                    <span>Exclusive on <b className="text-[#e2136e]">bKash Payment</b></span>
+                {/* 2-Column Key Metrics */}
+                <div className="grid grid-cols-2 gap-2 mt-2.5 relative z-10">
+                  <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 text-left">
+                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-medium block">Duration</span>
+                    <span className="text-sm font-bold text-white font-mono mt-0.5 block">40 Days</span>
                   </div>
-                  <span className="text-slate-500 font-medium">Valid until 12:00 AM</span>
+                  <div className="bg-emerald-500/10 rounded-xl p-2.5 border border-emerald-500/20 text-left">
+                    <span className="text-[9px] uppercase tracking-wider text-emerald-300 font-medium block">Total Return</span>
+                    <span className="text-sm font-bold text-emerald-400 font-mono mt-0.5 block">৳1,800.00</span>
+                  </div>
                 </div>
+              </div>
 
-                {/* Bottom Action Button (Recharge Now) */}
+              {/* Gateway & Validity Badge */}
+              <div className="mx-4 mt-2.5 flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 relative z-10">
+                <div className="flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 rounded bg-[#e2136e] text-white text-[9px] font-black tracking-tight">bKash</span>
+                  <span className="font-semibold text-slate-700">Official Gateway</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium">Valid until 12:00 AM</span>
+              </div>
+
+              {/* CTA Action Button */}
+              <div className="p-4 pt-3 w-full relative z-10">
                 <button
                   type="button"
                   onClick={handlePromoRechargeClick}
-                  className="w-full mt-4 bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-xl shadow-pink-600/30 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide transition cursor-pointer border border-pink-400/40"
+                  className="w-full bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-pink-600/25 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide transition cursor-pointer"
                 >
                   <Zap className="w-4 h-4 fill-white" />
-                  <span>Recharge ৳500 &amp; Claim Offer</span>
+                  <span>Deposit ৳500 &amp; Activate Offer</span>
                   <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </button>
+                <p className="text-[10px] text-slate-400 text-center mt-2 font-medium">
+                  Instant automated activation upon payment verification
+                </p>
               </div>
+
             </div>
           </div>
         )}
