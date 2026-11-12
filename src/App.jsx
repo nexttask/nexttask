@@ -3003,104 +3003,86 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= SPECIAL BKASH PROMOTIONAL POPUP MODAL (CLEAN & PROFESSIONAL) ================= */}
+        {/* ================= OFFICIAL TELEGRAM GROUP POPUP MODAL ================= */}
         {showPromoPopup && !isInitialSyncing && (
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-[88] flex items-center justify-center p-3 sm:p-4 animate-fade-in select-none">
             <div className="w-full max-w-[340px] rounded-[28px] overflow-hidden shadow-2xl shadow-slate-900/20 border border-slate-100 bg-white text-slate-800 flex flex-col relative animate-scale-up">
               
-              {/* Subtle ambient luxury rosy aura */}
-              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-pink-200/50 via-rose-100/30 to-transparent rounded-full blur-2xl pointer-events-none" />
+              {/* Subtle ambient luxury sky-blue aura */}
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-sky-200/50 via-blue-100/30 to-transparent rounded-full blur-2xl pointer-events-none" />
 
               {/* Top Header Bar */}
               <div className="flex items-center justify-between w-full pt-4 px-4 pb-1 relative z-20">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-50 border border-pink-100 text-[10px] font-bold text-[#e2136e]">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  <span>Flash Promotion</span>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-100 text-[10px] font-bold text-[#0088cc]">
+                  <Sparkles className="w-3 h-3 text-[#0088cc]" />
+                  <span>Official Community</span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
-                  <div 
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 text-white shadow-xs"
-                    title="Offer ends at 12:00 AM midnight"
-                  >
-                    <Clock className="w-3 h-3 text-pink-400 animate-pulse" />
-                    <span className="text-[11px] font-mono font-semibold tracking-wider">
-                      {promoCountdown.hours}:{promoCountdown.minutes}:{promoCountdown.seconds}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPromoPopup(false)}
-                    className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer shadow-xs"
-                    title="Close"
-                  >
-                    <X className="w-3.5 h-3.5 stroke-[2.5]" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Header Title & Subtitle */}
-              <div className="px-5 pt-2 text-center relative z-10">
-                <h3 className="text-base sm:text-[17px] font-extrabold text-slate-900 tracking-tight leading-snug">
-                  Upgrade to <span className="text-[#05132d]">Silver Package</span> for <span className="text-[#e2136e]">৳500</span>
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                  Pay the Basic Package fee today and unlock full Silver Tier benefits for 40 days.
-                </p>
-              </div>
-
-              {/* Premium Tier Card Spec Sheet */}
-              <div className="mx-4 mt-3 p-3.5 rounded-2xl bg-gradient-to-b from-slate-900 via-[#071739] to-[#05132d] text-white border border-slate-800 shadow-md relative overflow-hidden z-10">
-                <div className="absolute -right-6 -top-6 w-24 h-24 bg-pink-500/15 rounded-full blur-xl pointer-events-none" />
-
-                {/* Tier Card Header */}
-                <div className="flex items-center justify-between pb-2.5 border-b border-white/10 relative z-10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-200 flex items-center justify-center text-slate-950 shadow-xs">
-                      <Crown className="w-4 h-4 fill-slate-950" />
-                    </div>
-                    <div className="text-left">
-                      <span className="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">VIP Tier Access</span>
-                      <span className="text-xs font-bold text-white">Silver Package</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 line-through block">Worth ৳1,000</span>
-                    <span className="text-xs font-black text-emerald-400 font-mono">Today ৳500</span>
-                  </div>
-                </div>
-
-                {/* 2-Column Key Metrics */}
-                <div className="grid grid-cols-2 gap-2 mt-2.5 relative z-10">
-                  <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 text-left">
-                    <span className="text-[9px] uppercase tracking-wider text-slate-400 font-medium block">Duration</span>
-                    <span className="text-sm font-bold text-white font-mono mt-0.5 block">40 Days</span>
-                  </div>
-                  <div className="bg-emerald-500/10 rounded-xl p-2.5 border border-emerald-500/20 text-left">
-                    <span className="text-[9px] uppercase tracking-wider text-emerald-300 font-medium block">Total Return</span>
-                    <span className="text-sm font-bold text-emerald-400 font-mono mt-0.5 block">৳1,800.00</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Official Gateway Badge (Centered) */}
-              <div className="mx-4 mt-2.5 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-700 relative z-10">
-                <span className="px-1.5 py-0.5 rounded bg-[#e2136e] text-white text-[9px] font-black tracking-tight">bKash</span>
-                <span className="font-bold">Official Gateway</span>
-              </div>
-
-              {/* CTA Action Button */}
-              <div className="p-4 pt-3 w-full relative z-10">
                 <button
                   type="button"
-                  onClick={handlePromoRechargeClick}
-                  className="w-full bg-gradient-to-r from-[#d1005b] via-[#e2136e] to-[#ff2b7f] hover:from-[#c00052] hover:to-[#f01c7b] active:scale-[0.98] text-white font-black py-3.5 px-6 rounded-2xl shadow-xl shadow-pink-500/35 border border-pink-400/40 text-[15px] tracking-wider transition cursor-pointer flex items-center justify-center"
+                  onClick={() => setShowPromoPopup(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer shadow-xs"
+                  title="Close"
                 >
-                  Claim
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
                 </button>
-                <p className="text-[10px] text-slate-400 text-center mt-2 font-medium">
-                  Instant automated activation upon payment verification
+              </div>
+
+              {/* Header Icon, Title & Subtitle */}
+              <div className="px-5 pt-2 text-center flex flex-col items-center relative z-10">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0088cc] via-[#229ED9] to-[#38bdf8] shadow-lg shadow-sky-500/25 flex items-center justify-center text-white border-2 border-white mb-2">
+                  <Send className="w-7 h-7 -translate-x-0.5 translate-y-0.5 fill-white text-white" />
+                </div>
+
+                <h3 className="text-base sm:text-[17px] font-extrabold text-slate-900 tracking-tight leading-snug">
+                  Join NextTask Official Community
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed px-1">
+                  Connect with verified members, get real-time platform updates, earning guides, and payment proofs.
                 </p>
+              </div>
+
+              {/* Community Benefits Card */}
+              <div className="mx-4 mt-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-left space-y-2 relative z-10">
+                <div className="flex items-center gap-2.5 text-xs text-slate-700 font-medium">
+                  <span className="w-5 h-5 rounded-lg bg-sky-100 text-[#0088cc] flex items-center justify-center shrink-0">
+                    <Sparkles className="w-3 h-3 text-[#0088cc]" />
+                  </span>
+                  <span>Daily Notices &amp; Platform Announcements</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-xs text-slate-700 font-medium">
+                  <span className="w-5 h-5 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                  </span>
+                  <span>Instant Withdrawal Proofs &amp; Updates</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-xs text-slate-700 font-medium">
+                  <span className="w-5 h-5 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Headphones className="w-3 h-3 text-indigo-600" />
+                  </span>
+                  <span>24/7 Member &amp; Executive Live Support</span>
+                </div>
+              </div>
+
+              {/* CTA Action Buttons */}
+              <div className="p-4 pt-3 w-full relative z-10 space-y-2">
+                <a
+                  href="https://t.me/+e-GhVsAJ339kZDQ1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowPromoPopup(false)}
+                  className="w-full bg-gradient-to-r from-[#0088cc] via-[#229ED9] to-[#38bdf8] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-xl shadow-sky-500/30 text-[15px] tracking-wide transition cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Users className="w-4 h-4 text-white" />
+                  <span>Join Telegram Group</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowPromoPopup(false)}
+                  className="w-full text-xs font-semibold text-slate-400 hover:text-slate-600 py-1 transition cursor-pointer"
+                >
+                  Maybe Later
+                </button>
               </div>
 
             </div>
@@ -3470,29 +3452,7 @@ export default function App() {
               </div>
 
               {/* Action Button */}
-              {selectedNotificationDetail.type === 'promo' ? (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedNotificationDetail(null);
-                      setShowNotificationModal(false);
-                      handlePromoRechargeClick();
-                    }}
-                    className="flex-1 bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-95 text-white font-extrabold py-2.5 px-3 rounded-full text-xs shadow-md shadow-pink-500/20 transition cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <Zap className="w-3.5 h-3.5 fill-white" />
-                    <span>Recharge ৳500 Now</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedNotificationDetail(null)}
-                    className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-full text-xs transition active:scale-95 cursor-pointer"
-                  >
-                    {t('close') || 'Close'}
-                  </button>
-                </div>
-              ) : (selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community') ? (
+              {(selectedNotificationDetail.type === 'promo' || selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community') ? (
                 <div className="flex gap-2">
                   <a
                     href="https://t.me/+e-GhVsAJ339kZDQ1"
@@ -3936,20 +3896,16 @@ export default function App() {
                 {activeTab === 'home' && (
                   <div
                     onClick={() => {
-                      if (isLoggedIn) {
-                        handlePromoRechargeClick();
-                      } else {
-                        setShowPromoPopup(true);
-                      }
+                      window.open('https://t.me/+e-GhVsAJ339kZDQ1', '_blank');
                     }}
                     className="mt-3 flex items-center gap-2 text-[11px] text-slate-300 bg-white/5 hover:bg-white/10 py-1.5 px-3 rounded-full overflow-hidden cursor-pointer transition border border-white/5 active:scale-[0.99]"
-                    title="Click to view special offer"
+                    title="Click to join official Telegram group"
                   >
                     <span className="font-bold text-white flex items-center shrink-0">
-                      <Megaphone className="w-3.5 h-3.5 text-pink-400 shrink-0 animate-pulse" />
+                      <Megaphone className="w-3.5 h-3.5 text-sky-400 shrink-0 animate-pulse" />
                     </span>
                     <marquee className="truncate font-medium text-slate-100" behavior="scroll" direction="left" scrollamount="4">
-                      🔥 FLASH OFFER: Buy Basic Package for ৳500 via bKash today &amp; unlock ৳1,000 Silver Package (40 Days Validity) with ৳1,800 Total Return! Offer ends at 12:00 AM midnight!
+                      📢 OFFICIAL COMMUNITY: Join our Official Telegram Community for daily updates, payment proofs, and 24/7 customer support: https://t.me/+e-GhVsAJ339kZDQ1
                     </marquee>
                   </div>
                 )}
