@@ -3115,10 +3115,10 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handlePromoRechargeClick}
-                  className="w-full bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-pink-600/25 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide transition cursor-pointer"
+                  className="w-full bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-lg shadow-pink-600/25 flex items-center justify-center gap-2 text-sm tracking-wide transition cursor-pointer"
                 >
                   <Zap className="w-4 h-4 fill-white" />
-                  <span>Deposit ৳500 &amp; Activate Offer</span>
+                  <span>Claim</span>
                   <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </button>
                 <p className="text-[10px] text-slate-400 text-center mt-2 font-medium">
