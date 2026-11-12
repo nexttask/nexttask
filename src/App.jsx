@@ -3308,7 +3308,9 @@ export default function App() {
                       }`}
                     >
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                        notif.type === 'promo'
+                        notif.type === 'telegram' || notif.type === 'community'
+                          ? 'bg-sky-100 text-[#0088cc]'
+                          : notif.type === 'promo'
                           ? 'bg-pink-100 text-[#e2136e]'
                           : notif.type === 'recharge'
                           ? 'bg-emerald-100 text-emerald-600'
@@ -3320,7 +3322,9 @@ export default function App() {
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-indigo-100 text-indigo-600'
                       }`}>
-                        {notif.type === 'promo' ? (
+                        {notif.type === 'telegram' || notif.type === 'community' ? (
+                          <Users className="w-4 h-4 text-[#0088cc]" />
+                        ) : notif.type === 'promo' ? (
                           <Gift className="w-4 h-4 text-[#e2136e]" />
                         ) : notif.type === 'recharge' ? (
                           <Coins className="w-4 h-4" />
@@ -3390,7 +3394,9 @@ export default function App() {
                 <div className="flex items-center gap-2.5">
                   <div
                     className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${
-                      selectedNotificationDetail.type === 'promo'
+                      selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community'
+                        ? 'bg-sky-100 text-[#0088cc]'
+                        : selectedNotificationDetail.type === 'promo'
                         ? 'bg-pink-100 text-[#e2136e]'
                         : selectedNotificationDetail.type === 'recharge'
                         ? 'bg-emerald-100 text-emerald-600'
@@ -3403,7 +3409,9 @@ export default function App() {
                         : 'bg-indigo-100 text-indigo-600'
                     }`}
                   >
-                    {selectedNotificationDetail.type === 'promo' ? (
+                    {selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community' ? (
+                      <Users className="w-5 h-5 text-[#0088cc]" />
+                    ) : selectedNotificationDetail.type === 'promo' ? (
                       <Gift className="w-5 h-5 text-[#e2136e]" />
                     ) : selectedNotificationDetail.type === 'recharge' ? (
                       <Coins className="w-5 h-5" />
@@ -3420,7 +3428,9 @@ export default function App() {
                   <div>
                     <span
                       className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md tracking-wider ${
-                        selectedNotificationDetail.type === 'promo'
+                        selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community'
+                          ? 'bg-sky-50 text-[#0088cc] border border-sky-200'
+                          : selectedNotificationDetail.type === 'promo'
                           ? 'bg-pink-50 text-[#e2136e] border border-pink-200'
                           : selectedNotificationDetail.type === 'recharge'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -3474,6 +3484,29 @@ export default function App() {
                     <Zap className="w-3.5 h-3.5 fill-white" />
                     <span>Recharge ৳500 Now</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNotificationDetail(null)}
+                    className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-full text-xs transition active:scale-95 cursor-pointer"
+                  >
+                    {t('close') || 'Close'}
+                  </button>
+                </div>
+              ) : (selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community') ? (
+                <div className="flex gap-2">
+                  <a
+                    href="https://t.me/+e-GhVsAJ339kZDQ1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      setSelectedNotificationDetail(null);
+                      setShowNotificationModal(false);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-[#0088cc] via-[#229ED9] to-[#38bdf8] hover:brightness-105 active:scale-95 text-white font-extrabold py-2.5 px-3 rounded-full text-xs shadow-md shadow-sky-500/25 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Users className="w-3.5 h-3.5 text-white" />
+                    <span>Join Group Now</span>
+                  </a>
                   <button
                     type="button"
                     onClick={() => setSelectedNotificationDetail(null)}
