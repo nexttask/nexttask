@@ -49,7 +49,9 @@ import {
   Trash2,
   X,
   XCircle,
-  CheckCircle
+  CheckCircle,
+  Zap,
+  ArrowRight
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import ErrorBoundary from './ErrorBoundary';
@@ -1443,6 +1445,7 @@ export default function App() {
   };
 
   // Modals & Popups
+  const [showPromoPopup, setShowPromoPopup] = useState(true);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [rechargeStep, setRechargeStep] = useState(1); // 1 = Amount Selection & Pay Now | 2 = Checkout with Gateways & TrxID
@@ -2688,12 +2691,17 @@ export default function App() {
     openRechargeModal(selectedVipForUnlock.deposit);
   };
 
-  const openRechargeModal = (amount = null) => {
+  const openRechargeModal = (amount = null, preferredMethod = null) => {
     if (!requireAuth('me', 'recharge')) return;
     const freshMethods = getStoredData('payments', DEFAULT_PAYMENT_METHODS);
     setPaymentMethods(freshMethods);
     const activeList = freshMethods.filter((p) => p && p.active !== false);
-    setSelectedPaymentMethod(activeList[0] || null);
+    if (preferredMethod) {
+      const match = activeList.find((p) => String(p.method || '').toLowerCase().includes(preferredMethod.toLowerCase()));
+      setSelectedPaymentMethod(match || activeList[0] || null);
+    } else {
+      setSelectedPaymentMethod(activeList[0] || null);
+    }
     if (amount) {
       setRechargeAmount(amount);
       setRechargeStep(2);
@@ -2701,6 +2709,17 @@ export default function App() {
       setRechargeStep(1);
     }
     setShowRechargeModal(true);
+  };
+
+  const handlePromoRechargeClick = () => {
+    setShowPromoPopup(false);
+    if (isLoggedIn) {
+      openRechargeModal('1000.00', 'bkash');
+    } else {
+      setIntendedTab('home');
+      navigateToTab('auth', 'login');
+      showToast('অনুগ্রহ করে লগইন করে অফারটি গ্রহণ করুন / Please login to recharge');
+    }
   };
 
   // User submits deposit form with Sender account and Transaction ID (TrxID)
@@ -2972,6 +2991,89 @@ export default function App() {
               >
                 Enter Correct Information
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= SPECIAL BKASH PROMOTIONAL POPUP MODAL ================= */}
+        {showPromoPopup && !isInitialSyncing && (
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[88] flex items-center justify-center p-3 sm:p-4 animate-fade-in select-none">
+            <div className="w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl border border-pink-500/30 bg-gradient-to-b from-[#0e1935] via-[#071329] to-[#040c1d] text-white flex flex-col relative animate-scale-up">
+              
+              {/* Top ambient luxury lighting */}
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute top-28 -right-10 w-36 h-36 bg-amber-400/15 rounded-full blur-2xl pointer-events-none" />
+
+              {/* Top-Right Clean Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowPromoPopup(false)}
+                className="absolute top-3.5 right-3.5 z-20 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-slate-300 hover:text-white flex items-center justify-center transition border border-white/15 cursor-pointer shadow-md"
+                title="Close"
+              >
+                <X className="w-4 h-4 stroke-[2.5]" />
+              </button>
+
+              <div className="p-5 sm:p-6 text-center flex flex-col items-center relative z-10">
+                {/* Header Promotional Badge */}
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-pink-500/25 via-rose-500/20 to-amber-500/25 border border-pink-400/40 text-[10px] font-black uppercase tracking-wider text-pink-300 shadow-sm mb-3">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>ধামাকা অফার • SPECIAL OFFER</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                </div>
+
+                {/* Co-Branding Badges */}
+                <div className="flex items-center justify-center gap-3 mb-2.5">
+                  <div className="w-12 h-12 rounded-2xl bg-[#05132d] p-1 border border-cyan-400/30 shadow-lg shadow-cyan-500/20 flex items-center justify-center overflow-hidden">
+                    <img src="/app-logo.png" alt="NextTask" className="w-8 h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white/60 text-xs font-black">
+                    +
+                  </div>
+                  <div className="w-12 h-12 rounded-2xl bg-[#e2136e] p-1 shadow-lg shadow-pink-600/35 flex items-center justify-center border border-pink-300/40">
+                    <span className="font-black text-white text-[13px] tracking-tighter">bKash</span>
+                  </div>
+                </div>
+
+                {/* Primary Bangla Headline */}
+                <h3 className="text-[15px] sm:text-base font-black leading-snug tracking-tight text-white mt-1 px-1">
+                  আজকের মধ্যে <span className="text-[#ff3b80] font-extrabold bg-pink-500/15 px-1.5 py-0.5 rounded-md border border-pink-500/30">bKash</span> পেমেন্টে <span className="text-cyan-300 font-extrabold">Basic প্যাকেজ</span> কিনলেই পাবেন <span className="text-amber-300 font-extrabold underline decoration-amber-400/60 decoration-2 underline-offset-4">Silver প্যাকেজের</span> সকল সুবিধা!
+                </h3>
+
+                {/* English Sub-Headline */}
+                <p className="text-[11px] text-slate-300 leading-relaxed mt-2 font-medium px-1">
+                  Buy the <b className="text-cyan-200">Basic Package</b> via <b className="text-[#ff5c98]">bKash payment</b> today & unlock all premium facilities & daily earnings of the <b className="text-amber-300">Silver Package</b>!
+                </p>
+
+                {/* Clean Comparison Card */}
+                <div className="w-full mt-3.5 p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-sm grid grid-cols-2 gap-2 text-center">
+                  <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                    <span className="text-[9px] text-slate-400 block font-semibold uppercase">ব্যাসিক ফি (Pay)</span>
+                    <span className="text-xs sm:text-sm font-black text-cyan-300 font-mono">৳১,০০০</span>
+                  </div>
+                  <div className="bg-gradient-to-br from-amber-500/20 to-pink-500/20 p-2 rounded-xl border border-amber-400/40">
+                    <span className="text-[9px] text-amber-300 block font-bold uppercase">সিলভার ইনকাম (Get)</span>
+                    <span className="text-xs sm:text-sm font-black text-amber-300 font-mono">৳৪৫০/দিন (৳৯,০০০)</span>
+                  </div>
+                </div>
+
+                {/* Limited Time Badge */}
+                <div className="flex items-center justify-center gap-1.5 text-[10px] text-amber-300 font-medium mt-3 bg-amber-500/10 py-1 px-3 rounded-full border border-amber-500/20">
+                  <Clock className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span>অফারটি শুধুমাত্র আজকের জন্য প্রযোজ্য (Today Only)</span>
+                </div>
+
+                {/* Bottom Action Button (Recharge Now) */}
+                <button
+                  type="button"
+                  onClick={handlePromoRechargeClick}
+                  className="w-full mt-4 bg-gradient-to-r from-[#e2136e] via-[#ff2d7a] to-[#e2136e] hover:brightness-110 active:scale-[0.98] text-white font-black py-3.5 px-4 rounded-2xl shadow-xl shadow-pink-600/35 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide transition cursor-pointer border border-pink-400/40"
+                >
+                  <Zap className="w-4 h-4 fill-white" />
+                  <span>রিচার্জ করুন • Recharge Now</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
             </div>
           </div>
         )}
