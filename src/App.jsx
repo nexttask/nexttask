@@ -1446,6 +1446,32 @@ export default function App() {
 
   // Modals & Popups
   const [showPromoPopup, setShowPromoPopup] = useState(true);
+
+  // Promo countdown timer until midnight (12:00 AM)
+  const calculateMidnightCountdown = () => {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const diff = Math.max(0, midnight.getTime() - now.getTime());
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    return {
+      hours: String(hours).padStart(2, '0'),
+      minutes: String(minutes).padStart(2, '0'),
+      seconds: String(seconds).padStart(2, '0'),
+      total: diff
+    };
+  };
+
+  const [promoCountdown, setPromoCountdown] = useState(calculateMidnightCountdown);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPromoCountdown(calculateMidnightCountdown());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [rechargeStep, setRechargeStep] = useState(1); // 1 = Amount Selection & Pay Now | 2 = Checkout with Gateways & TrxID
@@ -3004,21 +3030,32 @@ export default function App() {
               <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-pink-200/60 via-rose-100/40 to-transparent rounded-full blur-2xl pointer-events-none" />
               <div className="absolute top-20 -right-8 w-28 h-28 bg-amber-200/40 rounded-full blur-xl pointer-events-none" />
 
-              {/* Top-Right Clean Close Button */}
-              <button
-                type="button"
-                onClick={() => setShowPromoPopup(false)}
-                className="absolute top-3.5 right-3.5 z-20 w-8 h-8 rounded-full bg-slate-100/90 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition border border-slate-200/60 cursor-pointer shadow-xs"
-                title="Close"
-              >
-                <X className="w-4 h-4 stroke-[2.5]" />
-              </button>
+              {/* Top Bar: Midnight Countdown Timer + Clean Close Button */}
+              <div className="absolute top-3.5 right-3.5 z-20 flex items-center gap-1.5">
+                <div 
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/90 text-white shadow-xs border border-slate-700/60"
+                  title="Offer expires at 12:00 AM midnight"
+                >
+                  <Clock className="w-3 h-3 text-pink-400 animate-pulse" />
+                  <span className="text-[10px] font-mono font-bold tracking-tight">
+                    {promoCountdown.hours}:{promoCountdown.minutes}:{promoCountdown.seconds}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPromoPopup(false)}
+                  className="w-7 h-7 rounded-full bg-slate-100/90 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition border border-slate-200/60 cursor-pointer shadow-xs"
+                  title="Close"
+                >
+                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              </div>
 
               <div className="p-5 sm:p-6 text-center flex flex-col items-center relative z-10">
                 {/* Header Promotional Badge */}
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-50 border border-pink-200/80 text-[10px] font-black uppercase tracking-wider text-[#e2136e] shadow-xs mb-3">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>SPECIAL FLASH SALE • LIMITED OFFER</span>
+                  <span>LIMITED TIME FLASH SALE • ENDS AT 12:00 AM</span>
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 </div>
 
@@ -3037,34 +3074,40 @@ export default function App() {
 
                 {/* Main English Headline */}
                 <h3 className="text-base sm:text-[17px] font-black text-slate-900 leading-snug tracking-tight mt-1 px-1">
-                  Buy Basic for <span className="text-[#e2136e] font-black underline decoration-pink-300 underline-offset-4">৳500</span> & Get <span className="text-indigo-600 font-black">৳1,000 Silver Package</span> Benefits!
+                  Buy Basic for <span className="text-[#e2136e] font-black underline decoration-pink-300 underline-offset-4">৳500</span> &amp; Get <span className="text-indigo-600 font-black">৳1,000 Silver Package</span>!
                 </h3>
 
-                {/* Supporting Bangla Sub-Headline */}
-                <p className="text-[11px] font-semibold text-slate-600 leading-relaxed mt-1.5 px-1">
-                  আজকে ৫০০ টাকায় বেসিক কিনলেই পাবেন ১০০০ টাকার সিলভার প্যাকেজ এবং <b className="text-emerald-700 font-extrabold">মোট ১৮০০ টাকা রিটার্ন!</b>
+                {/* English Sub-Headline with 40-Day Validity & ৳1,800 Total Return */}
+                <p className="text-[11px] font-medium text-slate-600 leading-relaxed mt-1.5 px-1">
+                  Enjoy <b className="text-slate-900 font-bold">40 days validity</b> on the Silver Package. Receive a total return of <b className="text-emerald-700 font-extrabold">৳1,800</b> upon completion!
                 </p>
 
                 {/* Clean Light-Themed 3-Block Value Grid */}
                 <div className="w-full mt-3.5 grid grid-cols-3 gap-1.5 text-center">
-                  <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-2xl">
+                  <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-2xl flex flex-col justify-between">
                     <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-tight">Pay Today</span>
                     <span className="text-xs sm:text-sm font-black text-[#e2136e] font-mono">৳500</span>
+                    <span className="text-[8px] text-slate-500 block font-medium mt-0.5">Basic Price</span>
                   </div>
-                  <div className="bg-indigo-50/70 border border-indigo-200/80 p-2 rounded-2xl">
-                    <span className="text-[9px] text-indigo-500 block font-bold uppercase tracking-tight">Silver Tier</span>
-                    <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono">৳1,000</span>
+                  <div className="bg-indigo-50/70 border border-indigo-200/80 p-2 rounded-2xl flex flex-col justify-between">
+                    <span className="text-[9px] text-indigo-500 block font-bold uppercase tracking-tight">Validity</span>
+                    <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono">40 Days</span>
+                    <span className="text-[8px] text-indigo-500 block font-medium mt-0.5">Silver Tier</span>
                   </div>
-                  <div className="bg-emerald-50/70 border border-emerald-200/80 p-2 rounded-2xl">
+                  <div className="bg-emerald-50/70 border border-emerald-200/80 p-2 rounded-2xl flex flex-col justify-between">
                     <span className="text-[9px] text-emerald-600 block font-bold uppercase tracking-tight">Total Return</span>
-                    <span className="text-xs sm:text-sm font-black text-emerald-600 font-mono">৳1,800</span>
+                    <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">৳1,800</span>
+                    <span className="text-[8px] text-emerald-600 block font-medium mt-0.5">Guaranteed</span>
                   </div>
                 </div>
 
-                {/* Payment Condition & Limited Time Notice */}
-                <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-600 bg-pink-50/60 py-1.5 px-3 rounded-xl border border-pink-200/60 mt-3 w-full">
-                  <span className="w-2 h-2 rounded-full bg-[#e2136e] shrink-0 animate-ping" />
-                  <span>Exclusive on <b className="text-[#e2136e]">bKash Payment</b> • Valid Today Only</span>
+                {/* Payment Condition & Midnight Expiration Notice */}
+                <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600 bg-pink-50/70 py-1.5 px-3 rounded-xl border border-pink-200/60 mt-3 w-full">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#e2136e] shrink-0 animate-ping" />
+                    <span>Exclusive on <b className="text-[#e2136e]">bKash Payment</b></span>
+                  </div>
+                  <span className="text-slate-500 font-medium">Valid until 12:00 AM</span>
                 </div>
 
                 {/* Bottom Action Button (Recharge Now) */}
@@ -3074,7 +3117,7 @@ export default function App() {
                   className="w-full mt-4 bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-xl shadow-pink-600/30 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide transition cursor-pointer border border-pink-400/40"
                 >
                   <Zap className="w-4 h-4 fill-white" />
-                  <span>Recharge ৳500 & Claim Offer</span>
+                  <span>Recharge ৳500 &amp; Claim Offer</span>
                   <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </button>
               </div>
@@ -3891,7 +3934,7 @@ export default function App() {
                       <Megaphone className="w-3.5 h-3.5 text-pink-400 shrink-0 animate-pulse" />
                     </span>
                     <marquee className="truncate font-medium text-slate-100" behavior="scroll" direction="left" scrollamount="4">
-                      🔥 SPECIAL OFFER: Buy Basic Package for ৳500 via bKash today &amp; unlock ৳1,000 Silver Package benefits with ৳1,800 Total Return! • আজকের ধামাকা অফার: bKash পেমেন্টে ৫০০ টাকার বেসিক কিনলেই ১,০০০ টাকার সিলভার প্যাকেজ এবং মোট ১,৮০০ টাকা রিটার্ন!
+                      🔥 FLASH OFFER: Buy Basic Package for ৳500 via bKash today &amp; unlock ৳1,000 Silver Package (40 Days Validity) with ৳1,800 Total Return! Offer ends at 12:00 AM midnight!
                     </marquee>
                   </div>
                 )}
