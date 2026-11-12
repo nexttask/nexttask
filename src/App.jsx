@@ -3030,35 +3030,37 @@ export default function App() {
               <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-pink-200/60 via-rose-100/40 to-transparent rounded-full blur-2xl pointer-events-none" />
               <div className="absolute top-20 -right-8 w-28 h-28 bg-amber-200/40 rounded-full blur-xl pointer-events-none" />
 
-              {/* Top Bar: Midnight Countdown Timer + Clean Close Button */}
-              <div className="absolute top-3.5 right-3.5 z-20 flex items-center gap-1.5">
-                <div 
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/90 text-white shadow-xs border border-slate-700/60"
-                  title="Offer expires at 12:00 AM midnight"
-                >
-                  <Clock className="w-3 h-3 text-pink-400 animate-pulse" />
-                  <span className="text-[10px] font-mono font-bold tracking-tight">
-                    {promoCountdown.hours}:{promoCountdown.minutes}:{promoCountdown.seconds}
-                  </span>
+              {/* Dedicated Top Header Bar (Zero Overlap Guaranteed) */}
+              <div className="flex items-center justify-between w-full pt-4 px-4 pb-1 relative z-20">
+                {/* Left: Compact Flash Sale Badge */}
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-pink-50 border border-pink-200/80 text-[10px] font-black uppercase tracking-wider text-[#e2136e] shadow-xs">
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <span>FLASH SALE</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowPromoPopup(false)}
-                  className="w-7 h-7 rounded-full bg-slate-100/90 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition border border-slate-200/60 cursor-pointer shadow-xs"
-                  title="Close"
-                >
-                  <X className="w-3.5 h-3.5 stroke-[2.5]" />
-                </button>
+
+                {/* Right: Midnight Countdown Timer + Close Button */}
+                <div className="flex items-center gap-1.5">
+                  <div 
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 text-white shadow-xs border border-slate-800"
+                    title="Offer ends at 12:00 AM midnight"
+                  >
+                    <Clock className="w-3 h-3 text-pink-400 animate-pulse" />
+                    <span className="text-[10px] font-mono font-bold tracking-tight">
+                      {promoCountdown.hours}:{promoCountdown.minutes}:{promoCountdown.seconds}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoPopup(false)}
+                    className="w-7 h-7 rounded-full bg-slate-100/90 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition border border-slate-200/80 cursor-pointer shadow-xs"
+                    title="Close"
+                  >
+                    <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                </div>
               </div>
 
-              <div className="p-5 sm:p-6 text-center flex flex-col items-center relative z-10">
-                {/* Header Promotional Badge */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-50 border border-pink-200/80 text-[10px] font-black uppercase tracking-wider text-[#e2136e] shadow-xs mb-3">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>LIMITED TIME FLASH SALE • ENDS AT 12:00 AM</span>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                </div>
-
+              <div className="px-5 pb-5 pt-2 text-center flex flex-col items-center relative z-10">
                 {/* Co-Branding Badges */}
                 <div className="flex items-center justify-center gap-3 mb-2.5">
                   <div className="w-12 h-12 rounded-2xl bg-[#05132d] p-1.5 border border-slate-200 shadow-md shadow-slate-900/10 flex items-center justify-center overflow-hidden">
