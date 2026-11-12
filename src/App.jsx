@@ -2714,11 +2714,11 @@ export default function App() {
   const handlePromoRechargeClick = () => {
     setShowPromoPopup(false);
     if (isLoggedIn) {
-      openRechargeModal('1000.00', 'bkash');
+      openRechargeModal('500.00', 'bkash');
     } else {
       setIntendedTab('home');
       navigateToTab('auth', 'login');
-      showToast('অনুগ্রহ করে লগইন করে অফারটি গ্রহণ করুন / Please login to recharge');
+      showToast('Please login to recharge and claim this offer');
     }
   };
 
@@ -2995,20 +2995,20 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= SPECIAL BKASH PROMOTIONAL POPUP MODAL ================= */}
+        {/* ================= SPECIAL BKASH PROMOTIONAL POPUP MODAL (LIGHT THEME) ================= */}
         {showPromoPopup && !isInitialSyncing && (
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-[88] flex items-center justify-center p-3 sm:p-4 animate-fade-in select-none">
-            <div className="w-full max-w-[340px] rounded-3xl overflow-hidden shadow-2xl border border-pink-500/30 bg-gradient-to-b from-[#0e1935] via-[#071329] to-[#040c1d] text-white flex flex-col relative animate-scale-up">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-[88] flex items-center justify-center p-3 sm:p-4 animate-fade-in select-none">
+            <div className="w-full max-w-[340px] rounded-[30px] overflow-hidden shadow-2xl shadow-slate-950/40 border border-slate-100 bg-white text-slate-800 flex flex-col relative animate-scale-up">
               
-              {/* Top ambient luxury lighting */}
-              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute top-28 -right-10 w-36 h-36 bg-amber-400/15 rounded-full blur-2xl pointer-events-none" />
+              {/* Top ambient luxury rosy gradient aura */}
+              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-b from-pink-200/60 via-rose-100/40 to-transparent rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute top-20 -right-8 w-28 h-28 bg-amber-200/40 rounded-full blur-xl pointer-events-none" />
 
               {/* Top-Right Clean Close Button */}
               <button
                 type="button"
                 onClick={() => setShowPromoPopup(false)}
-                className="absolute top-3.5 right-3.5 z-20 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 text-slate-300 hover:text-white flex items-center justify-center transition border border-white/15 cursor-pointer shadow-md"
+                className="absolute top-3.5 right-3.5 z-20 w-8 h-8 rounded-full bg-slate-100/90 hover:bg-slate-200 active:scale-90 text-slate-400 hover:text-slate-700 flex items-center justify-center transition border border-slate-200/60 cursor-pointer shadow-xs"
                 title="Close"
               >
                 <X className="w-4 h-4 stroke-[2.5]" />
@@ -3016,61 +3016,65 @@ export default function App() {
 
               <div className="p-5 sm:p-6 text-center flex flex-col items-center relative z-10">
                 {/* Header Promotional Badge */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-pink-500/25 via-rose-500/20 to-amber-500/25 border border-pink-400/40 text-[10px] font-black uppercase tracking-wider text-pink-300 shadow-sm mb-3">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>ধামাকা অফার • SPECIAL OFFER</span>
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-50 border border-pink-200/80 text-[10px] font-black uppercase tracking-wider text-[#e2136e] shadow-xs mb-3">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>SPECIAL FLASH SALE • LIMITED OFFER</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 </div>
 
                 {/* Co-Branding Badges */}
                 <div className="flex items-center justify-center gap-3 mb-2.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#05132d] p-1 border border-cyan-400/30 shadow-lg shadow-cyan-500/20 flex items-center justify-center overflow-hidden">
+                  <div className="w-12 h-12 rounded-2xl bg-[#05132d] p-1.5 border border-slate-200 shadow-md shadow-slate-900/10 flex items-center justify-center overflow-hidden">
                     <img src="/app-logo.png" alt="NextTask" className="w-8 h-8 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   </div>
-                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white/60 text-xs font-black">
+                  <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs font-black shadow-xs">
                     +
                   </div>
-                  <div className="w-12 h-12 rounded-2xl bg-[#e2136e] p-1 shadow-lg shadow-pink-600/35 flex items-center justify-center border border-pink-300/40">
+                  <div className="w-12 h-12 rounded-2xl bg-[#e2136e] p-1 shadow-md shadow-pink-500/20 flex items-center justify-center border border-pink-400/40">
                     <span className="font-black text-white text-[13px] tracking-tighter">bKash</span>
                   </div>
                 </div>
 
-                {/* Primary Bangla Headline */}
-                <h3 className="text-[15px] sm:text-base font-black leading-snug tracking-tight text-white mt-1 px-1">
-                  আজকের মধ্যে <span className="text-[#ff3b80] font-extrabold bg-pink-500/15 px-1.5 py-0.5 rounded-md border border-pink-500/30">bKash</span> পেমেন্টে <span className="text-cyan-300 font-extrabold">Basic প্যাকেজ</span> কিনলেই পাবেন <span className="text-amber-300 font-extrabold underline decoration-amber-400/60 decoration-2 underline-offset-4">Silver প্যাকেজের</span> সকল সুবিধা!
+                {/* Main English Headline */}
+                <h3 className="text-base sm:text-[17px] font-black text-slate-900 leading-snug tracking-tight mt-1 px-1">
+                  Buy Basic for <span className="text-[#e2136e] font-black underline decoration-pink-300 underline-offset-4">৳500</span> & Get <span className="text-indigo-600 font-black">৳1,000 Silver Package</span> Benefits!
                 </h3>
 
-                {/* English Sub-Headline */}
-                <p className="text-[11px] text-slate-300 leading-relaxed mt-2 font-medium px-1">
-                  Buy the <b className="text-cyan-200">Basic Package</b> via <b className="text-[#ff5c98]">bKash payment</b> today & unlock all premium facilities & daily earnings of the <b className="text-amber-300">Silver Package</b>!
+                {/* Supporting Bangla Sub-Headline */}
+                <p className="text-[11px] font-semibold text-slate-600 leading-relaxed mt-1.5 px-1">
+                  আজকে ৫০০ টাকায় বেসিক কিনলেই পাবেন ১০০০ টাকার সিলভার প্যাকেজ এবং <b className="text-emerald-700 font-extrabold">মোট ১৮০০ টাকা রিটার্ন!</b>
                 </p>
 
-                {/* Clean Comparison Card */}
-                <div className="w-full mt-3.5 p-2.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-sm grid grid-cols-2 gap-2 text-center">
-                  <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                    <span className="text-[9px] text-slate-400 block font-semibold uppercase">ব্যাসিক ফি (Pay)</span>
-                    <span className="text-xs sm:text-sm font-black text-cyan-300 font-mono">৳১,০০০</span>
+                {/* Clean Light-Themed 3-Block Value Grid */}
+                <div className="w-full mt-3.5 grid grid-cols-3 gap-1.5 text-center">
+                  <div className="bg-slate-50 border border-slate-200/80 p-2 rounded-2xl">
+                    <span className="text-[9px] text-slate-400 block font-bold uppercase tracking-tight">Pay Today</span>
+                    <span className="text-xs sm:text-sm font-black text-[#e2136e] font-mono">৳500</span>
                   </div>
-                  <div className="bg-gradient-to-br from-amber-500/20 to-pink-500/20 p-2 rounded-xl border border-amber-400/40">
-                    <span className="text-[9px] text-amber-300 block font-bold uppercase">সিলভার ইনকাম (Get)</span>
-                    <span className="text-xs sm:text-sm font-black text-amber-300 font-mono">৳৪৫০/দিন (৳৯,০০০)</span>
+                  <div className="bg-indigo-50/70 border border-indigo-200/80 p-2 rounded-2xl">
+                    <span className="text-[9px] text-indigo-500 block font-bold uppercase tracking-tight">Silver Tier</span>
+                    <span className="text-xs sm:text-sm font-black text-indigo-700 font-mono">৳1,000</span>
+                  </div>
+                  <div className="bg-emerald-50/70 border border-emerald-200/80 p-2 rounded-2xl">
+                    <span className="text-[9px] text-emerald-600 block font-bold uppercase tracking-tight">Total Return</span>
+                    <span className="text-xs sm:text-sm font-black text-emerald-600 font-mono">৳1,800</span>
                   </div>
                 </div>
 
-                {/* Limited Time Badge */}
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-amber-300 font-medium mt-3 bg-amber-500/10 py-1 px-3 rounded-full border border-amber-500/20">
-                  <Clock className="w-3 h-3 text-amber-400 shrink-0" />
-                  <span>অফারটি শুধুমাত্র আজকের জন্য প্রযোজ্য (Today Only)</span>
+                {/* Payment Condition & Limited Time Notice */}
+                <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-600 bg-pink-50/60 py-1.5 px-3 rounded-xl border border-pink-200/60 mt-3 w-full">
+                  <span className="w-2 h-2 rounded-full bg-[#e2136e] shrink-0 animate-ping" />
+                  <span>Exclusive on <b className="text-[#e2136e]">bKash Payment</b> • Valid Today Only</span>
                 </div>
 
                 {/* Bottom Action Button (Recharge Now) */}
                 <button
                   type="button"
                   onClick={handlePromoRechargeClick}
-                  className="w-full mt-4 bg-gradient-to-r from-[#e2136e] via-[#ff2d7a] to-[#e2136e] hover:brightness-110 active:scale-[0.98] text-white font-black py-3.5 px-4 rounded-2xl shadow-xl shadow-pink-600/35 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide transition cursor-pointer border border-pink-400/40"
+                  className="w-full mt-4 bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-[0.98] text-white font-extrabold py-3.5 px-4 rounded-2xl shadow-xl shadow-pink-600/30 flex items-center justify-center gap-2 text-xs sm:text-sm tracking-wide transition cursor-pointer border border-pink-400/40"
                 >
                   <Zap className="w-4 h-4 fill-white" />
-                  <span>রিচার্জ করুন • Recharge Now</span>
+                  <span>Recharge ৳500 & Claim Offer</span>
                   <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </button>
               </div>
@@ -3279,7 +3283,9 @@ export default function App() {
                       }`}
                     >
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                        notif.type === 'recharge'
+                        notif.type === 'promo'
+                          ? 'bg-pink-100 text-[#e2136e]'
+                          : notif.type === 'recharge'
                           ? 'bg-emerald-100 text-emerald-600'
                           : notif.type === 'withdraw'
                           ? 'bg-amber-100 text-amber-600'
@@ -3289,7 +3295,9 @@ export default function App() {
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-indigo-100 text-indigo-600'
                       }`}>
-                        {notif.type === 'recharge' ? (
+                        {notif.type === 'promo' ? (
+                          <Gift className="w-4 h-4 text-[#e2136e]" />
+                        ) : notif.type === 'recharge' ? (
                           <Coins className="w-4 h-4" />
                         ) : notif.type === 'withdraw' ? (
                           <ArrowUpRight className="w-4 h-4" />
@@ -3357,7 +3365,9 @@ export default function App() {
                 <div className="flex items-center gap-2.5">
                   <div
                     className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 ${
-                      selectedNotificationDetail.type === 'recharge'
+                      selectedNotificationDetail.type === 'promo'
+                        ? 'bg-pink-100 text-[#e2136e]'
+                        : selectedNotificationDetail.type === 'recharge'
                         ? 'bg-emerald-100 text-emerald-600'
                         : selectedNotificationDetail.type === 'withdraw'
                         ? 'bg-amber-100 text-amber-600'
@@ -3368,7 +3378,9 @@ export default function App() {
                         : 'bg-indigo-100 text-indigo-600'
                     }`}
                   >
-                    {selectedNotificationDetail.type === 'recharge' ? (
+                    {selectedNotificationDetail.type === 'promo' ? (
+                      <Gift className="w-5 h-5 text-[#e2136e]" />
+                    ) : selectedNotificationDetail.type === 'recharge' ? (
                       <Coins className="w-5 h-5" />
                     ) : selectedNotificationDetail.type === 'withdraw' ? (
                       <ArrowUpRight className="w-5 h-5" />
@@ -3383,7 +3395,9 @@ export default function App() {
                   <div>
                     <span
                       className={`text-[9px] uppercase font-black px-2 py-0.5 rounded-md tracking-wider ${
-                        selectedNotificationDetail.type === 'recharge'
+                        selectedNotificationDetail.type === 'promo'
+                          ? 'bg-pink-50 text-[#e2136e] border border-pink-200'
+                          : selectedNotificationDetail.type === 'recharge'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : selectedNotificationDetail.type === 'withdraw'
                           ? 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -3421,13 +3435,37 @@ export default function App() {
               </div>
 
               {/* Action Button */}
-              <button
-                type="button"
-                onClick={() => setSelectedNotificationDetail(null)}
-                className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-2.5 rounded-full text-xs shadow-md transition active:scale-95 cursor-pointer"
-              >
-                {t('gotIt')}
-              </button>
+              {selectedNotificationDetail.type === 'promo' ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedNotificationDetail(null);
+                      setShowNotificationModal(false);
+                      handlePromoRechargeClick();
+                    }}
+                    className="flex-1 bg-gradient-to-r from-[#d11062] via-[#e2136e] to-[#ff2b7f] hover:brightness-105 active:scale-95 text-white font-extrabold py-2.5 px-3 rounded-full text-xs shadow-md shadow-pink-500/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-white" />
+                    <span>Recharge ৳500 Now</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNotificationDetail(null)}
+                    className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-full text-xs transition active:scale-95 cursor-pointer"
+                  >
+                    {t('close') || 'Close'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSelectedNotificationDetail(null)}
+                  className="w-full bg-[#05132d] hover:bg-slate-900 text-white font-bold py-2.5 rounded-full text-xs shadow-md transition active:scale-95 cursor-pointer"
+                >
+                  {t('gotIt')}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -3838,12 +3876,22 @@ export default function App() {
 
                 {/* Marquee ticker on Home tab */}
                 {activeTab === 'home' && (
-                  <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-300 bg-white/5 py-1.5 px-3 rounded-full overflow-hidden">
+                  <div
+                    onClick={() => {
+                      if (isLoggedIn) {
+                        handlePromoRechargeClick();
+                      } else {
+                        setShowPromoPopup(true);
+                      }
+                    }}
+                    className="mt-3 flex items-center gap-2 text-[11px] text-slate-300 bg-white/5 hover:bg-white/10 py-1.5 px-3 rounded-full overflow-hidden cursor-pointer transition border border-white/5 active:scale-[0.99]"
+                    title="Click to view special offer"
+                  >
                     <span className="font-bold text-white flex items-center shrink-0">
-                      <Megaphone className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                      <Megaphone className="w-3.5 h-3.5 text-pink-400 shrink-0 animate-pulse" />
                     </span>
-                    <marquee className="truncate font-light text-slate-200" behavior="scroll" direction="left" scrollamount="4">
-                      The true value of blockchain technology has never been tied to short-term price fluctuations, but to returning to entities, serving the public, and building an open, transparent collaborative relationship.
+                    <marquee className="truncate font-medium text-slate-100" behavior="scroll" direction="left" scrollamount="4">
+                      🔥 SPECIAL OFFER: Buy Basic Package for ৳500 via bKash today &amp; unlock ৳1,000 Silver Package benefits with ৳1,800 Total Return! • আজকের ধামাকা অফার: bKash পেমেন্টে ৫০০ টাকার বেসিক কিনলেই ১,০০০ টাকার সিলভার প্যাকেজ এবং মোট ১,৮০০ টাকা রিটার্ন!
                     </marquee>
                   </div>
                 )}
