@@ -450,24 +450,6 @@ export default function App() {
   };
 
   const handleFloatingSupportClick = () => {
-    const activeList = (supportChannels || []).filter((c) => c.active !== false);
-    if (activeList.length === 0) {
-      if (settings?.telegramSupport) {
-        const tg = settings.telegramSupport.trim();
-        const url = tg.startsWith('http') ? tg : `https://t.me/${tg.replace(/^@/, '')}`;
-        window.open(url, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      showToast('Support is currently offline. Please try again later.');
-      return;
-    }
-    if (activeList.length === 1) {
-      const url = formatSupportUrl(activeList[0]);
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-      return;
-    }
     setShowSupportChoiceModal(true);
   };
 
@@ -5020,7 +5002,7 @@ export default function App() {
           })}
         </div>
 
-        {/* ================= DRAGGABLE FLOATING BUTTONS (BOT & OFFICIAL GROUP) ================= */}
+        {/* ================= DRAGGABLE FLOATING 24/7 CUSTOMER SUPPORT BUTTON ================= */}
         {!isAdminRoute && settings?.floatingSupportEnabled !== false && (
           <div
             id="floating-support-btn-wrapper"
@@ -5045,33 +5027,12 @@ export default function App() {
             onTouchStart={onTouchStartSupport}
             onTouchMove={onTouchMoveSupport}
             onTouchEnd={onTouchEndSupport}
-            className="cursor-grab active:cursor-grabbing select-none flex flex-col items-center gap-2.5"
+            className="cursor-grab active:cursor-grabbing select-none"
           >
-            {/* 1. Official Telegram Group Floating Button */}
-            <a
-              href="https://t.me/+e-GhVsAJ339kZDQ1"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Join Official Telegram Community Group"
-              className="group relative flex items-center justify-center cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
-            >
-              <span className="absolute -inset-1 rounded-full bg-sky-400/40 animate-ping opacity-60 duration-1000 pointer-events-none"></span>
-              <div className="relative w-12 h-12 rounded-full bg-gradient-to-tr from-[#0088cc] via-[#229ED9] to-[#38bdf8] shadow-[0_6px_20px_rgba(0,136,204,0.45)] border-2 border-white flex items-center justify-center text-white">
-                <Users className="w-5 h-5 text-white" />
-              </div>
-              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full bg-[#05132d] border border-white text-[8px] font-black text-sky-400 uppercase tracking-tighter shadow-xs">
-                Group
-              </span>
-              <span className="pointer-events-none absolute right-14 bg-slate-900/95 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-xl shadow-xl border border-slate-700/80 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                📢 Official Group
-              </span>
-            </a>
-
-            {/* 2. 24/7 Live Support Bot Floating Button */}
             <button
               type="button"
               onClick={handleSupportClickWrapped}
-              aria-label="24/7 Live Customer Support Bot"
+              aria-label="24/7 Live Customer Support"
               className="group relative flex items-center justify-center cursor-pointer transition-transform duration-200 active:scale-95 hover:scale-105"
             >
               {/* Outer pulsing ring */}
@@ -5092,14 +5053,9 @@ export default function App() {
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
               </span>
 
-              {/* Bot tag */}
-              <span className="absolute -top-1 -left-1 px-1.5 py-0.5 rounded-full bg-slate-900 border border-white text-[8px] font-black text-emerald-400 uppercase tracking-tighter shadow-xs pointer-events-none">
-                Bot
-              </span>
-
               {/* Tooltip on hover */}
-              <span className="pointer-events-none absolute right-15 bg-slate-900/95 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-xl shadow-xl border border-slate-700/80 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                🤖 24/7 Support Bot
+              <span className="pointer-events-none absolute -top-8 right-0 bg-slate-900/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-slate-700/80 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                24/7 Live Support
               </span>
             </button>
           </div>
