@@ -2603,13 +2603,6 @@ export default function App() {
       setSelectedTaskPackId(newPackageInstance.instanceId);
 
       const allUsers = getStoredData('users', DEFAULT_USERS);
-      const commRate = typeof settings?.referralCommissionRate === 'number' && settings.referralCommissionRate >= 0
-        ? settings.referralCommissionRate
-        : (parseFloat(settings?.referralCommissionRate) || 10);
-      const commissionAmount = parseFloat((reqDeposit * (commRate / 100)).toFixed(2));
-      let referrerCredited = false;
-      let referrerName = '';
-
       const updated = allUsers.map((u) => {
         // Update the purchasing user
         if (
@@ -2630,42 +2623,9 @@ export default function App() {
             starterExpiresAt: currentUser?.starterExpiresAt || null
           };
         }
-
-        // Credit the referrer
-        if (isReferredByUser(currentUser, u) && commissionAmount > 0) {
-          referrerCredited = true;
-          referrerName = u.name || u.email || u.myInviteCode || 'Referrer';
-          const prevB = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
-          const prevEarn = typeof u.referralEarnings === 'number' ? u.referralEarnings : 0;
-          return {
-            ...u,
-            balance: parseFloat((prevB + commissionAmount).toFixed(2)),
-            referralEarnings: parseFloat((prevEarn + commissionAmount).toFixed(2))
-          };
-        }
-
         return u;
       });
       setStoredData('users', updated);
-
-      // Record referral commission in transactions
-      if (referrerCredited && commissionAmount > 0) {
-        const allRecharges = getStoredData('recharges', []);
-        const commissionRecord = {
-          id: `COM-${Date.now()}`,
-          userId: currentUser?.referredBy,
-          user: referrerName,
-          senderAccount: currentUser?.name || currentUser?.email || currentUser?.phone || 'Team Member',
-          amount: commissionAmount,
-          method: 'Referral Bonus',
-          network: 'Commission',
-          trxId: `COMM-${selectedVipForUnlock.level}-${Date.now().toString().slice(-6)}`,
-          status: 'approved',
-          date: new Date().toISOString().replace('T', ' ').slice(0, 19),
-          note: `${commRate}% referral commission from ${currentUser?.name || currentUser?.id} for unlocking ${selectedVipForUnlock.level}`
-        };
-        setStoredData('recharges', [commissionRecord, ...allRecharges]);
-      }
 
       // Record in Upgrade Log
       const prevLevel = currentUser?.vip || userVip || 'VIP0';
