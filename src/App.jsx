@@ -2520,9 +2520,10 @@ export default function App() {
     const reqDeposit = parseFloat(String(vip.deposit || 0).replace(/,/g, '')) || 0;
     const isFree = reqDeposit === 0 || String(vip.level || '').toLowerCase().includes('starter');
 
-    const totalAvailable = (rechargeTotal || 0) + (balance || 0);
-    if (!isFree && totalAvailable < reqDeposit) {
-      showToast(`Insufficient balance (Available: ৳${totalAvailable.toFixed(2)}). Please recharge ৳${vip.deposit} to purchase ${vip.level}.`);
+    const currentBalance = typeof balance === 'number' ? balance : (parseFloat(balance) || 0);
+    if (!isFree && currentBalance < reqDeposit) {
+      const needed = parseFloat((reqDeposit - currentBalance).toFixed(2));
+      showToast(`Insufficient balance (Available: ৳${currentBalance.toFixed(2)}). Please recharge ৳${needed.toFixed(2)} to purchase ${vip.level}.`);
       openRechargeModal(reqDeposit);
       return;
     }
@@ -2532,7 +2533,7 @@ export default function App() {
   };
 
   // Clicking 'Confirm' on unlock confirmation popup:
-  // Deducts package cost from Balance (recharge balance) first, and remainder from Earned balance.
+  // Deducts package cost directly from user's Balance
   const handleConfirmUnlock = () => {
     setShowUnlockConfirmModal(false);
     if (!selectedVipForUnlock) return;
@@ -2540,25 +2541,19 @@ export default function App() {
     const reqDeposit = parseFloat(selectedVipForUnlock.deposit.toString().replace(/,/g, '')) || 0;
     const isFreePackage = reqDeposit === 0 || String(selectedVipForUnlock.level || '').toLowerCase().includes('starter');
     const emailOrPhone = loginMethod === 'email' ? userEmail : userPhone;
-    const totalAvailable = (rechargeTotal || 0) + (balance || 0);
+    const currentBalance = typeof balance === 'number' ? balance : (parseFloat(balance) || 0);
 
     // Free Starter package OR user has enough purchasing balance
-    if (isFreePackage || (totalAvailable >= reqDeposit && reqDeposit > 0)) {
+    if (isFreePackage || (currentBalance >= reqDeposit && reqDeposit > 0)) {
       if (isFreePackage) {
         handleClaimStarter();
         return;
       }
 
-      let newRecharge = rechargeTotal || 0;
-      let newBalance = balance || 0;
-
-      if (newRecharge >= reqDeposit) {
-        newRecharge = parseFloat((newRecharge - reqDeposit).toFixed(2));
-      } else {
-        const remainder = parseFloat((reqDeposit - newRecharge).toFixed(2));
-        newRecharge = 0;
-        newBalance = parseFloat((newBalance - remainder).toFixed(2));
-      }
+      // Deduct package price directly from Balance
+      const newBalance = Math.max(0, parseFloat((currentBalance - reqDeposit).toFixed(2)));
+      const currentRecharge = typeof rechargeTotal === 'number' ? rechargeTotal : (parseFloat(rechargeTotal) || 0);
+      const newRecharge = Math.max(0, parseFloat((currentRecharge - reqDeposit).toFixed(2)));
 
       const durationDays = selectedVipForUnlock.days ? parseInt(selectedVipForUnlock.days) : 20;
       const now = Date.now();
@@ -5686,22 +5681,16 @@ export default function App() {
                 {!isFree ? (
                   <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-left space-y-2 text-xs">
                     <div className="flex justify-between items-center text-slate-500">
-                      <span>Balance (Recharge):</span>
-                      <span className="font-bold text-slate-800 font-mono">৳{rechargeTotal.toFixed(2)}</span>
+                      <span>Current Balance:</span>
+                      <span className="font-bold text-slate-800 font-mono">৳{balance.toFixed(2)}</span>
                     </div>
-                    {balance > 0 && (
-                      <div className="flex justify-between items-center text-slate-500">
-                        <span>Earned Balance:</span>
-                        <span className="font-bold text-slate-800 font-mono">৳{balance.toFixed(2)}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between items-center text-rose-600 font-semibold">
                       <span>Package Price:</span>
                       <span className="font-bold font-mono">-৳{selectedVipForUnlock.deposit}</span>
                     </div>
                     <div className="border-t border-slate-200 pt-2 flex justify-between items-center font-bold text-slate-900">
-                      <span>Remaining Available:</span>
-                      <span className="font-black text-emerald-600 font-mono">৳{Math.max(0, (rechargeTotal + balance) - reqDep).toFixed(2)}</span>
+                      <span>Remaining Balance:</span>
+                      <span className="font-black text-emerald-600 font-mono">৳{Math.max(0, balance - reqDep).toFixed(2)}</span>
                     </div>
                   </div>
                 ) : (
@@ -5792,7 +5781,7 @@ export default function App() {
                     <span>Current Balance:</span>
                   </div>
                   <span className="font-extrabold text-cyan-300 tracking-wide font-mono">
-                    ৳{((rechargeTotal || 0) + (balance || 0)).toFixed(2)} BDT
+                    ৳{balance.toFixed(2)} BDT
                   </span>
                 </div>
               </div>
