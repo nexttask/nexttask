@@ -1438,14 +1438,17 @@ export default function AdminPanel({ onNavigateToApp }) {
   const handleApproveRecharge = async (rec) => {
     // 1. Ensure we have the freshest users list from storage or D1 API
     let currentUsers = getStoredData('users', users);
+    const recUserId = rec.userId ? String(rec.userId) : null;
+    const recUserEmail = rec.userEmail ? String(rec.userEmail).toLowerCase().trim() : null;
+    const recUserPhone = rec.userPhone ? String(rec.userPhone).trim() : null;
+
     let targetUser = currentUsers.find((u) =>
-      (rec.userId && String(u.id) === String(rec.userId)) ||
-      (rec.userEmail && String(u.email).toLowerCase() === String(rec.userEmail).toLowerCase()) ||
-      (rec.userPhone && String(u.phone) === String(rec.userPhone)) ||
+      (recUserId && String(u.id) === recUserId) ||
+      (recUserEmail && String(u.email || '').toLowerCase().trim() === recUserEmail) ||
+      (recUserPhone && String(u.phone || '').trim() === recUserPhone) ||
       (rec.user && (
-        String(u.email).toLowerCase() === String(rec.user).toLowerCase() ||
-        String(u.phone) === String(rec.user) ||
-        String(u.name).toLowerCase() === String(rec.user).toLowerCase()
+        String(u.email || '').toLowerCase().trim() === String(rec.user).toLowerCase().trim() ||
+        String(u.phone || '').trim() === String(rec.user).trim()
       ))
     );
 
@@ -1457,13 +1460,12 @@ export default function AdminPanel({ onNavigateToApp }) {
           if (json && Array.isArray(json.data)) {
             currentUsers = json.data;
             targetUser = currentUsers.find((u) =>
-              (rec.userId && String(u.id) === String(rec.userId)) ||
-              (rec.userEmail && String(u.email).toLowerCase() === String(rec.userEmail).toLowerCase()) ||
-              (rec.userPhone && String(u.phone) === String(rec.userPhone)) ||
+              (recUserId && String(u.id) === recUserId) ||
+              (recUserEmail && String(u.email || '').toLowerCase().trim() === recUserEmail) ||
+              (recUserPhone && String(u.phone || '').trim() === recUserPhone) ||
               (rec.user && (
-                String(u.email).toLowerCase() === String(rec.user).toLowerCase() ||
-                String(u.phone) === String(rec.user) ||
-                String(u.name).toLowerCase() === String(rec.user).toLowerCase()
+                String(u.email || '').toLowerCase().trim() === String(rec.user).toLowerCase().trim() ||
+                String(u.phone || '').trim() === String(rec.user).trim()
               ))
             );
           }
@@ -1620,31 +1622,37 @@ export default function AdminPanel({ onNavigateToApp }) {
     const updatedWth = withdrawals.map((w) => (w.id === wth.id ? { ...w, status: 'rejected' } : w));
     updateWithdrawals(updatedWth);
 
-    // 2. Refund balance back to user
-    const updatedUsers = users.map((u) => {
-      const isMatch =
-        (wth.userId && String(u.id) === String(wth.userId)) ||
-        (wth.userEmail && String(u.email).toLowerCase() === String(wth.userEmail).toLowerCase()) ||
-        (wth.userPhone && String(u.phone) === String(wth.userPhone)) ||
-        (wth.user && (
-          String(u.email).toLowerCase() === String(wth.user).toLowerCase() ||
-          String(u.phone) === String(wth.user) ||
-          String(u.name).toLowerCase() === String(wth.user).toLowerCase()
-        ));
+    // 2. Refund balance back to user - ONLY match by unique ID or unique Email/Phone
+    const targetUserId = wth.userId ? String(wth.userId) : null;
+    const targetEmail = wth.userEmail ? String(wth.userEmail).toLowerCase().trim() : null;
+    const targetPhone = wth.userPhone ? String(wth.userPhone).trim() : null;
 
-      if (isMatch) {
-        return { ...u, balance: parseFloat(((u.balance || 0) + wth.amount).toFixed(2)) };
+    let matchedUser = null;
+    const updatedUsers = users.map((u) => {
+      const matchId = targetUserId && String(u.id) === targetUserId;
+      const matchEmail = targetEmail && String(u.email || '').toLowerCase().trim() === targetEmail;
+      const matchPhone = targetPhone && String(u.phone || '').trim() === targetPhone;
+
+      // Only refund the exact single user, NEVER match by generic display name (e.g. "User")
+      if (matchId || matchEmail || matchPhone) {
+        matchedUser = u;
+        return { ...u, balance: parseFloat(((u.balance || 0) + Number(wth.amount)).toFixed(2)) };
       }
       return u;
     });
-    updateUsers(updatedUsers);
-    addNotification(
-      wth.userId || wth.user,
-      'Withdrawal Rejected',
-      `Your withdrawal request of ৳${parseFloat(wth.amount || 0).toFixed(2)} BDT was rejected. The full amount has been refunded back to your Earned balance.`,
-      'withdraw'
-    );
-    showToast(`Withdrawal ${wth.id} rejected. ৳${wth.amount} refunded to user.`);
+
+    if (matchedUser) {
+      updateUsers(updatedUsers);
+      addNotification(
+        matchedUser.id,
+        'Withdrawal Rejected',
+        `Your withdrawal request of ৳${parseFloat(wth.amount || 0).toFixed(2)} BDT was rejected. The full amount has been refunded back to your Earned balance.`,
+        'withdraw'
+      );
+      showToast(`Withdrawal ${wth.id} rejected. ৳${wth.amount} refunded to ${matchedUser.email || matchedUser.phone || matchedUser.name}.`);
+    } else {
+      showToast(`Withdrawal marked as rejected. (User not found for balance refund)`);
+    }
   };
 
   // Filtered Users
