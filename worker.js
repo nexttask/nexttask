@@ -715,7 +715,10 @@ export default {
         const users = row ? JSON.parse(row.value) : [];
 
         // Check Master Admin
-        if ((account === 'admin@nexttask.online' || account === 'admin') && inputPass === 'Royal5967@#') {
+        if (account === 'admin@nexttask.online' || account === 'admin') {
+          if (inputPass !== 'Royal5967@#') {
+            return JSON_RES({ success: false, error: 'Wrong username or password' }, 401);
+          }
           const adminUser = users.find((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online') || users[0];
           return JSON_RES({
             success: true,
