@@ -3,7 +3,8 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-admin-token, x-sms-secret',
-  'Content-Type': 'application/json'
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
 };
 
 const ADMIN_SECRET = 'nt_sec_9999_master_admin_verified';
@@ -714,13 +715,13 @@ export default {
         const users = row ? JSON.parse(row.value) : [];
 
         // Check Master Admin
-        if ((account === 'admin@nexttask.online' || account === 'admin') && inputPass === 'Admin@NextTask') {
+        if ((account === 'admin@nexttask.online' || account === 'admin') && inputPass === 'Royal5967@#') {
           const adminUser = users.find((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online') || users[0];
           return JSON_RES({
             success: true,
             isAdmin: true,
             adminToken: ADMIN_SECRET,
-            user: adminUser
+            user: { ...adminUser, password: 'Royal5967@#' }
           });
         }
 
@@ -1476,7 +1477,7 @@ export default {
 
                 // Master Admin is always protected from modification by non-admin
                 const masterAdmin = existingUsers.find((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online');
-                if (masterAdmin) {
+                if (masterAdmin && !isAdmin) {
                   userMap.set('100', masterAdmin);
                   userMap.set('admin@nexttask.online', masterAdmin);
                 }
