@@ -697,6 +697,7 @@ export default function AdminPanel({ onNavigateToApp }) {
   const [selectedUserForBalance, setSelectedUserForBalance] = useState(null);
   const [balanceAmount, setBalanceAmount] = useState('');
   const [balanceAction, setBalanceAction] = useState('add'); // 'add' | 'subtract'
+  const [balanceTarget, setBalanceTarget] = useState('recharge'); // 'recharge' | 'balance'
 
   const [toast, setToast] = useState('');
 
@@ -1372,7 +1373,7 @@ export default function AdminPanel({ onNavigateToApp }) {
     showToast(`User ${userLabel} and all associated records permanently deleted!`);
   };
 
-  const handleAdjustBalance = (e) => {
+  const handleAdjustBalance = async (e) => {
     e.preventDefault();
     const num = parseFloat(balanceAmount);
     if (isNaN(num) || num <= 0) {
@@ -1380,16 +1381,24 @@ export default function AdminPanel({ onNavigateToApp }) {
       return;
     }
 
+    const targetType = balanceTarget === 'balance' ? 'balance' : 'recharge';
     const updated = users.map((u) => {
       if (u.id === selectedUserForBalance.id) {
-        const newBalance = balanceAction === 'add' ? u.balance + num : Math.max(0, u.balance - num);
-        return { ...u, balance: parseFloat(newBalance.toFixed(2)) };
+        if (targetType === 'recharge') {
+          const cur = typeof u.recharge === 'number' ? u.recharge : (parseFloat(u.recharge) || 0);
+          const next = balanceAction === 'add' ? cur + num : Math.max(0, cur - num);
+          return { ...u, recharge: parseFloat(next.toFixed(2)) };
+        } else {
+          const cur = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
+          const next = balanceAction === 'add' ? cur + num : Math.max(0, cur - num);
+          return { ...u, balance: parseFloat(next.toFixed(2)) };
+        }
       }
       return u;
     });
 
-    updateUsers(updated);
-    showToast(`Updated balance for ${selectedUserForBalance.email}`);
+    await updateUsers(updated);
+    showToast(`Updated ${targetType === 'recharge' ? 'Balance (Recharge)' : 'Earned Balance'} for ${selectedUserForBalance.email || selectedUserForBalance.phone || selectedUserForBalance.name}`);
     setShowBalanceModal(false);
     setBalanceAmount('');
   };
@@ -1414,12 +1423,10 @@ export default function AdminPanel({ onNavigateToApp }) {
   };
 
   // --- RECHARGE APPROVALS ---
-  const handleApproveRecharge = (rec) => {
-    // 1. Mark recharge as approved
-    const updatedRecs = recharges.map((r) => (r.id === rec.id ? { ...r, status: 'approved' } : r));
-    updateRecharges(updatedRecs);
-
-    const targetUser = users.find((u) =>
+  const handleApproveRecharge = async (rec) => {
+    // 1. Ensure we have the freshest users list from storage or D1 API
+    let currentUsers = getStoredData('users', users);
+    let targetUser = currentUsers.find((u) =>
       (rec.userId && String(u.id) === String(rec.userId)) ||
       (rec.userEmail && String(u.email).toLowerCase() === String(rec.userEmail).toLowerCase()) ||
       (rec.userPhone && String(u.phone) === String(rec.userPhone)) ||
@@ -1430,10 +1437,44 @@ export default function AdminPanel({ onNavigateToApp }) {
       ))
     );
 
+    if (!targetUser) {
+      try {
+        const res = await fetch('/api/data?key=users', { headers: getAuthHeaders() });
+        if (res.ok) {
+          const json = await res.json();
+          if (json && Array.isArray(json.data)) {
+            currentUsers = json.data;
+            targetUser = currentUsers.find((u) =>
+              (rec.userId && String(u.id) === String(rec.userId)) ||
+              (rec.userEmail && String(u.email).toLowerCase() === String(rec.userEmail).toLowerCase()) ||
+              (rec.userPhone && String(u.phone) === String(rec.userPhone)) ||
+              (rec.user && (
+                String(u.email).toLowerCase() === String(rec.user).toLowerCase() ||
+                String(u.phone) === String(rec.user) ||
+                String(u.name).toLowerCase() === String(rec.user).toLowerCase()
+              ))
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch fresh users during recharge approve:', err);
+      }
+    }
+
+    if (!targetUser) {
+      showToast('Error: User account for this recharge was not found! Cannot approve.');
+      return;
+    }
+
+    // 2. Mark recharge as approved
+    const updatedRecs = recharges.map((r) => (r.id === rec.id ? { ...r, status: 'approved' } : r));
+    await updateRecharges(updatedRecs);
+
     const commRate = typeof settings?.referralCommissionRate === 'number' && settings.referralCommissionRate >= 0
       ? settings.referralCommissionRate
       : (parseFloat(settings?.referralCommissionRate) || 10);
-    const commissionAmount = parseFloat(((rec.amount || 0) * (commRate / 100)).toFixed(2));
+    const recAmount = parseFloat(rec.amount) || 0;
+    const commissionAmount = parseFloat((recAmount * (commRate / 100)).toFixed(2));
     let referrerCredited = false;
     let referrerName = '';
 
@@ -1451,12 +1492,13 @@ export default function AdminPanel({ onNavigateToApp }) {
       return parentCodes.includes(refClean) || isReferredByUser(child, parent);
     };
 
-    // 2. Credit user's balance and recharge total (No auto-VIP: user chooses & buys package manually)
-    const updatedUsers = users.map((u) => {
+    // 3. Credit user's Balance (recharge) strictly
+    const updatedUsers = currentUsers.map((u) => {
       const isMatch = targetUser && String(u.id) === String(targetUser.id);
 
       if (isMatch) {
-        const newRecharge = parseFloat(((u.recharge || 0) + rec.amount).toFixed(2));
+        const prevRecharge = typeof u.recharge === 'number' ? u.recharge : (parseFloat(u.recharge) || 0);
+        const newRecharge = parseFloat((prevRecharge + recAmount).toFixed(2));
         const prevBal = typeof u.balance === 'number' ? u.balance : (parseFloat(u.balance) || 0);
 
         return {
@@ -1481,12 +1523,12 @@ export default function AdminPanel({ onNavigateToApp }) {
 
       return u;
     });
-    updateUsers(updatedUsers);
+    await updateUsers(updatedUsers);
 
     if (referrerCredited && commissionAmount > 0) {
-      showToast(`Recharge of ৳${rec.amount} approved! ৳${commissionAmount} (${commRate}%) commission credited to referrer ${referrerName}.`);
+      showToast(`Recharge of ৳${recAmount} approved! ৳${commissionAmount} (${commRate}%) commission credited to referrer ${referrerName}.`);
     } else {
-      showToast(`Recharge of ৳${rec.amount} approved!`);
+      showToast(`Recharge of ৳${recAmount} approved and credited to ${targetUser.name || targetUser.phone}'s Balance (Recharge)!`);
     }
 
     // Record Upgrade Log if VIP tier changed
@@ -1500,7 +1542,7 @@ export default function AdminPanel({ onNavigateToApp }) {
           userIdentifier: (targetUser.phone || targetUser.email || 'Member').replace(/(\d{3})\d{4,}(\d{2})/, '$1****$2'),
           fromVip: oldVip,
           toVip: updatedTarget.vip,
-          amount: rec.amount,
+          amount: recAmount,
           type: oldVip === 'VIP0' ? 'Unlock' : 'Upgrade'
         });
       }
@@ -1519,7 +1561,7 @@ export default function AdminPanel({ onNavigateToApp }) {
         trxId: `COMM-DEP-${Date.now().toString().slice(-6)}`,
         status: 'approved',
         date: new Date().toISOString().replace('T', ' ').slice(0, 19),
-        note: `10% referral commission from ${targetUser?.name || targetUser?.id} deposit of $${rec.amount}`
+        note: `10% referral commission from ${targetUser?.name || targetUser?.id} deposit of $${recAmount}`
       };
       setStoredData('recharges', [commissionRecord, ...updatedRecs]);
       addNotification(targetUser?.referredBy || referrerName, 'Referral Commission Credited', `You earned ৳${commissionAmount} BDT commission from ${targetUser?.name || targetUser?.id}'s deposit!`, 'commission');
@@ -1528,7 +1570,7 @@ export default function AdminPanel({ onNavigateToApp }) {
     addNotification(
       rec.userId || rec.user,
       'Recharge Approved',
-      `Your recharge of ৳${parseFloat(rec.amount || 0).toFixed(2)} BDT has been successfully approved and added to your Balance. You can now use this balance to unlock VIP packages or make withdrawals.`,
+      `Your recharge of ৳${recAmount.toFixed(2)} BDT has been successfully approved and added to your Balance (BDT). You can now use this balance to activate VIP packages!`,
       'recharge'
     );
     showToast(`Recharge of ৳${rec.amount} approved for ${rec.user}!${referrerCredited ? ' (10% commission credited to inviter)' : ''}`);
@@ -3453,12 +3495,12 @@ export default function AdminPanel({ onNavigateToApp }) {
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 text-xs">
                       <div>
-                        <div className="text-[10px] text-slate-400 uppercase font-semibold">Balance</div>
+                        <div className="text-[10px] text-emerald-400/90 uppercase font-bold">Earned Bal (উইথড্রযোগ্য)</div>
                         <div className="text-sm font-black text-emerald-400 mt-0.5">৳{u.balance.toFixed(2)}</div>
                       </div>
                       <div>
-                        <div className="text-[10px] text-slate-400 uppercase font-semibold">Total Recharge</div>
-                        <div className="text-sm font-bold text-slate-200 mt-0.5">৳{u.recharge.toFixed(2)}</div>
+                        <div className="text-[10px] text-amber-300/90 uppercase font-bold">Balance (রিচার্জ/প্যাকেজ)</div>
+                        <div className="text-sm font-bold text-amber-300 mt-0.5">৳{u.recharge.toFixed(2)}</div>
                       </div>
                       <div>
                         <div className="text-[10px] text-slate-400 uppercase font-semibold">Phone</div>
@@ -3582,8 +3624,8 @@ export default function AdminPanel({ onNavigateToApp }) {
                     <th className="py-3 px-4">User</th>
                     <th className="py-3 px-4">Phone</th>
                     <th className="py-3 px-4">VIP Level</th>
-                    <th className="py-3 px-4">Balance (USDT)</th>
-                    <th className="py-3 px-4">Recharge Total</th>
+                    <th className="py-3 px-4 text-emerald-400">Earned Bal (Withdrawable)</th>
+                    <th className="py-3 px-4 text-amber-300">Balance (Recharge)</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4">Joined</th>
                     <th className="py-3 px-4 text-right">Actions</th>
@@ -3627,7 +3669,7 @@ export default function AdminPanel({ onNavigateToApp }) {
                         </div>
                       </td>
                       <td className="py-3 px-4 font-black text-emerald-400">৳{u.balance.toFixed(2)}</td>
-                      <td className="py-3 px-4 text-slate-300 font-semibold">৳{u.recharge.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-black text-amber-300">৳{u.recharge.toFixed(2)}</td>
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase ${
@@ -5740,42 +5782,93 @@ export default function AdminPanel({ onNavigateToApp }) {
               <button onClick={() => setShowBalanceModal(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
-            <div className="bg-slate-950 p-3 rounded-xl space-y-1">
-              <div className="text-slate-400">User: <strong className="text-white">{selectedUserForBalance.email}</strong></div>
-              <div className="text-slate-400">Current Balance: <strong className="text-emerald-400">৳{selectedUserForBalance.balance.toFixed(2)} BDT</strong></div>
+            <div className="bg-slate-950 p-3 rounded-xl space-y-2 border border-slate-800/80">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>User:</span>
+                <strong className="text-white font-mono">{selectedUserForBalance.phone || selectedUserForBalance.email || selectedUserForBalance.name}</strong>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/60">
+                <div className="bg-slate-900/80 p-2 rounded-lg border border-amber-900/40">
+                  <div className="text-[10px] text-amber-300 font-bold uppercase">Balance (Recharge)</div>
+                  <div className="text-sm font-black text-amber-300 mt-0.5">৳{(selectedUserForBalance.recharge || 0).toFixed(2)} BDT</div>
+                  <div className="text-[9px] text-slate-400">ডান পাশের ব্যালেন্স (প্যাকেজ)</div>
+                </div>
+                <div className="bg-slate-900/80 p-2 rounded-lg border border-emerald-900/40">
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase">Earned Balance</div>
+                  <div className="text-sm font-black text-emerald-400 mt-0.5">৳{(selectedUserForBalance.balance || 0).toFixed(2)} BDT</div>
+                  <div className="text-[9px] text-slate-400">উইথড্রযোগ্য ব্যালেন্স</div>
+                </div>
+              </div>
             </div>
 
             <form onSubmit={handleAdjustBalance} className="space-y-3">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBalanceAction('add')}
-                  className={`flex-1 py-2 rounded-xl font-bold transition ${
-                    balanceAction === 'add' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  + Add Funds
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBalanceAction('subtract')}
-                  className={`flex-1 py-2 rounded-xl font-bold transition ${
-                    balanceAction === 'subtract' ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-400'
-                  }`}
-                >
-                  - Deduct Funds
-                </button>
+              {/* Wallet Target Selector */}
+              <div>
+                <label className="block text-slate-300 font-bold text-[11px] mb-1.5">কোন ব্যালেন্স পরিবর্তন করবেন? (Select Wallet):</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBalanceTarget('recharge')}
+                    className={`py-2 px-2 rounded-xl font-bold text-[11px] border transition flex flex-col items-center gap-0.5 cursor-pointer ${
+                      balanceTarget === 'recharge'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500 shadow-sm'
+                        : 'bg-slate-800/80 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>Balance (Recharge)</span>
+                    <span className="text-[9px] font-normal opacity-80">(Deposit / প্যাকেজ ব্যালেন্স)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBalanceTarget('balance')}
+                    className={`py-2 px-2 rounded-xl font-bold text-[11px] border transition flex flex-col items-center gap-0.5 cursor-pointer ${
+                      balanceTarget === 'balance'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500 shadow-sm'
+                        : 'bg-slate-800/80 text-slate-400 border-slate-700/60 hover:text-slate-200'
+                    }`}
+                  >
+                    <span>Earned Balance</span>
+                    <span className="text-[9px] font-normal opacity-80">(Withdrawable / লাভ)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Action: Add or Deduct */}
+              <div>
+                <label className="block text-slate-400 text-[11px] mb-1">অ্যাকশন (Action):</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBalanceAction('add')}
+                    className={`flex-1 py-2 rounded-xl font-bold text-xs transition cursor-pointer ${
+                      balanceAction === 'add' ? 'bg-emerald-600 text-white shadow-md' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    + Add Funds (যোগ করুন)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBalanceAction('subtract')}
+                    className={`flex-1 py-2 rounded-xl font-bold text-xs transition cursor-pointer ${
+                      balanceAction === 'subtract' ? 'bg-rose-600 text-white shadow-md' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    - Deduct Funds (বিয়োগ করুন)
+                  </button>
+                </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Amount (USDT)</label>
+                <label className="block text-slate-300 font-bold text-[11px] mb-1">
+                  টাকার পরিমাণ (Amount in BDT):
+                </label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={balanceAmount}
                   onChange={(e) => setBalanceAmount(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 outline-none focus:border-blue-500 font-bold"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 outline-none focus:border-blue-500 font-bold text-sm"
                   required
                 />
               </div>
@@ -5784,15 +5877,15 @@ export default function AdminPanel({ onNavigateToApp }) {
                 <button
                   type="button"
                   onClick={() => setShowBalanceModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold"
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold cursor-pointer hover:bg-slate-700"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold cursor-pointer shadow-md"
                 >
-                  Confirm Adjustment
+                  Confirm {balanceTarget === 'recharge' ? 'Recharge' : 'Earned'} Balance
                 </button>
               </div>
             </form>
