@@ -90,11 +90,21 @@ import {
 export default function AdminPanel({ onNavigateToApp }) {
   // Master Admin Authentication State
   const [isAdminAuth, setIsAdminAuth] = useState(() => {
-    const isAuth = localStorage.getItem('nt_admin_auth') === 'true';
+    const sessionKey = localStorage.getItem('nt_admin_session_version');
+    const isAuth = localStorage.getItem('nt_admin_auth') === 'true' && sessionKey === 'admin_v2_royal5967';
     if (isAuth) {
       try {
         localStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
         sessionStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
+      } catch {}
+    } else {
+      // Invalidate any legacy admin sessions immediately
+      try {
+        localStorage.removeItem('nt_admin_auth');
+        localStorage.removeItem('nt_admin_session_version');
+        localStorage.removeItem('nt_admin_token');
+        sessionStorage.removeItem('nt_admin_token');
+        localStorage.removeItem('nt_active_admin_session');
       } catch {}
     }
     return isAuth;
@@ -160,13 +170,14 @@ export default function AdminPanel({ onNavigateToApp }) {
     const trimPass = adminPassword.trim();
 
     // 1. Master Admin Check
-    if (trimEmail === 'admin@nexttask.online' && trimPass === 'Admin@NextTask') {
+    if (trimEmail === 'admin@nexttask.online' && trimPass === 'Royal5967@#') {
       const masterSession = {
         role: 'master',
         name: 'Master Administrator',
         email: 'admin@nexttask.online'
       };
       localStorage.setItem('nt_admin_auth', 'true');
+      localStorage.setItem('nt_admin_session_version', 'admin_v2_royal5967');
       localStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
       sessionStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
       localStorage.setItem('nt_active_admin_session', JSON.stringify(masterSession));
@@ -213,6 +224,7 @@ export default function AdminPanel({ onNavigateToApp }) {
 
   const handleAdminLogout = () => {
     localStorage.removeItem('nt_admin_auth');
+    localStorage.removeItem('nt_admin_session_version');
     localStorage.removeItem('nt_admin_token');
     sessionStorage.removeItem('nt_admin_token');
     localStorage.removeItem('nt_active_admin_session');

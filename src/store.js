@@ -20,7 +20,7 @@ export const DEFAULT_USERS = [
     email: 'admin@nexttask.online',
     phone: '',
     dob: '',
-    password: 'Admin@NextTask',
+    password: 'Royal5967@#',
     vip: 'VIP10',
     balance: 0.00,
     recharge: 0.00,

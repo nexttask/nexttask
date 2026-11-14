@@ -373,6 +373,18 @@ export default function App() {
       if (!raw) return;
       const cur = JSON.parse(raw);
       if (!cur) return;
+
+      // Force logout legacy admin sessions
+      if (cur.email === 'admin@nexttask.online' && cur.password !== 'Royal5967@#') {
+        try { localStorage.removeItem('nt_currentUser'); } catch (e) {}
+        setCurrentUser(null);
+        setIsLoggedIn(false);
+        setBalance(0);
+        setRechargeTotal(0);
+        setUserVip('VIP0');
+        return;
+      }
+
       const allUsers = getStoredData('users', DEFAULT_USERS);
       const freshUser = allUsers.find(u =>
         (u.id && cur.id && String(u.id) === String(cur.id)) ||
@@ -742,12 +754,35 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const raw = localStorage.getItem('nt_currentUser');
-      return raw ? JSON.parse(raw) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.email === 'admin@nexttask.online' && parsed?.password !== 'Royal5967@#') {
+          localStorage.removeItem('nt_currentUser');
+          return null;
+        }
+        return parsed;
+      }
+      return null;
     } catch {
       return null;
     }
   });
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('nt_currentUser'));
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    try {
+      const raw = localStorage.getItem('nt_currentUser');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.email === 'admin@nexttask.online' && parsed?.password !== 'Royal5967@#') {
+          localStorage.removeItem('nt_currentUser');
+          return false;
+        }
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
   const [activeTab, setActiveTab] = useState(() => {
     if (initialRoute.tab === 'auth') return 'auth';
     const hasUser = !!localStorage.getItem('nt_currentUser');
@@ -2229,14 +2264,14 @@ export default function App() {
 
       // Master Admin Login Support
       if (rawInput.toLowerCase() === 'admin@nexttask.online' || rawInput.toLowerCase() === 'admin') {
-        if (inputPass === 'Admin@NextTask' || password === 'Admin@NextTask') {
+        if (inputPass === 'Royal5967@#' || password === 'Royal5967@#') {
           const adminUser = {
             id: '100',
             name: 'Master Admin',
             email: 'admin@nexttask.online',
             phone: '',
             dob: '',
-            password: 'Admin@NextTask',
+            password: 'Royal5967@#',
             vip: 'VIP10',
             balance: 0.00,
             recharge: 0.00,
