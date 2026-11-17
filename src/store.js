@@ -234,7 +234,7 @@ export const DEFAULT_SLIDES = [
     badge: 'DAILY LUCKY SPIN',
     badgeStyle: 'bg-amber-500/10 text-amber-700 border-amber-300',
     title: 'Spin & Win Up to ৳50 Instant Cash',
-    subtitle: 'Spin the lucky wheel daily! VIP members get 5 spins every day.',
+    subtitle: 'Spin the lucky wheel daily! VIP members get extra spins every day.',
     highlightBadge: 'Daily Bonus',
     highlightText: 'Free Cash to Balance',
     bgGradient: 'from-[#fffbf0] via-[#fef6e2] to-[#fffdf7]',

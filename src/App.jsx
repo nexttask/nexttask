@@ -91,10 +91,20 @@ import {
 import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
 
+const CHECK_IN_REWARDS = [
+  { day: 1, reward: 0.50, label: '৳0.50' },
+  { day: 2, reward: 0.75, label: '৳0.75' },
+  { day: 3, reward: 1.00, label: '৳1.00' },
+  { day: 4, reward: 1.25, label: '৳1.25' },
+  { day: 5, reward: 1.50, label: '৳1.50' },
+  { day: 6, reward: 2.00, label: '৳2.00' },
+  { day: 7, reward: 5.00, label: '৳5.00' }
+];
+
 const PROMO_MARQUEE_MESSAGES = [
   { text: "🤝 REFER & EARN: Invite friends with your invite code and earn an instant 10% direct cash commission on every deposit they make!", icon: "refer" },
-  { text: "🎡 LUCKY SPIN: Spin the Lucky Wheel daily to win instant cash up to ৳50! VIP members get 5 spins every day.", icon: "spin" },
-  { text: "📅 DAILY CHECK-IN: Log in daily to claim free check-in cash rewards and unlock up to ৳25 mega streak bonus!", icon: "checkin" },
+  { text: "🎡 LUCKY SPIN: Spin the Lucky Wheel daily to win instant cash up to ৳50! VIP members get extra daily spins.", icon: "spin" },
+  { text: "📅 DAILY CHECK-IN: Log in daily to claim free check-in cash rewards and unlock up to ৳5.00 7-day streak bonus!", icon: "checkin" },
   { text: "💬 OFFICIAL COMMUNITY: Join our Official Telegram Community for 24/7 customer support, proof sharing, and announcements: https://t.me/+e-GhVsAJ339kZDQ1", icon: "telegram" }
 ];
 
@@ -1359,7 +1369,7 @@ export default function App() {
         id: 'sys_notif_lucky_spin',
         userId: 'all',
         title: '🎡 Lucky Spin & Win',
-        message: 'Daily free Lucky Spin is active! Spin the lucky wheel to win instant cash up to ৳50 BDT. VIP members receive 5 spins every day!',
+        message: 'Daily free Lucky Spin is active! Spin the lucky wheel to win instant cash up to ৳50 BDT. VIP members receive extra spins every day!',
         time: 'Daily Notice',
         read: false,
         type: 'spin'
@@ -1368,7 +1378,7 @@ export default function App() {
         id: 'sys_notif_daily_checkin',
         userId: 'all',
         title: '📅 Daily Check-in Streak',
-        message: 'Daily Check-in bonus is available! Log in every day to claim free cash rewards and unlock up to ৳25 mega streak bonus!',
+        message: 'Daily Check-in bonus is available! Log in every day to claim free cash rewards and unlock up to ৳5.00 7-day streak bonus!',
         time: 'Daily Notice',
         read: false,
         type: 'checkin'
@@ -1643,7 +1653,7 @@ export default function App() {
     const rechargesList = getStoredData('recharges', DEFAULT_RECHARGES);
     const isVip = isUserVerified(currentUser, rechargesList);
     const spinsDoneToday = lastSpinDate === today ? (currentUser.spinsDoneToday || 0) : 0;
-    const maxSpins = isVip ? 5 : 1;
+    const maxSpins = isVip ? 2 : 1;
     const spinsLeft = Math.max(0, maxSpins - spinsDoneToday);
     return {
       canSpin: spinsLeft > 0,
@@ -1664,11 +1674,12 @@ export default function App() {
     const rechargesList = getStoredData('recharges', DEFAULT_RECHARGES);
     const isVip = isUserVerified(currentUser, rechargesList);
     
-    // Reward calculation: Base ৳2 + ৳1 per streak day (up to 7 days = ৳8), VIP gets 2x
-    let reward = Math.min(10, 2 + (newStreak - 1));
-    if (newStreak === 7) reward = 25; // 7-day bonus
-    if (isVip) reward = reward * 1.5;
-    reward = parseFloat(reward.toFixed(2));
+    // Controlled micro-reward model: safe predictable cash reward per streak day
+    const dayConfig = CHECK_IN_REWARDS[Math.min(newStreak - 1, CHECK_IN_REWARDS.length - 1)] || CHECK_IN_REWARDS[0];
+    let reward = dayConfig.reward;
+    if (isVip) {
+      reward = parseFloat((reward * 1.2).toFixed(2)); // modest 20% extra for VIP
+    }
 
     const updatedUser = {
       ...currentUser,
@@ -1697,7 +1708,7 @@ export default function App() {
     if (!requireAuth('home', 'play lucky spin')) return;
     if (!spinStatus.canSpin || isSpinning) {
       if (!spinStatus.canSpin) {
-        showToast(spinStatus.isVip ? 'All VIP spins used for today! Come back tomorrow.' : 'Upgrade to VIP to get 5 daily spins!');
+        showToast(spinStatus.isVip ? 'All VIP spins used for today! Come back tomorrow.' : 'Upgrade to VIP to get 2 daily spins!');
       }
       return;
     }
@@ -1708,11 +1719,47 @@ export default function App() {
     const spinsDoneToday = lastSpinDate === today ? (currentUser.spinsDoneToday || 0) : 0;
 
     // Spin slices: 6 slices: [৳1, ৳5, ৳10, ৳2, ৳20, ৳50]
-    // 60 deg each. 
+    // Slices configuration:
+    // idx 0: ৳1  (slice center 30 deg)
+    // idx 1: ৳5  (slice center 90 deg)
+    // idx 2: ৳10 (slice center 150 deg)
+    // idx 3: ৳2  (slice center 210 deg)
+    // idx 4: ৳20 (slice center 270 deg)
+    // idx 5: ৳50 (slice center 330 deg)
     const sliceRewards = [1, 5, 10, 2, 20, 50];
-    const randomIndex = Math.floor(Math.random() * sliceRewards.length);
-    const wonAmount = sliceRewards[randomIndex];
-    const targetDeg = (360 * 5) + (randomIndex * 60) + 30; // 5 full rotations + slice center
+    const sliceDegs = [30, 90, 150, 210, 270, 330];
+
+    // Mathematical weighted probability to prevent platform loss:
+    // 70% chance   -> ৳1
+    // 20% chance   -> ৳2
+    // 8% chance    -> ৳5
+    // 1.7% chance  -> ৳10
+    // 0.2% chance  -> ৳20
+    // 0.1% chance  -> ৳50 (Jackpot)
+    const rand = Math.random() * 100;
+    let selectedIdx = 0;
+    if (rand < 70) {
+      selectedIdx = 0; // ৳1
+    } else if (rand < 90) {
+      selectedIdx = 3; // ৳2
+    } else if (rand < 98) {
+      selectedIdx = 1; // ৳5
+    } else if (rand < 99.7) {
+      selectedIdx = 2; // ৳10
+    } else if (rand < 99.9) {
+      selectedIdx = 4; // ৳20
+    } else {
+      selectedIdx = 5; // ৳50 (Jackpot)
+    }
+
+    const wonAmount = sliceRewards[selectedIdx];
+    const sliceDeg = sliceDegs[selectedIdx];
+
+    // Compute exact rotation to land precisely on the winning slice at top pointer (12 o'clock / 360 deg)
+    const currentMod = spinDeg % 360;
+    const extraRounds = 360 * 5;
+    const diff = (360 - ((currentMod + sliceDeg) % 360)) % 360;
+    const targetDeg = extraRounds + diff;
 
     setSpinDeg((prev) => prev + targetDeg);
 
@@ -7904,7 +7951,7 @@ export default function App() {
                   {spinStatus.isVip ? (
                     <span className="text-amber-300 font-bold">VIP Member: {spinStatus.spinsLeft} / {spinStatus.maxSpins} spins left today</span>
                   ) : (
-                    <span>Free Daily: {spinStatus.spinsLeft} spin available. (VIPs get 5 daily spins!)</span>
+                    <span>Free Daily: {spinStatus.spinsLeft} spin available. (VIPs get 2 daily spins!)</span>
                   )}
                 </p>
               </div>
@@ -7968,7 +8015,7 @@ export default function App() {
                     className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-1"
                   >
                     <Crown className="w-3.5 h-3.5" />
-                    <span>Unlock VIP for 5 Daily Spins</span>
+                    <span>Unlock VIP for 2 Daily Spins</span>
                   </button>
                 )}
                 <div className="text-[10px] text-slate-400">
@@ -8004,15 +8051,7 @@ export default function App() {
 
               {/* 7-Day Grid */}
               <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                {[
-                  { day: 1, reward: '৳2' },
-                  { day: 2, reward: '৳3' },
-                  { day: 3, reward: '৳4' },
-                  { day: 4, reward: '৳5' },
-                  { day: 5, reward: '৳6' },
-                  { day: 6, reward: '৳7' },
-                  { day: 7, reward: '৳25' }
-                ].map((item) => {
+                {CHECK_IN_REWARDS.map((item) => {
                   const isCompleted = item.day <= checkInStreakData.streak;
                   const isCurrent = item.day === checkInStreakData.streak + 1;
                   const isDay7 = item.day === 7;
@@ -8031,7 +8070,7 @@ export default function App() {
                       }`}
                     >
                       <div className="text-[10px] font-bold">Day {item.day}</div>
-                      <div className="my-1.5 font-black text-sm text-amber-300 font-mono">{item.reward}</div>
+                      <div className="my-1.5 font-black text-sm text-amber-300 font-mono">{item.label}</div>
                       {isCompleted ? (
                         <CheckCircle className="w-4 h-4 text-emerald-400" />
                       ) : isDay7 ? (
