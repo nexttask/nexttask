@@ -1224,9 +1224,33 @@ export default function AdminPanel({ onNavigateToApp }) {
     const updated = users.map((u) => {
       if (u.id === id) {
         showToast(`User ${u.email} VIP set to ${newVip} (${durationDays} Days validity)`);
+        const existingPackages = Array.isArray(u.activePackages) ? [...u.activePackages] : [];
+        const isFree = newVip === 'Starter Package' || newVip === 'VIP0';
+        let newActivePackages = existingPackages;
+        if (matchedTier && !isFree) {
+          const pkgIndex = newActivePackages.findIndex((p) => p.packageId === matchedTier.id || p.level === newVip);
+          const pkgData = {
+            id: 'admin_pkg_' + Date.now(),
+            packageId: matchedTier.id,
+            level: newVip,
+            deposit: matchedTier.deposit || 0,
+            dailyProfit: matchedTier.dailyProfit || 0,
+            tasksPerDay: matchedTier.tasks || 1,
+            days: durationDays,
+            activatedAt: now,
+            expiresAt: expiresAt,
+            adminAssigned: true
+          };
+          if (pkgIndex >= 0) {
+            newActivePackages[pkgIndex] = pkgData;
+          } else {
+            newActivePackages.push(pkgData);
+          }
+        }
         return {
           ...u,
           vip: newVip,
+          activePackages: newActivePackages,
           vipActivatedAt: now,
           vipDurationDays: durationDays,
           vipExpiresAt: expiresAt,

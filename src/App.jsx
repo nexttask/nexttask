@@ -84,6 +84,7 @@ import {
   getPackageLogo,
   getVipDisplayName,
   getLocalDateStr,
+  resolveUserHighestVip,
   recordUserLoginAudit,
   isUserVerified
 } from './store';
@@ -387,9 +388,9 @@ export default function App() {
             const withBal = getUserWithdrawableBalance(freshUser);
             setBalance(withBal);
             setRechargeTotal(typeof freshUser.recharge === 'number' ? freshUser.recharge : (parseFloat(freshUser.recharge) || 0));
-            const sanitizedVip = (freshUser.email !== 'admin@nexttask.online' && (!freshUser.recharge || freshUser.recharge === 0) && freshUser.vip === 'VIP1') ? 'VIP0' : (freshUser.vip || 'VIP0');
-            setUserVip(sanitizedVip);
-            return { ...freshUser, balance: withBal, vip: sanitizedVip };
+            const highestVip = resolveUserHighestVip(freshUser, vipTiers);
+            setUserVip(highestVip);
+            return { ...freshUser, balance: withBal, vip: highestVip };
           }
           return prev;
         });
@@ -843,10 +844,7 @@ export default function App() {
   const [userVip, setUserVip] = useState(() => {
     try {
       const u = JSON.parse(localStorage.getItem('nt_currentUser'));
-      if (u && u.email !== 'admin@nexttask.online' && (!u.recharge || u.recharge === 0) && u.vip === 'VIP1') {
-        return 'VIP0';
-      }
-      return u?.vip || 'VIP0';
+      return resolveUserHighestVip(u, getStoredData('vips', DEFAULT_VIP_TIERS));
     } catch {
       return 'VIP0';
     }
@@ -1084,11 +1082,16 @@ export default function App() {
   // Active selected package
   const activePackage = userActivePackages.find((p) => p.instanceId === selectedTaskPackId) || userActivePackages[0] || null;
 
-  // Auto-select package when list updates
+  // Auto-select package when list updates (defaults to user's highest active tier)
   useEffect(() => {
     if (userActivePackages.length > 0) {
       if (!selectedTaskPackId || !userActivePackages.some((p) => p.instanceId === selectedTaskPackId)) {
-        setSelectedTaskPackId(userActivePackages[0].instanceId);
+        const sortedPacks = [...userActivePackages].sort((a, b) => {
+          const depA = parseFloat(String(a.deposit || 0).replace(/,/g, '')) || 0;
+          const depB = parseFloat(String(b.deposit || 0).replace(/,/g, '')) || 0;
+          return depB - depA;
+        });
+        setSelectedTaskPackId(sortedPacks[0].instanceId);
       }
     } else {
       setSelectedTaskPackId(null);
@@ -2458,8 +2461,9 @@ export default function App() {
           } catch (e) {
             console.error(e);
           }
-          setCurrentUser(loggedUser);
-          setUserVip(loggedUser.vip || 'VIP0');
+          const resolvedVip = resolveUserHighestVip(loggedUser, vipTiers);
+          setCurrentUser({ ...loggedUser, vip: resolvedVip });
+          setUserVip(resolvedVip);
           setBalance(typeof loggedUser.balance === 'number' ? loggedUser.balance : 0);
           setRechargeTotal(typeof loggedUser.recharge === 'number' ? loggedUser.recharge : 0);
           setUserEmail(loggedUser.email || '');
@@ -2572,14 +2576,16 @@ export default function App() {
         return;
       }
 
+      const resolvedVip = resolveUserHighestVip(matched, vipTiers);
+      const userWithVip = { ...matched, vip: resolvedVip };
       try {
-        localStorage.setItem('nt_currentUser', JSON.stringify(matched));
+        localStorage.setItem('nt_currentUser', JSON.stringify(userWithVip));
       } catch (e) {
         console.error(e);
       }
 
-      setCurrentUser(matched);
-      setUserVip(matched.vip || 'VIP0');
+      setCurrentUser(userWithVip);
+      setUserVip(resolvedVip);
       setBalance(typeof matched.balance === 'number' ? matched.balance : 0);
       setRechargeTotal(typeof matched.recharge === 'number' ? matched.recharge : 0);
       setUserEmail(matched.email || (loginMethod === 'email' ? rawInput : ''));
@@ -2712,7 +2718,7 @@ export default function App() {
       }
 
       setCurrentUser(userToSave);
-      setUserVip(userToSave.vip || 'VIP0');
+      setUserVip(resolveUserHighestVip(userToSave, vipTiers) || userToSave.vip || 'VIP0');
       setBalance(typeof userToSave.balance === 'number' ? userToSave.balance : 0);
       setRechargeTotal(typeof userToSave.recharge === 'number' ? userToSave.recharge : 0);
       setUserEmail(userToSave.email || (loginMethod === 'email' ? rawInput : ''));
@@ -2849,9 +2855,14 @@ export default function App() {
         newPackageInstance
       ];
 
+      const finalHighestVip = resolveUserHighestVip(
+        { ...currentUser, activePackages: updatedActivePackages },
+        vipTiers
+      );
+
       const updatedUserObj = {
         ...currentUser,
-        vip: selectedVipForUnlock.level,
+        vip: finalHighestVip,
         balance: newEarnedBal,
         recharge: newRecharge,
         vipActivatedAt: now,
@@ -2866,7 +2877,7 @@ export default function App() {
 
       setBalance(newEarnedBal);
       setRechargeTotal(newRecharge);
-      setUserVip(selectedVipForUnlock.level);
+      setUserVip(finalHighestVip);
       setSelectedTaskPackId(newPackageInstance.instanceId);
 
       const allUsers = getStoredData('users', DEFAULT_USERS);
@@ -2879,7 +2890,7 @@ export default function App() {
         ) {
           return {
             ...u,
-            vip: selectedVipForUnlock.level,
+            vip: finalHighestVip,
             balance: newEarnedBal,
             recharge: newRecharge,
             vipActivatedAt: now,
@@ -4257,7 +4268,7 @@ export default function App() {
                           return null;
                         })()}
                         <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm ml-0.5">
-                          {getVipDisplayName(userVip, vipTiers)}
+                          {getVipDisplayName(resolveUserHighestVip(currentUser, vipTiers) || userVip, vipTiers)}
                         </span>
                       </div>
                       <button 

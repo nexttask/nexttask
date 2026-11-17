@@ -167,6 +167,47 @@ export const getLocalDateStr = () => {
   return `${year}-${month}-${day}`;
 };
 
+export const resolveUserHighestVip = (user, vipTiers = []) => {
+  if (!user) return 'VIP0';
+  const now = Date.now();
+
+  const activeList = Array.isArray(user.activePackages)
+    ? user.activePackages.filter((p) => p && (!p.expiresAt || now < p.expiresAt))
+    : [];
+
+  let highestTier = null;
+  let highestDeposit = -1;
+
+  activeList.forEach((pkg) => {
+    const isStarter = String(pkg.level || '').toLowerCase().includes('starter') || pkg.isStarter;
+    const tier = (vipTiers || []).find((v) => v.id === pkg.packId || v.level === pkg.level);
+    const dep = tier
+      ? parseFloat(String(tier.deposit || 0).replace(/,/g, ''))
+      : (parseFloat(String(pkg.deposit || 0).replace(/,/g, '')) || 0);
+
+    if (!isStarter && dep >= highestDeposit) {
+      highestDeposit = dep;
+      highestTier = tier?.level || pkg.level;
+    } else if (highestTier === null) {
+      highestTier = tier?.level || pkg.level;
+    }
+  });
+
+  if (!highestTier && user.vip && user.vip !== 'VIP0') {
+    const tier = (vipTiers || []).find((v) => v.level === user.vip || v.id === user.vip);
+    highestTier = tier?.level || user.vip;
+  }
+
+  if (!highestTier) {
+    const isStarterRunning = user.starterClaimedAt && user.starterExpiresAt && now < user.starterExpiresAt;
+    if (isStarterRunning) {
+      highestTier = 'Starter Package';
+    }
+  }
+
+  return highestTier || 'VIP0';
+};
+
 export const getPaymentLogo = (pm) => {
   if (pm?.logo && String(pm.logo).trim()) return pm.logo;
   const name = String(pm?.method || '').toLowerCase();
@@ -320,7 +361,16 @@ export const getStoredData = (key, fallback) => {
       if (!parsed.some((u) => String(u?.email || '').toLowerCase() === 'admin@nexttask.online')) {
         parsed = [DEFAULT_USERS[0], ...parsed];
       }
-      return parsed;
+      // Ensure each user's displayed VIP strictly matches their actual highest active package
+      const vipsList = memoryCache.get('vips') || DEFAULT_VIP_TIERS;
+      return parsed.map((u) => {
+        if (!u || u.email === 'admin@nexttask.online') return u;
+        const highestVip = resolveUserHighestVip(u, vipsList);
+        if (highestVip && highestVip !== 'VIP0' && u.vip !== highestVip) {
+          return { ...u, vip: highestVip };
+        }
+        return u;
+      });
     }
 
     // Ensure all official banners are present in slides
