@@ -54,6 +54,15 @@
   transition: transform 4.5s cubic-bezier(0.15, 0.9, 0.25, 1);
 }
 
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
 @keyframes progress {
   0% {
     transform: translateX(-100%);

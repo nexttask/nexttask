@@ -145,22 +145,8 @@ export const resolveInitialRoute = () => {
 };
 
 // ================= BANNER CAROUSEL (SMOOTH HORIZONTAL SLIDE & TOUCH SWIPE) =================
-function BannerCarousel({ slides, lang, defaultSlides }) {
-  const filteredSlides = (slides || []).filter((s) => {
-    if (lang === 'bn') {
-      return s.id?.startsWith('s_bn') || /[\u0980-\u09FF]/.test(s.subtitle || '') || (s.image && s.image.includes('_bn_'));
-    } else {
-      return !s.id?.startsWith('s_bn') && !/[\u0980-\u09FF]/.test(s.subtitle || '') && !(s.image && s.image.includes('_bn_'));
-    }
-  });
-
-  let slideList = filteredSlides;
-  if (!slideList || slideList.length < 5) {
-    slideList = lang === 'bn'
-      ? defaultSlides.filter((s) => s.id?.startsWith('s_bn'))
-      : defaultSlides.filter((s) => !s.id?.startsWith('s_bn'));
-  }
-
+function BannerCarousel({ onSlideAction }) {
+  const slides = DEFAULT_SLIDES;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
@@ -168,15 +154,9 @@ function BannerCarousel({ slides, lang, defaultSlides }) {
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
 
-  // Reset when language or slides count changes
-  useEffect(() => {
-    setCurrentIndex(0);
-    setIsTransitioning(false);
-  }, [lang, slideList.length]);
-
   // Autoplay timer: advance right-to-left every 4.2 seconds
   useEffect(() => {
-    if (slideList.length <= 1 || isPaused) return;
+    if (slides.length <= 1 || isPaused) return;
 
     const interval = setInterval(() => {
       setIsTransitioning(true);
@@ -184,11 +164,11 @@ function BannerCarousel({ slides, lang, defaultSlides }) {
     }, 4200);
 
     return () => clearInterval(interval);
-  }, [slideList.length, isPaused]);
+  }, [slides.length, isPaused]);
 
   // Seamless infinite loop handler
   const handleTransitionEnd = () => {
-    if (currentIndex >= slideList.length) {
+    if (currentIndex >= slides.length) {
       setIsTransitioning(false);
       setCurrentIndex(0);
     }
@@ -220,14 +200,14 @@ function BannerCarousel({ slides, lang, defaultSlides }) {
     }
   };
 
-  if (!slideList || slideList.length === 0) return null;
+  if (!slides || slides.length === 0) return null;
 
   // Add cloned first slide at the end for continuous forward slide
-  const extendedSlides = slideList.length > 1 ? [...slideList, slideList[0]] : slideList;
+  const extendedSlides = slides.length > 1 ? [...slides, slides[0]] : slides;
 
   return (
     <div
-      className="mx-4 relative rounded-3xl overflow-hidden shadow-md bg-slate-900 border border-slate-100/10 select-none"
+      className="mx-4 relative rounded-[26px] overflow-hidden shadow-sm bg-white border border-slate-200/90 select-none"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
@@ -243,83 +223,76 @@ function BannerCarousel({ slides, lang, defaultSlides }) {
         }}
         onTransitionEnd={handleTransitionEnd}
       >
-        {extendedSlides.map((slide, idx) => {
-          const isDefaultTheme = !slide.gradient || slide.gradient === 'default' || slide.gradient === 'none';
-          const showTextOverlay = !isDefaultTheme && (slide.subtitle || slide.badge);
-
-          if (slide.image) {
-            return (
-              <div
-                key={`${slide.id || 'slide'}-${idx}`}
-                className="w-full shrink-0 min-w-full relative h-[150px] sm:h-[165px] flex items-center justify-center overflow-hidden"
-              >
-                <img
-                  src={slide.image}
-                  alt={slide.subtitle || 'Banner Slide'}
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                  fetchPriority={idx === 0 ? 'high' : 'auto'}
-                  draggable={false}
-                />
-                {showTextOverlay && (
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 z-10 pointer-events-none">
-                    {slide.badge && (
-                      <span className="inline-block bg-amber-400 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full w-fit mb-1 shadow-sm uppercase">
-                        {slide.badge}
-                      </span>
-                    )}
-                    {slide.subtitle && (
-                      <span className="text-white text-xs font-bold drop-shadow">
-                        {slide.subtitle}
-                      </span>
-                    )}
-                  </div>
+        {extendedSlides.map((slide, idx) => (
+          <div
+            key={`${slide.id}-${idx}`}
+            onClick={() => onSlideAction && onSlideAction(slide.type)}
+            className={`w-full shrink-0 min-w-full bg-gradient-to-br ${slide.bgGradient} p-4 sm:p-5 relative h-[142px] sm:h-[155px] flex flex-col justify-between overflow-hidden cursor-pointer active:scale-[0.99] transition`}
+          >
+            {/* Top Pill Badge */}
+            <div className="flex items-center justify-between relative z-10">
+              <div className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider border shadow-2xs ${slide.badgeStyle}`}>
+                {slide.type === 'spin' ? (
+                  <FerrisWheel className="w-3 h-3 text-amber-600 animate-spin-slow" />
+                ) : slide.type === 'checkin' ? (
+                  <Calendar className="w-3 h-3 text-cyan-700" />
+                ) : slide.type === 'refer' ? (
+                  <Gift className="w-3 h-3 text-purple-700" />
+                ) : slide.type === 'recharge' ? (
+                  <Zap className="w-3 h-3 text-emerald-700" />
+                ) : (
+                  <ArrowDownLeft className="w-3 h-3 text-blue-700" />
                 )}
-              </div>
-            );
-          }
-
-          const gradientTheme = (!slide.gradient || slide.gradient === 'default')
-            ? 'from-amber-500 via-orange-500 to-yellow-400'
-            : slide.gradient;
-
-          return (
-            <div
-              key={`${slide.id || 'slide'}-${idx}`}
-              className={`w-full shrink-0 min-w-full bg-gradient-to-r ${gradientTheme} p-5 text-white relative h-[150px] sm:h-[165px] flex items-center overflow-hidden`}
-            >
-              <div className="relative z-10 max-w-[210px]">
-                {slide.badge && (
-                  <div className="inline-block bg-white text-orange-600 font-black text-xl px-2 py-0.5 rounded shadow-sm tracking-tight mb-1">
-                    {slide.badge}
-                  </div>
-                )}
-                <div className="text-3xl font-black text-red-700 leading-none tracking-tight drop-shadow-sm">
-                  {slide.amount}
-                </div>
-                <div className="text-xs font-black tracking-widest text-slate-900 mt-1 uppercase">
-                  {slide.subtitle}
-                </div>
-                {slide.description && (
-                  <div className="text-[10px] text-white/90 mt-1 font-medium line-clamp-2">
-                    {slide.description}
-                  </div>
-                )}
-              </div>
-              <div className="absolute right-2 bottom-0 top-0 flex items-center opacity-95 pointer-events-none">
-                <div className="w-32 h-32 rounded-full bg-white/20 backdrop-blur flex items-center justify-center shadow-inner">
-                  <TrendingUp className="w-16 h-16 text-white drop-shadow-lg" />
-                </div>
+                <span>{slide.badge}</span>
               </div>
             </div>
-          );
-        })}
+
+            {/* Middle: Title & Subtitle (strictly no cut-off, responsive padding) */}
+            <div className="relative z-10 pr-20 sm:pr-24 space-y-0.5">
+              <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight leading-snug line-clamp-1">
+                {slide.title}
+              </h3>
+              <p className="text-[10px] sm:text-[11px] text-slate-600 font-medium leading-snug line-clamp-2">
+                {slide.subtitle}
+              </p>
+            </div>
+
+            {/* Bottom: Feature Pill */}
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="inline-flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-xl shadow-xs border border-slate-200/90 text-[9px] sm:text-[10px]">
+                <span className="font-semibold text-slate-500 uppercase tracking-wider text-[8px] sm:text-[9px]">
+                  {slide.highlightBadge}:
+                </span>
+                <span className="font-black text-slate-900">
+                  {slide.highlightText}
+                </span>
+              </div>
+            </div>
+
+            {/* Right Decorative Circular Badge */}
+            <div className="absolute right-3.5 sm:right-5 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+              <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full ${slide.iconBg} ring-4 flex items-center justify-center shadow-md transition-transform duration-500`}>
+                {slide.type === 'spin' ? (
+                  <FerrisWheel className={`w-8 h-8 sm:w-10 sm:h-10 ${slide.iconColor}`} />
+                ) : slide.type === 'checkin' ? (
+                  <Calendar className={`w-8 h-8 sm:w-10 sm:h-10 ${slide.iconColor}`} />
+                ) : slide.type === 'refer' ? (
+                  <Gift className={`w-8 h-8 sm:w-10 sm:h-10 ${slide.iconColor}`} />
+                ) : slide.type === 'recharge' ? (
+                  <Zap className={`w-8 h-8 sm:w-10 sm:h-10 ${slide.iconColor}`} />
+                ) : (
+                  <ArrowDownLeft className={`w-8 h-8 sm:w-10 sm:h-10 ${slide.iconColor}`} />
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Carousel Indicator Dots */}
-      {slideList.length > 1 && (
-        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 pointer-events-auto">
-          {slideList.map((_, i) => (
+      {slides.length > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20 pointer-events-auto">
+          {slides.map((_, i) => (
             <button
               key={i}
               type="button"
@@ -329,9 +302,9 @@ function BannerCarousel({ slides, lang, defaultSlides }) {
               }}
               aria-label={`Slide ${i + 1}`}
               className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                (currentIndex % slideList.length) === i
-                  ? 'w-5 bg-white shadow-sm'
-                  : 'w-1.5 bg-white/50 hover:bg-white/80'
+                (currentIndex % slides.length) === i
+                  ? 'w-5 bg-slate-900 shadow-xs'
+                  : 'w-1.5 bg-slate-300 hover:bg-slate-400'
               }`}
             />
           ))}
@@ -4504,9 +4477,51 @@ export default function App() {
                   })()}
 
                   {/* Dynamic Promotional Banner Carousel (Smooth Horizontal Sliding & Touch Swipe) */}
-                  {slides.length > 0 && (
-                    <BannerCarousel slides={slides} lang={lang} defaultSlides={DEFAULT_SLIDES} />
-                  )}
+                  <BannerCarousel
+                    onSlideAction={(type) => {
+                      if (type === 'spin') {
+                        if (!isLoggedIn) {
+                          setIntendedTab('home');
+                          navigateToTab('auth', 'login');
+                          showToast('Please sign in to play Lucky Spin');
+                          return;
+                        }
+                        setShowSpinModal(true);
+                      } else if (type === 'checkin') {
+                        if (!isLoggedIn) {
+                          setIntendedTab('home');
+                          navigateToTab('auth', 'login');
+                          showToast('Please sign in to claim daily check-in');
+                          return;
+                        }
+                        setShowCheckInModal(true);
+                      } else if (type === 'refer') {
+                        if (!isLoggedIn) {
+                          setIntendedTab('team');
+                          navigateToTab('auth', 'login');
+                          showToast('Please sign in to invite friends');
+                          return;
+                        }
+                        navigateToTab('team');
+                      } else if (type === 'recharge') {
+                        if (!isLoggedIn) {
+                          setIntendedTab('home');
+                          navigateToTab('auth', 'login');
+                          showToast('Please sign in to recharge');
+                          return;
+                        }
+                        openRechargeModal();
+                      } else if (type === 'withdraw') {
+                        if (!isLoggedIn) {
+                          setIntendedTab('me');
+                          navigateToTab('auth', 'login');
+                          showToast('Please sign in to withdraw');
+                          return;
+                        }
+                        navigateToTab('me');
+                      }
+                    }}
+                  />
 
                   {/* ================= TASK HALL SECTION ================= */}
                   <div className="px-4 space-y-3">

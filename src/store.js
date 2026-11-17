@@ -188,53 +188,78 @@ export const DEFAULT_PAYMENT_METHODS = [
 
 export const DEFAULT_SLIDES = [
   {
-    id: 's1',
-    badge: '10% REWARD',
-    amount: 'REFERRAL BONUS',
-    subtitle: 'REFER & EARN 10% COMMISSION',
-    image: '/banners/banner_referral.png',
-    gradient: 'default',
-    description: 'Invite new partners and earn instant direct recharge commissions',
+    id: 's_spin',
+    type: 'spin',
+    badge: 'DAILY LUCKY SPIN',
+    badgeStyle: 'bg-amber-500/10 text-amber-700 border-amber-300',
+    title: 'Spin & Win Up to ৳50 Instant Cash',
+    subtitle: 'Spin the lucky wheel daily! VIP members get 5 spins every day.',
+    highlightBadge: 'Daily Bonus',
+    highlightText: 'Free Cash to Balance',
+    bgGradient: 'from-[#fffbf0] via-[#fef6e2] to-[#fffdf7]',
+    borderColor: 'border-amber-200/80',
+    iconColor: 'text-amber-500',
+    iconBg: 'bg-amber-100/90 ring-amber-300/50',
     active: true
   },
   {
-    id: 's2',
-    badge: 'DAILY BONUS',
-    amount: 'AUTOMATED DIVIDENDS',
-    subtitle: 'DAILY MISSIONS & TASK EARNINGS',
-    image: '/banners/banner_daily_bonus.png',
-    gradient: 'default',
-    description: 'Complete 10 sponsored micro-tasks daily and withdraw earnings instantly',
+    id: 's_checkin',
+    type: 'checkin',
+    badge: '7-DAY STREAK BONUS',
+    badgeStyle: 'bg-cyan-500/10 text-cyan-700 border-cyan-300',
+    title: 'Daily Check-in & Unlock Mega ৳25',
+    subtitle: 'Log in daily to claim free cash bonuses directly to your balance!',
+    highlightBadge: 'Daily Reward',
+    highlightText: 'Up to ৳25 Streak Reward',
+    bgGradient: 'from-[#f0f9ff] via-[#e0f2fe] to-[#f8fafc]',
+    borderColor: 'border-cyan-200/80',
+    iconColor: 'text-cyan-600',
+    iconBg: 'bg-cyan-100/90 ring-cyan-300/50',
     active: true
   },
   {
-    id: 's3',
-    badge: '100% FREE',
-    amount: '৳20 / DAY FREE',
-    subtitle: 'FREE STARTER PACKAGE (7 DAYS)',
-    image: '/banners/banner_starter_free.png',
-    gradient: 'default',
-    description: 'Zero recharge required! Unlock 7 days free missions and earn ৳20.00 every day',
+    id: 's_refer',
+    type: 'refer',
+    badge: 'OFFICIAL PARTNER PROGRAM',
+    badgeStyle: 'bg-purple-500/10 text-purple-700 border-purple-300',
+    title: 'Refer & Earn 10% Instant Commission',
+    subtitle: 'Invite friends and earn instant direct BDT rewards on every recharge!',
+    highlightBadge: 'Direct Partner Reward',
+    highlightText: '10% Lifetime Cashback',
+    bgGradient: 'from-[#f5f3ff] via-[#ede9fe] to-[#f8fafc]',
+    borderColor: 'border-purple-200/80',
+    iconColor: 'text-purple-600',
+    iconBg: 'bg-purple-100/90 ring-purple-300/50',
     active: true
   },
   {
-    id: 's4',
-    badge: 'HIGH YIELD',
-    amount: '80% RETURN',
-    subtitle: 'VIP PACKAGES UP TO 80% RETURN',
-    image: '/banners/banner_vip_packages.png',
-    gradient: 'default',
-    description: 'Guaranteed daily income with 100% capital auto-release at cycle end',
+    id: 's_recharge',
+    type: 'recharge',
+    badge: 'INSTANT AUTO-APPROVAL',
+    badgeStyle: 'bg-emerald-500/10 text-emerald-700 border-emerald-300',
+    title: 'Fast & Secure Instant Recharge',
+    subtitle: 'Instant automated deposits via bKash, Nagad, Rocket & TRC20 USDT!',
+    highlightBadge: 'Automated Gateway',
+    highlightText: '1-Minute Instant Credit',
+    bgGradient: 'from-[#f0fdf4] via-[#dcfce7] to-[#f8fafc]',
+    borderColor: 'border-emerald-200/80',
+    iconColor: 'text-emerald-600',
+    iconBg: 'bg-emerald-100/90 ring-emerald-300/50',
     active: true
   },
   {
-    id: 's5',
-    badge: 'INSTANT PAYOUT',
-    amount: 'FAST CASH',
-    subtitle: 'INSTANT WITHDRAWAL TO bKash & Nagad',
-    image: '/banners/banner_fast_withdraw.png',
-    gradient: 'default',
-    description: 'Automated settlement to bKash, Nagad, Rocket & Bank accounts in minutes',
+    id: 's_withdraw',
+    type: 'withdraw',
+    badge: '24/7 AUTOMATED PAYOUT',
+    badgeStyle: 'bg-blue-500/10 text-blue-700 border-blue-300',
+    title: 'Instant 24/7 Fast Withdrawals',
+    subtitle: 'Withdraw your daily earnings directly to bKash & Nagad in minutes!',
+    highlightBadge: 'Verified Payout',
+    highlightText: 'Zero Fee Fast Settlements',
+    bgGradient: 'from-[#eff6ff] via-[#dbeafe] to-[#f8fafc]',
+    borderColor: 'border-blue-200/80',
+    iconColor: 'text-blue-600',
+    iconBg: 'bg-blue-100/90 ring-blue-300/50',
     active: true
   }
 ];
@@ -300,7 +325,7 @@ export const getStoredData = (key, fallback) => {
 
     // Ensure all official banners are present in slides
     if (key === 'slides') {
-      if (!Array.isArray(parsed) || parsed.length < 5) {
+      if (!Array.isArray(parsed) || parsed.length < 5 || parsed.some((s) => s?.id === 's1' || s?.image)) {
         return DEFAULT_SLIDES;
       }
       return parsed;
