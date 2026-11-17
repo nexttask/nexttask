@@ -4231,8 +4231,8 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* ================= NEXT VIP TIER UPGRADE PROGRESS BAR ================= */}
-                  {(() => {
+                  {/* ================= NEXT VIP TIER UPGRADE PROGRESS BAR (ONLY FOR LOGGED IN USERS) ================= */}
+                  {isLoggedIn && (() => {
                     // Calculate user's highest active package deposit
                     const highestActiveDeposit = (userActivePackages || []).reduce((max, pkg) => {
                       if (pkg.isStarter) return max;
