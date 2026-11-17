@@ -4175,67 +4175,82 @@ export default function App() {
                     <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
                       <button
                         onClick={() => {
-                          if (!requireAuth('team', 'invite friends and view team')) return;
+                          if (!isLoggedIn) {
+                            setIntendedTab('team');
+                            navigateToTab('auth', 'login');
+                            showToast('Please sign in to invite friends');
+                            return;
+                          }
                           navigateToTab('team');
                         }}
                         className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
                       >
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-pink-600 to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-600/20 group-hover:scale-105 transition">
-                          <UserPlus className="w-5 h-5 text-white" />
+                        <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+                          <UserPlus className="w-5 h-5 text-pink-300" />
                         </div>
-                        <span className="text-[11px] font-bold text-slate-700">Invite Friends</span>
+                        <span className="text-[11px] font-semibold text-slate-700">Invite Friends</span>
                       </button>
 
                       {/* Lucky Spin Wheel */}
                       <button
                         onClick={() => {
-                          if (!requireAuth('home', 'play lucky wheel')) return;
+                          if (!isLoggedIn) {
+                            setIntendedTab('home');
+                            navigateToTab('auth', 'login');
+                            showToast('Please sign in to play Lucky Spin');
+                            return;
+                          }
                           setShowSpinModal(true);
                         }}
-                        className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer relative"
+                        className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
                       >
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 group-hover:scale-105 transition">
-                          <Sparkles className="w-5 h-5 text-white animate-spin-slow" />
+                        <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+                          <Sparkles className="w-5 h-5 text-amber-300" />
                         </div>
-                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-0.5">
-                          <span>Lucky Spin</span>
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
-                        </span>
+                        <span className="text-[11px] font-semibold text-slate-700">Lucky Spin</span>
                       </button>
 
                       {/* Daily Check-in Streak */}
                       <button
                         onClick={() => {
-                          if (!requireAuth('home', 'claim daily check-in')) return;
+                          if (!isLoggedIn) {
+                            setIntendedTab('home');
+                            navigateToTab('auth', 'login');
+                            showToast('Please sign in to claim daily check-in');
+                            return;
+                          }
                           setShowCheckInModal(true);
                         }}
                         className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
                       >
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 text-white flex items-center justify-center shadow-md shadow-cyan-600/20 group-hover:scale-105 transition">
-                          <Calendar className="w-5 h-5 text-white" />
+                        <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+                          <Calendar className="w-5 h-5 text-cyan-300" />
                         </div>
-                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-0.5">
-                          <span>Check-in</span>
-                          {!checkInStreakData.checkedToday && (
-                            <span className="bg-emerald-500 text-white text-[8px] font-black px-1 rounded-full uppercase">Free</span>
-                          )}
-                        </span>
+                        <span className="text-[11px] font-semibold text-slate-700">Check-in</span>
                       </button>
                     </div>
                   </div>
 
                   {/* ================= NEXT VIP TIER UPGRADE PROGRESS BAR ================= */}
                   {(() => {
-                    const currentDeposit = Number(rechargeTotal || 0);
-                    // Find next tier to target
-                    const targetTier = vipTiers.find((v) => {
-                      const dep = parseFloat(String(v.deposit || 0).replace(/,/g, ''));
-                      return dep > currentDeposit && !String(v.level || '').toLowerCase().includes('starter');
-                    }) || vipTiers[1];
+                    // Calculate user's highest active package deposit
+                    const highestActiveDeposit = (userActivePackages || []).reduce((max, pkg) => {
+                      if (pkg.isStarter) return max;
+                      const dep = parseFloat(String(pkg.deposit || 0).replace(/,/g, '')) || 0;
+                      return Math.max(max, dep);
+                    }, 0);
 
-                    const targetDep = parseFloat(String(targetTier?.deposit || 500).replace(/,/g, ''));
-                    const needed = Math.max(0, targetDep - currentDeposit);
-                    const progressPercent = Math.min(100, Math.round((currentDeposit / targetDep) * 100));
+                    const currentPurchasingPower = Number(rechargeTotal || 0);
+
+                    // Find the true NEXT tier strictly above user's highest active tier
+                    const nextTier = vipTiers.find((v) => {
+                      const dep = parseFloat(String(v.deposit || 0).replace(/,/g, '')) || 0;
+                      return dep > highestActiveDeposit && !String(v.level || '').toLowerCase().includes('starter');
+                    }) || vipTiers[vipTiers.length - 1];
+
+                    const targetDep = parseFloat(String(nextTier?.deposit || 300).replace(/,/g, ''));
+                    const needed = Math.max(0, targetDep - currentPurchasingPower);
+                    const progressPercent = Math.min(100, Math.round((currentPurchasingPower / targetDep) * 100));
 
                     return (
                       <div className="mx-4 bg-gradient-to-br from-[#05132d] via-[#091e45] to-[#0c2a63] rounded-3xl p-4 text-white shadow-lg border border-blue-900/50 relative overflow-hidden">
@@ -4250,7 +4265,7 @@ export default function App() {
                             <div>
                               <div className="text-[10px] text-blue-200 font-semibold uppercase tracking-wider">Next Tier Goal</div>
                               <div className="text-sm font-black text-amber-300">
-                                Upgrade to {getVipDisplayName(targetTier?.level, vipTiers)}
+                                Upgrade to {getVipDisplayName(nextTier?.level, vipTiers)}
                               </div>
                             </div>
                           </div>
@@ -4268,18 +4283,22 @@ export default function App() {
                         <div className="space-y-1.5 mt-3">
                           <div className="flex justify-between items-center text-[11px] font-semibold">
                             <span className="text-slate-300">
-                              Deposit: <b className="text-white font-mono">৳{currentDeposit.toFixed(0)}</b> / ৳{targetDep.toFixed(0)}
+                              Available Balance: <b className="text-white font-mono">৳{currentPurchasingPower.toFixed(0)}</b> / ৳{targetDep.toFixed(0)}
                             </span>
                             <span className="text-cyan-300 font-mono font-bold">{progressPercent}%</span>
                           </div>
                           <div className="w-full h-2.5 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-white/10">
                             <div
                               className="h-full bg-gradient-to-r from-cyan-400 via-blue-400 to-emerald-400 rounded-full transition-all duration-700 shadow-sm"
-                              style={{ width: `${Math.max(6, progressPercent)}%` }}
+                              style={{ width: `${Math.max(4, progressPercent)}%` }}
                             ></div>
                           </div>
                           <div className="text-[10px] text-slate-300 flex items-center justify-between pt-0.5">
-                            <span>Recharge <b>৳{needed.toFixed(0)} BDT</b> more to unlock daily <b>৳{targetTier?.daily || '30'} BDT</b> profit!</span>
+                            {needed > 0 ? (
+                              <span>Recharge <b>৳{needed.toFixed(0)} BDT</b> more to unlock daily <b>৳{nextTier?.daily || '18.00'} BDT</b> profit!</span>
+                            ) : (
+                              <span className="text-emerald-300 font-bold">✓ Sufficient balance! You can unlock {getVipDisplayName(nextTier?.level, vipTiers)} now.</span>
+                            )}
                           </div>
                         </div>
                       </div>
