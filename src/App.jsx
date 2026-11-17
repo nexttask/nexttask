@@ -90,17 +90,11 @@ import {
 import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
 
-const LIVE_PAYOUT_ACTIVITIES = [
-  { user: '018******48', action: 'withdrew ৳500 via bKash', time: '1m ago', icon: 'cash' },
-  { user: '019******04', action: 'unlocked Silver Package', time: '2m ago', icon: 'vip' },
-  { user: '017******12', action: 'withdrew ৳1,000 via Nagad', time: '3m ago', icon: 'cash' },
-  { user: '013******99', action: 'won ৳50 from Lucky Spin', time: '4m ago', icon: 'gift' },
-  { user: '016******75', action: 'withdrew ৳750 via bKash', time: '5m ago', icon: 'cash' },
-  { user: '015******32', action: 'unlocked Basic Package', time: '7m ago', icon: 'vip' },
-  { user: '018******91', action: 'withdrew ৳1,500 via Nagad', time: '8m ago', icon: 'cash' },
-  { user: '017******88', action: 'claimed 7-Day Check-in Bonus', time: '10m ago', icon: 'gift' },
-  { user: '019******63', action: 'withdrew ৳500 via bKash', time: '12m ago', icon: 'cash' },
-  { user: '018******20', action: 'unlocked Gold Package', time: '15m ago', icon: 'vip' }
+const PROMO_MARQUEE_MESSAGES = [
+  { text: "🤝 REFER & EARN: Invite friends with your invite code and earn an instant 10% direct cash commission on every deposit they make!", icon: "refer" },
+  { text: "🎡 LUCKY SPIN: Spin the Lucky Wheel daily to win instant cash up to ৳50! VIP members get 5 spins every day.", icon: "spin" },
+  { text: "📅 DAILY CHECK-IN: Log in daily to claim free check-in cash rewards and unlock up to ৳25 mega streak bonus!", icon: "checkin" },
+  { text: "💬 OFFICIAL COMMUNITY: Join our Official Telegram Community for 24/7 customer support, proof sharing, and announcements: https://t.me/+e-GhVsAJ339kZDQ1", icon: "telegram" }
 ];
 
 export const resolveInitialRoute = () => {
@@ -1509,7 +1503,7 @@ export default function App() {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinDeg, setSpinDeg] = useState(0);
-  const [liveToastActivity, setLiveToastActivity] = useState(null);
+  const [marqueeMsgIndex, setMarqueeMsgIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState('');
 
   // Language & Translation State
@@ -1525,20 +1519,12 @@ export default function App() {
     showToast(`Language: ${LANGUAGES.find((l) => l.code === code)?.name}`);
   };
 
-  // Live Payouts & Activities floating ticker
+  // Auto cycle marquee promo messages every 9 seconds
   useEffect(() => {
-    let index = 0;
-    const interval = setInterval(() => {
-      const item = LIVE_PAYOUT_ACTIVITIES[index % LIVE_PAYOUT_ACTIVITIES.length];
-      setLiveToastActivity(item);
-      index++;
-      // Auto hide after 4.5 seconds
-      setTimeout(() => {
-        setLiveToastActivity(null);
-      }, 4500);
-    }, 11000); // Trigger every 11 seconds
-
-    return () => clearInterval(interval);
+    const timer = setInterval(() => {
+      setMarqueeMsgIndex((prev) => (prev + 1) % PROMO_MARQUEE_MESSAGES.length);
+    }, 9000);
+    return () => clearInterval(timer);
   }, []);
 
   // Daily Check-in Streak helper logic
@@ -4034,23 +4020,55 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Marquee ticker on Home tab */}
-                {activeTab === 'home' && (
-                  <div
-                    onClick={() => {
+                {/* Marquee ticker on Home tab - cycling promo messages */}
+                {activeTab === 'home' && (() => {
+                  const curMsg = PROMO_MARQUEE_MESSAGES[marqueeMsgIndex] || PROMO_MARQUEE_MESSAGES[0];
+                  const handleMarqueeClick = () => {
+                    if (curMsg.icon === 'refer') {
+                      if (!isLoggedIn) {
+                        setIntendedTab('team');
+                        navigateToTab('auth', 'login');
+                        showToast('Please sign in to invite friends');
+                        return;
+                      }
+                      navigateToTab('team');
+                    } else if (curMsg.icon === 'spin') {
+                      if (!isLoggedIn) {
+                        setIntendedTab('home');
+                        navigateToTab('auth', 'login');
+                        showToast('Please sign in to play Lucky Spin');
+                        return;
+                      }
+                      setShowSpinModal(true);
+                    } else if (curMsg.icon === 'checkin') {
+                      if (!isLoggedIn) {
+                        setIntendedTab('home');
+                        navigateToTab('auth', 'login');
+                        showToast('Please sign in to claim daily check-in');
+                        return;
+                      }
+                      setShowCheckInModal(true);
+                    } else {
                       window.open('https://t.me/+e-GhVsAJ339kZDQ1', '_blank');
-                    }}
-                    className="mt-3 flex items-center gap-2 text-[11px] text-slate-300 bg-white/5 hover:bg-white/10 py-1.5 px-3 rounded-full overflow-hidden cursor-pointer transition border border-white/5 active:scale-[0.99]"
-                    title="Click to join official Telegram group"
-                  >
-                    <span className="font-bold text-white flex items-center shrink-0">
-                      <Megaphone className="w-3.5 h-3.5 text-sky-400 shrink-0 animate-pulse" />
-                    </span>
-                    <marquee className="truncate font-medium text-slate-100" behavior="scroll" direction="left" scrollamount="4">
-                      📢 OFFICIAL COMMUNITY: Join our Official Telegram Community for daily updates, payment proofs, and 24/7 customer support: https://t.me/+e-GhVsAJ339kZDQ1
-                    </marquee>
-                  </div>
-                )}
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={marqueeMsgIndex}
+                      onClick={handleMarqueeClick}
+                      className="mt-3 flex items-center gap-2 text-[11px] text-slate-300 bg-white/5 hover:bg-white/10 py-1.5 px-3 rounded-full overflow-hidden cursor-pointer transition border border-white/5 active:scale-[0.99] animate-fade-in"
+                      title="Click to view details"
+                    >
+                      <span className="font-bold text-white flex items-center shrink-0">
+                        <Megaphone className="w-3.5 h-3.5 text-sky-400 shrink-0 animate-pulse" />
+                      </span>
+                      <marquee className="truncate font-medium text-slate-100" behavior="scroll" direction="left" scrollamount="4">
+                        {curMsg.text}
+                      </marquee>
+                    </div>
+                  );
+                })()}
 
                 {/* Sub-header row for VIP tab */}
                 {activeTab === 'vip' && (
@@ -4242,7 +4260,9 @@ export default function App() {
                       return Math.max(max, dep);
                     }, 0);
 
-                    const currentPurchasingPower = Number(rechargeTotal || 0);
+                    const availableRecharge = Number(rechargeTotal || 0);
+                    const availableEarned = Number(balance || 0);
+                    const currentPurchasingPower = availableRecharge + availableEarned;
 
                     // Find the true NEXT tier strictly above user's highest active tier
                     const nextTier = vipTiers.find((v) => {
@@ -4252,7 +4272,7 @@ export default function App() {
 
                     const targetDep = parseFloat(String(nextTier?.deposit || 300).replace(/,/g, ''));
                     const needed = Math.max(0, targetDep - currentPurchasingPower);
-                    const progressPercent = Math.min(100, Math.round((currentPurchasingPower / targetDep) * 100));
+                    const progressPercent = targetDep > 0 ? Math.min(100, Math.round((currentPurchasingPower / targetDep) * 100)) : 0;
 
                     return (
                       <div className="mx-4 bg-gradient-to-br from-[#05132d] via-[#091e45] to-[#0c2a63] rounded-3xl p-4 text-white shadow-lg border border-blue-900/50 relative overflow-hidden">
@@ -4285,9 +4305,9 @@ export default function App() {
                         <div className="space-y-1.5 mt-3">
                           <div className="flex justify-between items-center text-[11px] font-semibold">
                             <span className="text-slate-300">
-                              Available Balance: <b className="text-white font-mono">৳{currentPurchasingPower.toFixed(0)}</b> / ৳{targetDep.toFixed(0)}
+                              Available: <b className="text-white font-bold">৳ {currentPurchasingPower.toFixed(0)}</b> / ৳ {targetDep.toFixed(0)}
                             </span>
-                            <span className="text-cyan-300 font-mono font-bold">{progressPercent}%</span>
+                            <span className="text-cyan-300 font-bold">{progressPercent}%</span>
                           </div>
                           <div className="w-full h-2.5 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-white/10">
                             <div
@@ -4297,7 +4317,7 @@ export default function App() {
                           </div>
                           <div className="text-[10px] text-slate-300 flex items-center justify-between pt-0.5">
                             {needed > 0 ? (
-                              <span>Recharge <b>৳{needed.toFixed(0)} BDT</b> more to unlock daily <b>৳{nextTier?.daily || '18.00'} BDT</b> profit!</span>
+                              <span>Recharge <b className="text-amber-300">৳ {needed.toFixed(0)} BDT</b> more to unlock daily <b>৳ {nextTier?.daily || '18.00'} BDT</b> profit!</span>
                             ) : (
                               <span className="text-emerald-300 font-bold">✓ Sufficient balance! You can unlock {getVipDisplayName(nextTier?.level, vipTiers)} now.</span>
                             )}
