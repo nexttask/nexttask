@@ -97,6 +97,19 @@ const PROMO_MARQUEE_MESSAGES = [
   { text: "💬 OFFICIAL COMMUNITY: Join our Official Telegram Community for 24/7 customer support, proof sharing, and announcements: https://t.me/+e-GhVsAJ339kZDQ1", icon: "telegram" }
 ];
 
+const LIVE_PAYOUT_ACTIVITIES = [
+  { user: '018******48', action: 'withdrew ৳500 via bKash', time: '1m ago', icon: 'cash' },
+  { user: '019******04', action: 'unlocked Silver Package', time: '2m ago', icon: 'vip' },
+  { user: '017******12', action: 'withdrew ৳1,000 via Nagad', time: '3m ago', icon: 'cash' },
+  { user: '013******99', action: 'won ৳50 from Lucky Spin', time: '4m ago', icon: 'gift' },
+  { user: '016******75', action: 'withdrew ৳750 via bKash', time: '5m ago', icon: 'cash' },
+  { user: '015******32', action: 'unlocked Basic Package', time: '7m ago', icon: 'vip' },
+  { user: '018******91', action: 'withdrew ৳1,500 via Nagad', time: '8m ago', icon: 'cash' },
+  { user: '017******88', action: 'claimed 7-Day Check-in Bonus', time: '10m ago', icon: 'gift' },
+  { user: '019******63', action: 'withdrew ৳500 via bKash', time: '12m ago', icon: 'cash' },
+  { user: '018******20', action: 'unlocked Gold Package', time: '15m ago', icon: 'vip' }
+];
+
 export const resolveInitialRoute = () => {
   if (typeof window === 'undefined') return { tab: 'home', authMode: 'login', isAdmin: false };
   const rawPath = (window.location.pathname || '').toLowerCase();
@@ -1503,6 +1516,7 @@ export default function App() {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinDeg, setSpinDeg] = useState(0);
+  const [liveToastActivity, setLiveToastActivity] = useState(null);
   const [marqueeMsgIndex, setMarqueeMsgIndex] = useState(0);
   const [toastMessage, setToastMessage] = useState('');
 
@@ -1525,6 +1539,21 @@ export default function App() {
       setMarqueeMsgIndex((prev) => (prev + 1) % PROMO_MARQUEE_MESSAGES.length);
     }, 9000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Live Payouts & Activities floating ticker (every 11 seconds, shows for 4.5 seconds)
+  useEffect(() => {
+    let index = 0;
+    const interval = setInterval(() => {
+      const item = LIVE_PAYOUT_ACTIVITIES[index % LIVE_PAYOUT_ACTIVITIES.length];
+      setLiveToastActivity(item);
+      index++;
+      setTimeout(() => {
+        setLiveToastActivity(null);
+      }, 4500);
+    }, 11000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Daily Check-in Streak helper logic
