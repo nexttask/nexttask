@@ -88,19 +88,17 @@ import {
 import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
 
-const MEMBER_LIST_DATA = [
-  { amount: '+৳15,000.00', user: '018******34', vip: 'Business Package' },
-  { amount: '+৳500.00', user: '017******46', vip: 'Starter Package' },
-  { amount: '+৳3,500.00', user: '019******25', vip: 'Basic Package' },
-  { amount: '+৳7,500.00', user: '016******88', vip: 'Silver Package' },
-  { amount: '+৳18,000.00', user: '013******82', vip: 'Gold Package' },
-  { amount: '+৳42,000.00', user: '015******44', vip: 'Platinum Package' },
-  { amount: '+৳50.00', user: '017******11', vip: 'Starter Package' },
-  { amount: '+৳90,000.00', user: '018******89', vip: 'Diamond Package' },
-  { amount: '+৳180,000.00', user: '019******21', vip: 'Premium Package' },
-  { amount: '+৳450,000.00', user: '018******99', vip: 'Elite Package' },
-  { amount: '+৳1,200,000.00', user: '017******01', vip: 'Royal Package' },
-  { amount: '+৳1,000.00', user: '016******77', vip: 'Basic Package' },
+const LIVE_PAYOUT_ACTIVITIES = [
+  { user: '018******48', action: 'withdrew ৳500 via bKash', time: '1m ago', icon: 'cash' },
+  { user: '019******04', action: 'unlocked Silver Package', time: '2m ago', icon: 'vip' },
+  { user: '017******12', action: 'withdrew ৳1,000 via Nagad', time: '3m ago', icon: 'cash' },
+  { user: '013******99', action: 'won ৳50 from Lucky Spin', time: '4m ago', icon: 'gift' },
+  { user: '016******75', action: 'withdrew ৳750 via bKash', time: '5m ago', icon: 'cash' },
+  { user: '015******32', action: 'unlocked Basic Package', time: '7m ago', icon: 'vip' },
+  { user: '018******91', action: 'withdrew ৳1,500 via Nagad', time: '8m ago', icon: 'cash' },
+  { user: '017******88', action: 'claimed 7-Day Check-in Bonus', time: '10m ago', icon: 'gift' },
+  { user: '019******63', action: 'withdrew ৳500 via bKash', time: '12m ago', icon: 'cash' },
+  { user: '018******20', action: 'unlocked Gold Package', time: '15m ago', icon: 'vip' }
 ];
 
 export const resolveInitialRoute = () => {
@@ -1505,6 +1503,11 @@ export default function App() {
   const [showLicenseZoomModal, setShowLicenseZoomModal] = useState(false);
   const [showAppModal, setShowAppModal] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
+  const [showSpinModal, setShowSpinModal] = useState(false);
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [spinDeg, setSpinDeg] = useState(0);
+  const [liveToastActivity, setLiveToastActivity] = useState(null);
   const [toastMessage, setToastMessage] = useState('');
 
   // Language & Translation State
@@ -1518,6 +1521,140 @@ export default function App() {
     localStorage.setItem('nt_lang', code);
     setShowLangModal(false);
     showToast(`Language: ${LANGUAGES.find((l) => l.code === code)?.name}`);
+  };
+
+  // Live Payouts & Activities floating ticker
+  useEffect(() => {
+    let index = 0;
+    const interval = setInterval(() => {
+      const item = LIVE_PAYOUT_ACTIVITIES[index % LIVE_PAYOUT_ACTIVITIES.length];
+      setLiveToastActivity(item);
+      index++;
+      // Auto hide after 4.5 seconds
+      setTimeout(() => {
+        setLiveToastActivity(null);
+      }, 4500);
+    }, 11000); // Trigger every 11 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Daily Check-in Streak helper logic
+  const checkInStreakData = useMemo(() => {
+    if (!currentUser) return { streak: 0, checkedToday: false };
+    const today = getLocalDateStr();
+    const lastCheckDate = currentUser.lastCheckInDate || '';
+    const streak = currentUser.checkInStreak || 0;
+    return {
+      streak,
+      checkedToday: lastCheckDate === today
+    };
+  }, [currentUser]);
+
+  // Lucky Spin Free status
+  const spinStatus = useMemo(() => {
+    if (!currentUser) return { canSpin: false, isVip: false, spinsLeft: 0 };
+    const today = getLocalDateStr();
+    const lastSpinDate = currentUser.lastSpinDate || '';
+    const rechargesList = getStoredData('recharges', DEFAULT_RECHARGES);
+    const isVip = isUserVerified(currentUser, rechargesList);
+    const spinsDoneToday = lastSpinDate === today ? (currentUser.spinsDoneToday || 0) : 0;
+    const maxSpins = isVip ? 5 : 1;
+    const spinsLeft = Math.max(0, maxSpins - spinsDoneToday);
+    return {
+      canSpin: spinsLeft > 0,
+      isVip,
+      spinsLeft,
+      maxSpins
+    };
+  }, [currentUser]);
+
+  const handleClaimCheckIn = () => {
+    if (!requireAuth('home', 'claim daily check-in reward')) return;
+    if (checkInStreakData.checkedToday) {
+      showToast('You have already claimed today\'s check-in reward!');
+      return;
+    }
+    const today = getLocalDateStr();
+    const newStreak = checkInStreakData.streak + 1;
+    const rechargesList = getStoredData('recharges', DEFAULT_RECHARGES);
+    const isVip = isUserVerified(currentUser, rechargesList);
+    
+    // Reward calculation: Base ৳2 + ৳1 per streak day (up to 7 days = ৳8), VIP gets 2x
+    let reward = Math.min(10, 2 + (newStreak - 1));
+    if (newStreak === 7) reward = 25; // 7-day bonus
+    if (isVip) reward = reward * 1.5;
+    reward = parseFloat(reward.toFixed(2));
+
+    const updatedUser = {
+      ...currentUser,
+      balance: parseFloat(((currentUser.balance || 0) + reward).toFixed(2)),
+      checkInStreak: newStreak >= 7 ? 0 : newStreak,
+      lastCheckInDate: today
+    };
+
+    setCurrentUser(updatedUser);
+    setBalance(updatedUser.balance);
+    const allUsers = getStoredData('users', DEFAULT_USERS);
+    const updatedUsers = allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u);
+    setStoredData('users', updatedUsers);
+
+    addUserNotification(
+      currentUser.id,
+      'Daily Check-in Reward',
+      `You successfully claimed Day ${newStreak} Check-in reward of ৳${reward} BDT!`,
+      'reward'
+    );
+    showToast(`🎉 Claimed ৳${reward} BDT! Streak: ${newStreak} Day(s)`);
+    setShowCheckInModal(false);
+  };
+
+  const handleSpinWheel = () => {
+    if (!requireAuth('home', 'play lucky spin')) return;
+    if (!spinStatus.canSpin || isSpinning) {
+      if (!spinStatus.canSpin) {
+        showToast(spinStatus.isVip ? 'All VIP spins used for today! Come back tomorrow.' : 'Upgrade to VIP to get 5 daily spins!');
+      }
+      return;
+    }
+
+    setIsSpinning(true);
+    const today = getLocalDateStr();
+    const lastSpinDate = currentUser.lastSpinDate || '';
+    const spinsDoneToday = lastSpinDate === today ? (currentUser.spinsDoneToday || 0) : 0;
+
+    // Spin slices: 6 slices: [৳1, ৳5, ৳10, ৳2, ৳20, ৳50]
+    // 60 deg each. 
+    const sliceRewards = [1, 5, 10, 2, 20, 50];
+    const randomIndex = Math.floor(Math.random() * sliceRewards.length);
+    const wonAmount = sliceRewards[randomIndex];
+    const targetDeg = (360 * 5) + (randomIndex * 60) + 30; // 5 full rotations + slice center
+
+    setSpinDeg((prev) => prev + targetDeg);
+
+    setTimeout(() => {
+      setIsSpinning(false);
+      const updatedUser = {
+        ...currentUser,
+        balance: parseFloat(((currentUser.balance || 0) + wonAmount).toFixed(2)),
+        lastSpinDate: today,
+        spinsDoneToday: spinsDoneToday + 1
+      };
+
+      setCurrentUser(updatedUser);
+      setBalance(updatedUser.balance);
+      const allUsers = getStoredData('users', DEFAULT_USERS);
+      const updatedUsers = allUsers.map((u) => String(u.id) === String(currentUser.id) ? updatedUser : u);
+      setStoredData('users', updatedUsers);
+
+      addUserNotification(
+        currentUser.id,
+        'Lucky Spin Reward',
+        `Congratulations! You won ৳${wonAmount} BDT from the Lucky Wheel Spin!`,
+        'reward'
+      );
+      showToast(`🎉 Congratulations! You won ৳${wonAmount} BDT!`);
+    }, 4500);
   };
 
   // Pull to Refresh State & Handlers
@@ -4034,22 +4171,120 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Second Row: Invite Friends */}
-                    <div className="mt-3 pt-3 border-t border-slate-50 flex">
+                    {/* Second Row: Invite Friends, Lucky Spin, Daily Check-in */}
+                    <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
                       <button
                         onClick={() => {
                           if (!requireAuth('team', 'invite friends and view team')) return;
                           navigateToTab('team');
                         }}
-                        className="flex flex-col items-center gap-1.5 px-1 group"
+                        className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
                       >
-                        <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
-                          <UserPlus className="w-5 h-5 text-pink-300" />
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-pink-600 to-rose-500 text-white flex items-center justify-center shadow-md shadow-pink-600/20 group-hover:scale-105 transition">
+                          <UserPlus className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-[11px] font-semibold text-slate-700">Invite Friends</span>
+                        <span className="text-[11px] font-bold text-slate-700">Invite Friends</span>
+                      </button>
+
+                      {/* Lucky Spin Wheel */}
+                      <button
+                        onClick={() => {
+                          if (!requireAuth('home', 'play lucky wheel')) return;
+                          setShowSpinModal(true);
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer relative"
+                      >
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 group-hover:scale-105 transition">
+                          <Sparkles className="w-5 h-5 text-white animate-spin-slow" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-0.5">
+                          <span>Lucky Spin</span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                        </span>
+                      </button>
+
+                      {/* Daily Check-in Streak */}
+                      <button
+                        onClick={() => {
+                          if (!requireAuth('home', 'claim daily check-in')) return;
+                          setShowCheckInModal(true);
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
+                      >
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 text-white flex items-center justify-center shadow-md shadow-cyan-600/20 group-hover:scale-105 transition">
+                          <Calendar className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-0.5">
+                          <span>Check-in</span>
+                          {!checkInStreakData.checkedToday && (
+                            <span className="bg-emerald-500 text-white text-[8px] font-black px-1 rounded-full uppercase">Free</span>
+                          )}
+                        </span>
                       </button>
                     </div>
                   </div>
+
+                  {/* ================= NEXT VIP TIER UPGRADE PROGRESS BAR ================= */}
+                  {(() => {
+                    const currentDeposit = Number(rechargeTotal || 0);
+                    // Find next tier to target
+                    const targetTier = vipTiers.find((v) => {
+                      const dep = parseFloat(String(v.deposit || 0).replace(/,/g, ''));
+                      return dep > currentDeposit && !String(v.level || '').toLowerCase().includes('starter');
+                    }) || vipTiers[1];
+
+                    const targetDep = parseFloat(String(targetTier?.deposit || 500).replace(/,/g, ''));
+                    const needed = Math.max(0, targetDep - currentDeposit);
+                    const progressPercent = Math.min(100, Math.round((currentDeposit / targetDep) * 100));
+
+                    return (
+                      <div className="mx-4 bg-gradient-to-br from-[#05132d] via-[#091e45] to-[#0c2a63] rounded-3xl p-4 text-white shadow-lg border border-blue-900/50 relative overflow-hidden">
+                        {/* Decorative background glow */}
+                        <div className="absolute -right-8 -bottom-8 w-28 h-28 bg-blue-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300">
+                              <Crown className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-blue-200 font-semibold uppercase tracking-wider">Next Tier Goal</div>
+                              <div className="text-sm font-black text-amber-300">
+                                Upgrade to {getVipDisplayName(targetTier?.level, vipTiers)}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openRechargeModal()}
+                            className="bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 text-xs font-black px-3.5 py-1.5 rounded-full shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1"
+                          >
+                            <span>Recharge</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-1.5 mt-3">
+                          <div className="flex justify-between items-center text-[11px] font-semibold">
+                            <span className="text-slate-300">
+                              Deposit: <b className="text-white font-mono">৳{currentDeposit.toFixed(0)}</b> / ৳{targetDep.toFixed(0)}
+                            </span>
+                            <span className="text-cyan-300 font-mono font-bold">{progressPercent}%</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-white/10">
+                            <div
+                              className="h-full bg-gradient-to-r from-cyan-400 via-blue-400 to-emerald-400 rounded-full transition-all duration-700 shadow-sm"
+                              style={{ width: `${Math.max(6, progressPercent)}%` }}
+                            ></div>
+                          </div>
+                          <div className="text-[10px] text-slate-300 flex items-center justify-between pt-0.5">
+                            <span>Recharge <b>৳{needed.toFixed(0)} BDT</b> more to unlock daily <b>৳{targetTier?.daily || '30'} BDT</b> profit!</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Dynamic Promotional Banner Carousel (Smooth Horizontal Sliding & Touch Swipe) */}
                   {slides.length > 0 && (
@@ -4171,41 +4406,6 @@ export default function App() {
                           </div>
                         );
                       })}
-                    </div>
-                  </div>
-
-                  {/* ================= MEMBER LIST SECTION (2 LINES AUTO-SCROLLING) ================= */}
-                  <div className="px-4 pt-2 pb-6 space-y-2.5">
-                    <div className="flex justify-between items-center">
-                      <h3 className="font-extrabold text-base text-slate-900 tracking-tight">Member list</h3>
-                      <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Live Payouts
-                      </span>
-                    </div>
-
-                    {/* Exactly 2 lines container (h-[142px]) with continuous vertical auto-scroll */}
-                    <div className="h-[142px] overflow-hidden relative rounded-2xl">
-                      <div className="animate-member-scroll grid grid-cols-2 gap-2.5">
-                        {[...MEMBER_LIST_DATA, ...MEMBER_LIST_DATA].map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-[#ebf0f8]/95 rounded-2xl p-2.5 shadow-sm border border-slate-100 relative overflow-hidden flex flex-col justify-between h-[66px]"
-                          >
-                            {/* VIP Tag on top-right */}
-                            <span className="absolute top-2 right-2 bg-[#0c0d11] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full tracking-wider">
-                              {item.vip}
-                            </span>
-
-                            <div className="text-[13px] font-black text-blue-950 tracking-tight">
-                              {item.amount}
-                            </div>
-                            <div className="text-[10px] text-slate-500 truncate font-medium">
-                              {item.user}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -7410,6 +7610,210 @@ export default function App() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= FLOATING LIVE PAYMENT PROOF TICKER ================= */}
+        {liveToastActivity && (
+          <div className="absolute bottom-20 left-4 z-40 max-w-[280px] bg-slate-950/90 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl flex items-center gap-2.5 animate-slide-up pointer-events-none">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+              liveToastActivity.icon === 'vip' 
+                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+                : liveToastActivity.icon === 'gift'
+                ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30'
+                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+            }`}>
+              {liveToastActivity.icon === 'vip' ? <Crown className="w-4 h-4" /> : liveToastActivity.icon === 'gift' ? <Gift className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+            </div>
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="text-[11px] font-bold text-slate-200 truncate">
+                <span className="font-mono text-cyan-300">{liveToastActivity.user}</span> {liveToastActivity.action}
+              </div>
+              <div className="text-[9px] text-slate-400 flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{liveToastActivity.time} • Live payout</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL: LUCKY SPIN WHEEL ================= */}
+        {showSpinModal && (
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gradient-to-b from-[#091b3f] to-[#050f24] rounded-3xl w-full max-w-[340px] p-5 shadow-2xl border border-blue-900/60 text-white relative flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => !isSpinning && setShowSpinModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 cursor-pointer"
+                disabled={isSpinning}
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center space-y-1 mb-4">
+                <div className="inline-flex items-center gap-1 bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                  <Sparkles className="w-3 h-3" />
+                  Lucky Spin & Win
+                </div>
+                <h3 className="font-black text-lg text-white tracking-tight">Spin the Lucky Wheel!</h3>
+                <p className="text-[11px] text-slate-300">
+                  {spinStatus.isVip ? (
+                    <span className="text-amber-300 font-bold">VIP Member: {spinStatus.spinsLeft} / {spinStatus.maxSpins} spins left today</span>
+                  ) : (
+                    <span>Free Daily: {spinStatus.spinsLeft} spin available. (VIPs get 5 daily spins!)</span>
+                  )}
+                </p>
+              </div>
+
+              {/* Wheel Container with Pointer */}
+              <div className="relative w-64 h-64 my-2 flex items-center justify-center">
+                {/* Pointer indicator */}
+                <div className="absolute -top-1.5 z-20 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-amber-400 filter drop-shadow-md"></div>
+
+                {/* Rotating Wheel */}
+                <div
+                  className="w-full h-full rounded-full border-4 border-amber-400/60 shadow-2xl relative overflow-hidden wheel-spinning"
+                  style={{
+                    transform: `rotate(${spinDeg}deg)`,
+                    background: 'conic-gradient(#1e3a8a 0deg 60deg, #047857 60deg 120deg, #d97706 120deg 180deg, #b91c1c 180deg 240deg, #7c3aed 240deg 300deg, #0284c7 300deg 360deg)'
+                  }}
+                >
+                  {/* Wheel Slice Labels */}
+                  {[
+                    { label: '৳1', deg: 30 },
+                    { label: '৳5', deg: 90 },
+                    { label: '৳10', deg: 150 },
+                    { label: '৳2', deg: 210 },
+                    { label: '৳20', deg: 270 },
+                    { label: '৳50', deg: 330 }
+                  ].map((s, idx) => (
+                    <div
+                      key={idx}
+                      className="absolute w-full h-full text-center pt-3 font-black text-white text-sm tracking-wider drop-shadow-md pointer-events-none"
+                      style={{ transform: `rotate(${s.deg}deg)` }}
+                    >
+                      {s.label}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Center Spin Button */}
+                <button
+                  type="button"
+                  onClick={handleSpinWheel}
+                  disabled={isSpinning || !spinStatus.canSpin}
+                  className={`absolute z-10 w-16 h-16 rounded-full font-black text-xs uppercase tracking-wider flex items-center justify-center shadow-2xl transition cursor-pointer active:scale-95 border-2 ${
+                    isSpinning || !spinStatus.canSpin
+                      ? 'bg-slate-700 text-slate-400 border-slate-600 cursor-not-allowed opacity-90'
+                      : 'bg-gradient-to-tr from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 border-white shadow-amber-500/40 animate-pulse'
+                  }`}
+                >
+                  {isSpinning ? '...' : 'SPIN'}
+                </button>
+              </div>
+
+              {/* Bottom Info & Upgrade CTA */}
+              <div className="w-full mt-4 pt-3 border-t border-white/10 text-center space-y-2">
+                {!spinStatus.isVip && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSpinModal(false);
+                      openRechargeModal();
+                    }}
+                    className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-1"
+                  >
+                    <Crown className="w-3.5 h-3.5" />
+                    <span>Unlock VIP for 5 Daily Spins</span>
+                  </button>
+                )}
+                <div className="text-[10px] text-slate-400">
+                  Won cash is credited directly to your withdrawable balance.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL: DAILY CHECK-IN STREAK ================= */}
+        {showCheckInModal && (
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gradient-to-b from-[#091b3f] to-[#050f24] rounded-3xl w-full max-w-[340px] p-5 shadow-2xl border border-blue-900/60 text-white relative space-y-4">
+              <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm text-white">7-Day Check-in Streak</h3>
+                    <div className="text-[10px] text-cyan-300">Claim daily cash login bonus</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckInModal(false)}
+                  className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 7-Day Grid */}
+              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                {[
+                  { day: 1, reward: '৳2' },
+                  { day: 2, reward: '৳3' },
+                  { day: 3, reward: '৳4' },
+                  { day: 4, reward: '৳5' },
+                  { day: 5, reward: '৳6' },
+                  { day: 6, reward: '৳7' },
+                  { day: 7, reward: '৳25' }
+                ].map((item) => {
+                  const isCompleted = item.day <= checkInStreakData.streak;
+                  const isCurrent = item.day === checkInStreakData.streak + 1;
+                  const isDay7 = item.day === 7;
+
+                  return (
+                    <div
+                      key={item.day}
+                      className={`rounded-2xl p-2 flex flex-col justify-between items-center transition border ${
+                        isDay7 ? 'col-span-2' : ''
+                      } ${
+                        isCompleted
+                          ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
+                          : isCurrent && !checkInStreakData.checkedToday
+                          ? 'bg-gradient-to-b from-blue-600 to-indigo-700 border-cyan-300 text-white shadow-lg ring-1 ring-cyan-400/50'
+                          : 'bg-white/5 border-white/10 text-slate-400'
+                      }`}
+                    >
+                      <div className="text-[10px] font-bold">Day {item.day}</div>
+                      <div className="my-1.5 font-black text-sm text-amber-300 font-mono">{item.reward}</div>
+                      {isCompleted ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                      ) : isDay7 ? (
+                        <Gift className="w-4 h-4 text-amber-300 animate-bounce" />
+                      ) : (
+                        <Coins className="w-3.5 h-3.5 text-slate-500" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Claim Button */}
+              <button
+                type="button"
+                onClick={handleClaimCheckIn}
+                disabled={checkInStreakData.checkedToday}
+                className={`w-full py-3 rounded-full font-black text-xs uppercase tracking-wider transition cursor-pointer shadow-lg active:scale-95 ${
+                  checkInStreakData.checkedToday
+                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-emerald-500/30'
+                }`}
+              >
+                {checkInStreakData.checkedToday ? '✓ Already Claimed Today' : 'Claim Today\'s Bonus'}
+              </button>
             </div>
           </div>
         )}
