@@ -51,7 +51,9 @@ import {
   XCircle,
   CheckCircle,
   Zap,
-  ArrowRight
+  ArrowRight,
+  FerrisWheel,
+  Disc3
 } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import ErrorBoundary from './ErrorBoundary';
@@ -4205,7 +4207,7 @@ export default function App() {
                         className="flex flex-col items-center gap-1.5 p-1 group cursor-pointer"
                       >
                         <div className="w-12 h-12 rounded-full bg-[#0d2146] text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
-                          <Sparkles className="w-5 h-5 text-amber-300" />
+                          <FerrisWheel className="w-5 h-5 text-amber-300" />
                         </div>
                         <span className="text-[11px] font-semibold text-slate-700">Lucky Spin</span>
                       </button>
