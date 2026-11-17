@@ -1377,7 +1377,37 @@ export default function App() {
       return n;
     });
 
-    if (legacyRepaired) {
+    // Ensure system broadcast notifications for Lucky Spin & Daily Check-in exist for all users
+    const BROADCAST_PROMOS = [
+      {
+        id: 'sys_notif_lucky_spin',
+        userId: 'all',
+        title: '🎡 Lucky Spin & Win',
+        message: 'Daily free Lucky Spin is active! Spin the lucky wheel to win instant cash up to ৳50 BDT. VIP members receive 5 spins every day!',
+        time: 'Daily Notice',
+        read: false,
+        type: 'spin'
+      },
+      {
+        id: 'sys_notif_daily_checkin',
+        userId: 'all',
+        title: '📅 Daily Check-in Streak',
+        message: 'Daily Check-in bonus is available! Log in every day to claim free cash rewards and unlock up to ৳25 mega streak bonus!',
+        time: 'Daily Notice',
+        read: false,
+        type: 'checkin'
+      }
+    ];
+
+    let notifsUpdated = false;
+    BROADCAST_PROMOS.forEach((bp) => {
+      if (!sanitizedAllNotifs.some((n) => n && (n.id === bp.id || n.title === bp.title))) {
+        sanitizedAllNotifs.unshift(bp);
+        notifsUpdated = true;
+      }
+    });
+
+    if (legacyRepaired || notifsUpdated) {
       try {
         setStoredData('notifications', sanitizedAllNotifs);
       } catch (e) {}
@@ -1469,8 +1499,69 @@ export default function App() {
     setSelectedNotificationDetail(notif);
   };
 
+  // Daily Popup Sequence Tracker:
+  // 1st visit of day: Lucky Spin popup
+  // 2nd visit of day: Daily Check-in popup
+  // 3rd visit of day: Telegram Community popup
+  // 4th visit onwards: No automatic popups (Lucky Spin & Check-in strictly max 2 times total in a day)
+  const initialDailyPopup = useMemo(() => {
+    try {
+      const today = getLocalDateStr();
+      let tracker = null;
+      const raw = localStorage.getItem('nt_daily_visit_tracker');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.date === today) {
+          tracker = parsed;
+        }
+      }
+
+      if (!tracker) {
+        // 1st visit of the day -> Lucky Spin!
+        tracker = {
+          date: today,
+          visits: 1,
+          spinShown: true,
+          checkInShown: false,
+          telegramShown: false
+        };
+        localStorage.setItem('nt_daily_visit_tracker', JSON.stringify(tracker));
+        return 'spin';
+      }
+
+      // Subsequent visits today:
+      if (!tracker.spinShown) {
+        tracker.visits = (tracker.visits || 0) + 1;
+        tracker.spinShown = true;
+        localStorage.setItem('nt_daily_visit_tracker', JSON.stringify(tracker));
+        return 'spin';
+      }
+
+      if (!tracker.checkInShown) {
+        tracker.visits = (tracker.visits || 0) + 1;
+        tracker.checkInShown = true;
+        localStorage.setItem('nt_daily_visit_tracker', JSON.stringify(tracker));
+        return 'checkin';
+      }
+
+      if (!tracker.telegramShown) {
+        tracker.visits = (tracker.visits || 0) + 1;
+        tracker.telegramShown = true;
+        localStorage.setItem('nt_daily_visit_tracker', JSON.stringify(tracker));
+        return 'telegram';
+      }
+
+      // 4th visit onwards: neither spin nor check-in nor telegram
+      tracker.visits = (tracker.visits || 0) + 1;
+      localStorage.setItem('nt_daily_visit_tracker', JSON.stringify(tracker));
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }, []);
+
   // Modals & Popups
-  const [showPromoPopup, setShowPromoPopup] = useState(true);
+  const [showPromoPopup, setShowPromoPopup] = useState(() => initialDailyPopup === 'telegram');
 
   // Promo countdown timer until midnight (12:00 AM)
   const calculateMidnightCountdown = () => {
@@ -1512,8 +1603,8 @@ export default function App() {
   const [showLicenseZoomModal, setShowLicenseZoomModal] = useState(false);
   const [showAppModal, setShowAppModal] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
-  const [showSpinModal, setShowSpinModal] = useState(false);
-  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [showSpinModal, setShowSpinModal] = useState(() => initialDailyPopup === 'spin');
+  const [showCheckInModal, setShowCheckInModal] = useState(() => initialDailyPopup === 'checkin');
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinDeg, setSpinDeg] = useState(0);
   const [liveToastActivity, setLiveToastActivity] = useState(null);
@@ -3451,6 +3542,10 @@ export default function App() {
                           ? 'bg-sky-100 text-[#0088cc]'
                           : notif.type === 'promo'
                           ? 'bg-pink-100 text-[#e2136e]'
+                          : notif.type === 'spin'
+                          ? 'bg-amber-100 text-amber-500'
+                          : notif.type === 'checkin'
+                          ? 'bg-cyan-100 text-cyan-600'
                           : notif.type === 'recharge'
                           ? 'bg-emerald-100 text-emerald-600'
                           : notif.type === 'withdraw'
@@ -3465,6 +3560,10 @@ export default function App() {
                           <Users className="w-4 h-4 text-[#0088cc]" />
                         ) : notif.type === 'promo' ? (
                           <Gift className="w-4 h-4 text-[#e2136e]" />
+                        ) : notif.type === 'spin' ? (
+                          <FerrisWheel className="w-4 h-4 text-amber-500" />
+                        ) : notif.type === 'checkin' ? (
+                          <Calendar className="w-4 h-4 text-cyan-600" />
                         ) : notif.type === 'recharge' ? (
                           <Coins className="w-4 h-4" />
                         ) : notif.type === 'withdraw' ? (
@@ -3571,6 +3670,10 @@ export default function App() {
                           ? 'bg-sky-50 text-[#0088cc] border border-sky-200'
                           : selectedNotificationDetail.type === 'promo'
                           ? 'bg-pink-50 text-[#e2136e] border border-pink-200'
+                          : selectedNotificationDetail.type === 'spin'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : selectedNotificationDetail.type === 'checkin'
+                          ? 'bg-cyan-50 text-cyan-700 border border-cyan-200'
                           : selectedNotificationDetail.type === 'recharge'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : selectedNotificationDetail.type === 'withdraw'
@@ -3609,7 +3712,51 @@ export default function App() {
               </div>
 
               {/* Action Button */}
-              {(selectedNotificationDetail.type === 'promo' || selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community') ? (
+              {selectedNotificationDetail.type === 'spin' ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedNotificationDetail(null);
+                      setShowNotificationModal(false);
+                      setShowSpinModal(true);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-2.5 px-3 rounded-full text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <FerrisWheel className="w-4 h-4" />
+                    <span>Play Lucky Spin Now</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNotificationDetail(null)}
+                    className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-full text-xs transition active:scale-95 cursor-pointer"
+                  >
+                    {t('close') || 'Close'}
+                  </button>
+                </div>
+              ) : selectedNotificationDetail.type === 'checkin' ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedNotificationDetail(null);
+                      setShowNotificationModal(false);
+                      setShowCheckInModal(true);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black py-2.5 px-3 rounded-full text-xs shadow-md transition active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Claim Daily Bonus</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedNotificationDetail(null)}
+                    className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-full text-xs transition active:scale-95 cursor-pointer"
+                  >
+                    {t('close') || 'Close'}
+                  </button>
+                </div>
+              ) : (selectedNotificationDetail.type === 'promo' || selectedNotificationDetail.type === 'telegram' || selectedNotificationDetail.type === 'community') ? (
                 <div className="flex gap-2">
                   <a
                     href="https://t.me/+e-GhVsAJ339kZDQ1"
