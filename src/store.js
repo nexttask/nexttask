@@ -786,3 +786,38 @@ export const recordUserLoginAudit = async (user) => {
     return user;
   }
 };
+
+/**
+ * Check if a user is verified via successful recharge or active paid package
+ * @param {object} user 
+ * @param {Array} recharges 
+ * @returns {boolean}
+ */
+export const isUserVerified = (user, recharges = []) => {
+  if (!user) return false;
+  // If explicitly flagged
+  if (user.isVerified) return true;
+  // If user has paid packages
+  if (Array.isArray(user.activePackages) && user.activePackages.some((p) => p && !p.isStarter)) {
+    return true;
+  }
+  // If user has recharge amount
+  if ((parseFloat(user.recharge) || 0) > 0) {
+    return true;
+  }
+  // If user has any approved recharge record
+  if (Array.isArray(recharges) && recharges.length > 0) {
+    const uid = String(user.id || '').trim();
+    const phone = String(user.phone || '').trim();
+    const email = String(user.email || '').toLowerCase().trim();
+    const hasApproved = recharges.some((r) => {
+      if (r.status !== 'approved') return false;
+      if (uid && String(r.userId || '').trim() === uid) return true;
+      if (phone && String(r.userPhone || '').trim() === phone) return true;
+      if (email && String(r.userEmail || '').toLowerCase().trim() === email) return true;
+      return false;
+    });
+    if (hasApproved) return true;
+  }
+  return false;
+};

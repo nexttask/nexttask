@@ -82,7 +82,8 @@ import {
   getPackageLogo,
   getVipDisplayName,
   getLocalDateStr,
-  recordUserLoginAudit
+  recordUserLoginAudit,
+  isUserVerified
 } from './store';
 import { LANGUAGES, TRANSLATIONS } from './translations';
 import { COUNTRY_LIST } from './countries';
@@ -3929,10 +3930,25 @@ export default function App() {
                   <div className="pt-3 pb-1">
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium flex items-center gap-1.5">
                           Hi, {(() => {
                             const id = currentUser?.name || userEmail || userPhone || 'User';
                             return id.length > 16 ? id.slice(0, 15) + '...' : id;
+                          })()}
+                          {(() => {
+                            const rechargesList = getStoredData('recharges', DEFAULT_RECHARGES);
+                            if (isUserVerified(currentUser, rechargesList)) {
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs tracking-tight uppercase"
+                                  title="Verified Investor / Active Recharge Member"
+                                >
+                                  <CheckCircle className="w-2.5 h-2.5" />
+                                  <span>Verified</span>
+                                </span>
+                              );
+                            }
+                            return null;
                           })()}
                         </span>
                         <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
@@ -7028,6 +7044,25 @@ export default function App() {
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>Account Status:</span>
+                    {(() => {
+                      const rechargesList = getStoredData('recharges', DEFAULT_RECHARGES);
+                      if (isUserVerified(currentUser, rechargesList)) {
+                        return (
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs">
+                            <CheckCircle className="w-3 h-3 text-emerald-600" />
+                            <span>Verified Member</span>
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                          Standard Member
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <div className="flex justify-between items-center text-slate-500">
                     <span>User ID:</span>
                     <span className="font-mono font-bold text-slate-800">{currentUser?.id || '-'}</span>

@@ -83,6 +83,7 @@ import {
   DEFAULT_SUPPORT_AVATAR,
   getPaymentLogo,
   isReferredByUser,
+  isUserVerified,
   getAuthHeaders,
   restoreAllUsersFromCloud
 } from './store';
@@ -3495,7 +3496,15 @@ export default function AdminPanel({ onNavigateToApp }) {
                     {/* Header */}
                     <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-800/80">
                       <div className="min-w-0">
-                        <div className="font-bold text-white text-sm truncate">{u.name || 'User'}</div>
+                        <div className="font-bold text-white text-sm truncate flex items-center gap-1.5">
+                          <span>{u.name || 'User'}</span>
+                          {isUserVerified(u, recharges) && (
+                            <span className="inline-flex items-center gap-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tight">
+                              <CheckCircle className="w-2.5 h-2.5" />
+                              <span>Verified</span>
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[11px] text-slate-400 font-mono truncate">{u.email}</div>
                         <div className="text-[10px] text-cyan-400 font-mono font-bold mt-0.5">
                           UID: {u.id} • Code: {u.myInviteCode || u.inviteCode || 'N/A'}
@@ -3655,7 +3664,15 @@ export default function AdminPanel({ onNavigateToApp }) {
                   {filteredUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-900/50 transition">
                       <td className="py-3 px-4">
-                        <div className="font-bold text-white">{u.name || 'User'}</div>
+                        <div className="font-bold text-white flex items-center gap-1.5">
+                          <span>{u.name || 'User'}</span>
+                          {isUserVerified(u, recharges) && (
+                            <span className="inline-flex items-center gap-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-tight">
+                              <CheckCircle className="w-2.5 h-2.5" />
+                              <span>Verified</span>
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-slate-400 font-mono">{u.email}</div>
                         <div className="text-[9px] text-cyan-400 font-mono font-bold">UID: {u.id} | Code: {u.myInviteCode || u.inviteCode || 'N/A'}</div>
                         <div className="text-[9px] text-slate-400 font-mono mt-0.5">
