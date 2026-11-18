@@ -2585,6 +2585,38 @@ export default function App() {
         }
       }
 
+      // Sub-Admin Direct Login Support (allows sub-admins to sign in from user modal & redirects straight to Admin Portal)
+      const subAdminsList = getStoredData('subAdmins', []);
+      const matchedSub = (subAdminsList || []).find(
+        (s) => s && s.email && s.email.trim().toLowerCase() === rawInput.toLowerCase() && String(s.password).trim() === (inputPass || password)
+      );
+      if (matchedSub) {
+        if (matchedSub.status === 'suspended') {
+          const err = 'This Sub-Admin account has been suspended by the Master Administrator.';
+          setAuthError(err);
+          setAuthModalMsg(err);
+          showToast(err);
+          return;
+        }
+        const subSession = {
+          role: 'sub_admin',
+          id: matchedSub.id,
+          name: matchedSub.name,
+          email: matchedSub.email,
+          roleTitle: matchedSub.roleTitle || 'Sub Admin',
+          permissions: matchedSub.permissions || {}
+        };
+        localStorage.setItem('nt_admin_auth', 'true');
+        localStorage.setItem('nt_admin_session_version', 'admin_v2_royal5967');
+        localStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
+        sessionStorage.setItem('nt_admin_token', 'nt_sec_9999_master_admin_verified');
+        localStorage.setItem('nt_active_admin_session', JSON.stringify(subSession));
+        setIsAdminRoute(true);
+        window.history.pushState({}, '', '/admin');
+        showToast(`Welcome back, ${matchedSub.name}! Loading Admin Portal...`);
+        return;
+      }
+
       const isPhonePattern = /^[+]?[\d\s-]{6,}$/.test(rawInput) && !rawInput.includes('@');
       const fullPhone = isPhonePattern
         ? (rawInput.startsWith('+') ? rawInput : `${selectedCountry?.dial || '+880'}${rawInput.replace(/^0+/, '')}`)

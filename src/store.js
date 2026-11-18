@@ -619,7 +619,8 @@ export const fetchCloudDataNow = async () => {
                 settings: DEFAULT_SETTINGS,
                 recharges: [],
                 withdrawals: [],
-                notifications: []
+                notifications: [],
+                subAdmins: []
               }
             })
           }).catch(() => {});
