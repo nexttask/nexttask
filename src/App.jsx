@@ -2586,10 +2586,29 @@ export default function App() {
       }
 
       // Sub-Admin Direct Login Support (allows sub-admins to sign in from user modal & redirects straight to Admin Portal)
-      const subAdminsList = getStoredData('subAdmins', []);
-      const matchedSub = (subAdminsList || []).find(
+      let subAdminsList = getStoredData('subAdmins', []);
+      let matchedSub = (subAdminsList || []).find(
         (s) => s && s.email && s.email.trim().toLowerCase() === rawInput.toLowerCase() && String(s.password).trim() === (inputPass || password)
       );
+
+      // If not loaded in local cache yet, fetch directly from Cloudflare D1
+      if (!matchedSub) {
+        try {
+          const subRes = await fetch('/api/data?key=subAdmins');
+          if (subRes.ok) {
+            const subJson = await subRes.json();
+            if (subJson && subJson.success && Array.isArray(subJson.data)) {
+              subAdminsList = subJson.data;
+              setStoredData('subAdmins', subJson.data);
+              matchedSub = subAdminsList.find(
+                (s) => s && s.email && s.email.trim().toLowerCase() === rawInput.toLowerCase() && String(s.password).trim() === (inputPass || password)
+              );
+            }
+          }
+        } catch (err) {
+          console.warn('Direct subAdmin fetch error:', err);
+        }
+      }
       if (matchedSub) {
         if (matchedSub.status === 'suspended') {
           const err = 'This Sub-Admin account has been suspended by the Master Administrator.';

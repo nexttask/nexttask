@@ -189,7 +189,7 @@ export default function AdminPanel({ onNavigateToApp }) {
   });
   const [showSubAdminPass, setShowSubAdminPass] = useState(false);
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     const trimEmail = adminEmail.trim().toLowerCase();
@@ -216,10 +216,29 @@ export default function AdminPanel({ onNavigateToApp }) {
     }
 
     // 2. Sub-Admin Check (Fetch freshest list from stored data / cache / legacy)
-    const freshSubAdmins = getStoredData('subAdmins', subAdmins) || subAdmins;
-    const matchedSub = (freshSubAdmins || []).find(
+    let freshSubAdmins = getStoredData('subAdmins', subAdmins) || subAdmins;
+    let matchedSub = (freshSubAdmins || []).find(
       (s) => s && s.email && s.email.trim().toLowerCase() === trimEmail && String(s.password).trim() === trimPass
     );
+
+    // If not found in local cache yet (e.g. fresh device/incognito), directly fetch from Cloudflare D1
+    if (!matchedSub) {
+      try {
+        const subRes = await fetch('/api/data?key=subAdmins');
+        if (subRes.ok) {
+          const subJson = await subRes.json();
+          if (subJson && subJson.success && Array.isArray(subJson.data)) {
+            freshSubAdmins = subJson.data;
+            saveSubAdmins(subJson.data);
+            matchedSub = freshSubAdmins.find(
+              (s) => s && s.email && s.email.trim().toLowerCase() === trimEmail && String(s.password).trim() === trimPass
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('Direct subAdmin fetch error:', err);
+      }
+    }
 
     if (matchedSub) {
       if (matchedSub.status === 'suspended') {
